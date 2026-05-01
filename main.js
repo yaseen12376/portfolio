@@ -48,7 +48,7 @@ class FrameAnimator {
       const i = idx;
       idx += this.step;
       const img = new Image();
-      img.src = `/frames/frame_${String(i + 1).padStart(4, '0')}.jpg`;
+      img.src = `/frames/frame_${String(i + 1).padStart(4, '0')}.png`;
       img.onload = () => {
         this.frames[i] = img;
         this.loadedCount++;
