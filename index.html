@@ -101,12 +101,12 @@
           <h2 class="section-title">Who I Am</h2>
         </div>
         <div class="about-grid">
-          <div class="about-text reveal" data-reveal-delay="100">
+          <div class="about-text reveal-left" data-reveal-delay="100">
             <p class="about-lead">AI-focused developer specializing in real-time intelligent systems, computer vision, embedded AI, and monitoring solutions.</p>
             <p>Experienced in building practical solutions using Python, OpenCV, machine learning, and system integration. I bridge the gap between cutting-edge AI research and real-world deployment — creating systems that are fast, reliable, and impactful.</p>
             <p>My work spans deepfake detection, automated attendance, workplace safety compliance, and indoor positioning — all built with a focus on performance and practical impact.</p>
           </div>
-          <div class="about-stats reveal" data-reveal-delay="200">
+          <div class="about-stats reveal-right" data-reveal-delay="200">
             <div class="stat-card"><span class="stat-number" data-count="4" data-suffix="+">0</span><span class="stat-label">Major Projects</span></div>
             <div class="stat-card"><span class="stat-number" data-count="10" data-suffix="+">0</span><span class="stat-label">Technologies</span></div>
             <div class="stat-card"><span class="stat-number">AI</span><span class="stat-label">Core Focus</span></div>
@@ -190,9 +190,9 @@
             </a>
           </div>
           <form class="contact-form reveal" id="contact-form" data-reveal-delay="200">
-            <div class="form-group"><label for="form-name">Name</label><input type="text" id="form-name" name="name" required autocomplete="name" placeholder="Your name" /></div>
-            <div class="form-group"><label for="form-email">Email</label><input type="email" id="form-email" name="email" required autocomplete="email" placeholder="your@email.com" /></div>
-            <div class="form-group"><label for="form-message">Message</label><textarea id="form-message" name="message" rows="5" required placeholder="Tell me about your project…"></textarea></div>
+            <div class="form-group"><input type="text" id="form-name" name="name" required autocomplete="name" placeholder=" " /><label for="form-name">Name</label></div>
+            <div class="form-group"><input type="email" id="form-email" name="email" required autocomplete="email" placeholder=" " /><label for="form-email">Email</label></div>
+            <div class="form-group"><textarea id="form-message" name="message" rows="5" required placeholder=" "></textarea><label for="form-message">Message</label></div>
             <button type="submit" class="btn btn-primary btn-full" id="form-submit">Send Message</button>
             <p class="form-feedback" id="form-feedback"></p>
           </form>

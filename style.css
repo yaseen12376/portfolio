@@ -168,11 +168,16 @@ button,input,textarea{font:inherit;color:inherit;border:none;background:none;out
 .stat-number{display:block;font-size:1.8rem;font-weight:800;background:linear-gradient(135deg,var(--purple),var(--teal));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;margin-bottom:6px}
 .stat-label{font-size:.8rem;color:var(--text-muted);letter-spacing:.06em;text-transform:uppercase}
 
-/* ===== SKILLS ===== */
-.skills-grid{display:flex;flex-wrap:wrap;gap:14px;justify-content:center}
-.skill-pill{display:inline-flex;align-items:center;gap:10px;padding:14px 24px;background:var(--bg-card);border:1px solid var(--border);border-radius:60px;font-size:.9rem;font-weight:500;color:var(--text-secondary);transition:var(--transition);cursor:default}
-.skill-pill:hover{border-color:var(--purple);color:var(--text-primary);transform:translateY(-4px) scale(1.03);box-shadow:0 8px 24px var(--glow-purple);background:var(--bg-card-hover)}
-.skill-pill .skill-icon{width:28px;height:28px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:.85rem;font-weight:700;background:linear-gradient(135deg,var(--purple),var(--teal));color:#fff;flex-shrink:0}
+/* ===== SKILLS (categorized) ===== */
+.skills-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:24px}
+.skill-category{background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);padding:28px 24px;transition:var(--transition)}
+.skill-category:hover{border-color:rgba(139,92,246,0.15)}
+.skill-category-label{font-family:var(--font-heading);font-size:.75rem;font-weight:600;color:var(--purple-light);letter-spacing:.1em;text-transform:uppercase;display:block;margin-bottom:16px}
+.skill-category-pills{display:flex;flex-wrap:wrap;gap:10px}
+.skill-pill{display:inline-flex;align-items:center;gap:8px;padding:10px 16px;background:rgba(255,255,255,0.03);border:1px solid var(--border);border-radius:40px;font-size:.85rem;font-weight:500;color:var(--text-secondary);transition:all .4s ease;opacity:0;transform:translateY(12px)}
+.skill-category.revealed .skill-pill{opacity:1;transform:translateY(0)}
+.skill-pill:hover{border-color:var(--purple);color:var(--text-primary);transform:translateY(-3px) scale(1.03);box-shadow:0 6px 20px var(--glow-purple);background:rgba(139,92,246,0.06)}
+.skill-pill .skill-icon{width:26px;height:26px;border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:.75rem;font-weight:700;background:linear-gradient(135deg,var(--purple),var(--teal));color:#fff;flex-shrink:0}
 
 /* ===== EXPERIENCE ===== */
 .experience-card{background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);padding:40px;transition:var(--transition);position:relative;overflow:hidden}
@@ -199,11 +204,13 @@ button,input,textarea{font:inherit;color:inherit;border:none;background:none;out
 .contact-link-icon{width:44px;height:44px;border-radius:10px;background:rgba(139,92,246,0.1);display:flex;align-items:center;justify-content:center;color:var(--purple);flex-shrink:0}
 .contact-link-label{font-size:.75rem;color:var(--text-muted);letter-spacing:.06em;text-transform:uppercase;display:block}
 .contact-link-value{font-weight:500;font-size:.9rem}
-.contact-form{display:flex;flex-direction:column;gap:20px}
-.form-group label{display:block;font-size:.8rem;font-weight:500;color:var(--text-secondary);margin-bottom:8px;letter-spacing:.04em;text-transform:uppercase}
-.form-group input,.form-group textarea{width:100%;padding:14px 18px;background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text-primary);font-size:.95rem;transition:var(--transition);resize:vertical}
+.contact-form{display:flex;flex-direction:column;gap:24px}
+.form-group{position:relative}
+.form-group label{position:absolute;top:16px;left:18px;font-size:.9rem;font-weight:400;color:var(--text-muted);pointer-events:none;transition:all .25s ease;letter-spacing:normal;text-transform:none}
+.form-group input,.form-group textarea{width:100%;padding:22px 18px 10px;background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text-primary);font-size:.95rem;transition:var(--transition);resize:vertical}
 .form-group input:focus,.form-group textarea:focus{border-color:var(--purple);box-shadow:0 0 0 3px var(--glow-purple)}
-.form-group input::placeholder,.form-group textarea::placeholder{color:var(--text-muted)}
+.form-group input:focus+label,.form-group textarea:focus+label,
+.form-group input:not(:placeholder-shown)+label,.form-group textarea:not(:placeholder-shown)+label{top:6px;left:18px;font-size:.65rem;font-weight:600;color:var(--purple-light);letter-spacing:.06em;text-transform:uppercase}
 .form-feedback{font-size:.85rem;color:var(--teal);text-align:center;min-height:24px}
 
 /* ===== PROJECT DETAIL ===== */

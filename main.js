@@ -258,7 +258,7 @@ function initScrollReveal() {
       }
     });
   }, { threshold: 0.1, rootMargin: '0px 0px -40px 0px' });
-  document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
+  document.querySelectorAll('.reveal, .reveal-left, .reveal-right').forEach(el => observer.observe(el));
 }
 
 /* ============================================================
@@ -325,23 +325,42 @@ function initNavbar() {
 }
 
 /* ============================================================
-   SKILLS
+   SKILLS (categorized with wave animation)
    ============================================================ */
 function initSkills() {
-  const skills = [
-    { name: 'Python', icon: 'Py' }, { name: 'JavaScript', icon: 'JS' },
-    { name: 'C++', icon: 'C+' }, { name: 'Machine Learning', icon: 'ML' },
-    { name: 'OpenCV', icon: 'CV' }, { name: 'IoT', icon: 'IoT' },
-    { name: 'Node.js', icon: 'NJ' }, { name: 'SQL', icon: 'DB' },
-    { name: 'Git', icon: 'Git' }, { name: 'Linux', icon: 'Lx' }
+  const categories = [
+    { label: 'Languages', skills: [
+      { name: 'Python', icon: 'Py' }, { name: 'JavaScript', icon: 'JS' }, { name: 'C++', icon: 'C+' }
+    ]},
+    { label: 'AI / ML', skills: [
+      { name: 'Machine Learning', icon: 'ML' }, { name: 'OpenCV', icon: 'CV' }, { name: 'Deep Learning', icon: 'DL' }
+    ]},
+    { label: 'Frameworks & Tools', skills: [
+      { name: 'Node.js', icon: 'NJ' }, { name: 'Git', icon: 'Git' }, { name: 'SQL', icon: 'DB' }
+    ]},
+    { label: 'Systems', skills: [
+      { name: 'IoT', icon: 'IoT' }, { name: 'Linux', icon: 'Lx' }, { name: 'Embedded', icon: 'Em' }
+    ]}
   ];
   const grid = document.getElementById('skills-grid');
-  skills.forEach((s, i) => {
-    const pill = document.createElement('div');
-    pill.className = 'skill-pill reveal';
-    pill.dataset.revealDelay = String(i * 60);
-    pill.innerHTML = `<span class="skill-icon">${s.icon}</span><span>${s.name}</span>`;
-    grid.appendChild(pill);
+  let globalIdx = 0;
+  categories.forEach(cat => {
+    const group = document.createElement('div');
+    group.className = 'skill-category reveal';
+    group.dataset.revealDelay = String(globalIdx * 40);
+    group.innerHTML = `<span class="skill-category-label">${cat.label}</span>`;
+    const pillWrap = document.createElement('div');
+    pillWrap.className = 'skill-category-pills';
+    cat.skills.forEach(s => {
+      const pill = document.createElement('div');
+      pill.className = 'skill-pill';
+      pill.style.transitionDelay = `${globalIdx * 60}ms`;
+      pill.innerHTML = `<span class="skill-icon">${s.icon}</span><span>${s.name}</span>`;
+      pillWrap.appendChild(pill);
+      globalIdx++;
+    });
+    group.appendChild(pillWrap);
+    grid.appendChild(group);
   });
 }
 
