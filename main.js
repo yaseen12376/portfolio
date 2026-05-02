@@ -24,16 +24,11 @@ class FrameAnimator {
   }
 
   resize() {
-    const dpr = Math.min(window.devicePixelRatio || 1, 2);
     const w = window.innerWidth, h = window.innerHeight;
-    this.canvas.width = w * dpr;
-    this.canvas.height = h * dpr;
+    this.canvas.width = w;
+    this.canvas.height = h;
     this.canvas.style.width = w + 'px';
     this.canvas.style.height = h + 'px';
-    this.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    // Maximize rendering quality for the 4K frames
-    this.ctx.imageSmoothingEnabled = true;
-    this.ctx.imageSmoothingQuality = 'high';
     this.drawCurrent();
   }
 
@@ -90,7 +85,7 @@ class FrameAnimator {
   }
 
   tick() {
-    this.currentFrame += (this.targetFrame - this.currentFrame) * 0.12;
+    this.currentFrame += (this.targetFrame - this.currentFrame) * 0.18;
     let idx = Math.round(this.currentFrame);
     if (this.step > 1) idx = Math.round(idx / this.step) * this.step;
     if (idx !== this._lastDrawn) this.drawFrame(idx);
@@ -101,10 +96,7 @@ class FrameAnimator {
     const img = this.frames[idx];
     if (!img) return;
     this._lastDrawn = idx;
-    const dpr = Math.min(window.devicePixelRatio || 1, 2);
-    const cw = this.canvas.width / dpr, ch = this.canvas.height / dpr;
-    
-    // Calculate aspect ratio fill without clearRect (since image fills screen)
+    const cw = this.canvas.width, ch = this.canvas.height;
     const scale = Math.max(cw / img.naturalWidth, ch / img.naturalHeight);
     const w = img.naturalWidth * scale, h = img.naturalHeight * scale;
     this.ctx.drawImage(img, (cw - w) / 2, (ch - h) / 2, w, h);
@@ -396,6 +388,46 @@ function initContactForm() {
 }
 
 /* ============================================================
+   MAGNETIC BUTTONS
+   ============================================================ */
+function initMagneticButtons() {
+  if ('ontouchstart' in window) return;
+  document.querySelectorAll('.btn').forEach(btn => {
+    btn.addEventListener('mousemove', (e) => {
+      const rect = btn.getBoundingClientRect();
+      const x = e.clientX - rect.left - rect.width / 2;
+      const y = e.clientY - rect.top - rect.height / 2;
+      btn.style.transform = `translate(${x * 0.2}px, ${y * 0.2}px)`;
+    });
+    btn.addEventListener('mouseleave', () => { btn.style.transform = ''; });
+  });
+}
+
+/* ============================================================
+   COUNTER ANIMATION (stat numbers count up)
+   ============================================================ */
+function initCounters() {
+  const counters = document.querySelectorAll('.stat-number[data-count]');
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (!entry.isIntersecting) return;
+      const el = entry.target;
+      const target = parseInt(el.dataset.count);
+      const suffix = el.dataset.suffix || '';
+      let current = 0;
+      const step = Math.max(1, Math.floor(target / 40));
+      const timer = setInterval(() => {
+        current += step;
+        if (current >= target) { current = target; clearInterval(timer); }
+        el.textContent = current + suffix;
+      }, 30);
+      observer.unobserve(el);
+    });
+  }, { threshold: 0.5 });
+  counters.forEach(c => observer.observe(c));
+}
+
+/* ============================================================
    INIT
    ============================================================ */
 document.addEventListener('DOMContentLoaded', () => {
@@ -406,7 +438,11 @@ document.addEventListener('DOMContentLoaded', () => {
   initHeroProjects();
   initHeroScrollEffects();
   initContactForm();
-  setTimeout(() => initScrollReveal(), 1200);
+  initCounters();
+  setTimeout(() => {
+    initScrollReveal();
+    initMagneticButtons();
+  }, 1200);
 
   const hash = window.location.hash;
   if (hash.startsWith('#/project/')) {

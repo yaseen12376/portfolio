@@ -8,10 +8,17 @@
   <meta name="theme-color" content="#0a0a0f" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="/style.css" />
 </head>
 <body>
+  <!-- AMBIENT FLOATING ORBS -->
+  <div class="ambient-orbs" aria-hidden="true">
+    <div class="orb orb-1"></div>
+    <div class="orb orb-2"></div>
+    <div class="orb orb-3"></div>
+  </div>
+
   <!-- LOADER -->
   <div id="loader" aria-label="Loading">
     <div class="loader-inner">
@@ -84,6 +91,8 @@
       </div>
     </section>
 
+    <div class="section-divider"></div>
+
     <!-- ABOUT -->
     <section id="about" class="section">
       <div class="container">
@@ -98,14 +107,16 @@
             <p>My work spans deepfake detection, automated attendance, workplace safety compliance, and indoor positioning — all built with a focus on performance and practical impact.</p>
           </div>
           <div class="about-stats reveal" data-reveal-delay="200">
-            <div class="stat-card"><span class="stat-number">4+</span><span class="stat-label">Major Projects</span></div>
-            <div class="stat-card"><span class="stat-number">10+</span><span class="stat-label">Technologies</span></div>
+            <div class="stat-card"><span class="stat-number" data-count="4" data-suffix="+">0</span><span class="stat-label">Major Projects</span></div>
+            <div class="stat-card"><span class="stat-number" data-count="10" data-suffix="+">0</span><span class="stat-label">Technologies</span></div>
             <div class="stat-card"><span class="stat-number">AI</span><span class="stat-label">Core Focus</span></div>
             <div class="stat-card"><span class="stat-number">CV</span><span class="stat-label">Specialization</span></div>
           </div>
         </div>
       </div>
     </section>
+
+    <div class="section-divider"></div>
 
     <!-- SKILLS -->
     <section id="skills" class="section">
@@ -118,6 +129,8 @@
       </div>
     </section>
 
+    <div class="section-divider"></div>
+
     <!-- EXPERIENCE -->
     <section id="experience" class="section">
       <div class="container">
@@ -126,6 +139,7 @@
           <h2 class="section-title">Professional Journey</h2>
         </div>
         <div class="experience-card reveal" data-reveal-delay="100">
+          <div class="exp-timeline-line"></div>
           <div class="exp-header">
             <div class="exp-company">
               <div class="exp-icon">
@@ -149,6 +163,8 @@
         </div>
       </div>
     </section>
+
+    <div class="section-divider"></div>
 
     <!-- CONTACT -->
     <section id="contact" class="section">
