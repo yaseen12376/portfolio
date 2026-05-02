@@ -6,7 +6,7 @@ import { projects } from './projects-data.js';
 class FrameAnimator {
   constructor() {
     this.canvas = document.getElementById('hero-canvas');
-    this.ctx = this.canvas.getContext('2d');
+    this.ctx = this.canvas.getContext('2d', { alpha: false });
     this.frameCount = 276;
     this.frames = new Array(this.frameCount);
     this.loadedCount = 0;
@@ -31,6 +31,9 @@ class FrameAnimator {
     this.canvas.style.width = w + 'px';
     this.canvas.style.height = h + 'px';
     this.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    // Maximize rendering quality for the 4K frames
+    this.ctx.imageSmoothingEnabled = true;
+    this.ctx.imageSmoothingQuality = 'high';
     this.drawCurrent();
   }
 
@@ -48,8 +51,9 @@ class FrameAnimator {
       const i = idx;
       idx += this.step;
       const img = new Image();
-      img.src = `/frames/frame_${String(i + 1).padStart(4, '0')}.png`;
-      img.onload = () => {
+      img.src = `/frames/frame_${String(i + 1).padStart(4, '0')}.webp`;
+      
+      const onReady = () => {
         this.frames[i] = img;
         this.loadedCount++;
         const pct = Math.min(100, Math.round((this.loadedCount / total) * 100));
@@ -58,9 +62,19 @@ class FrameAnimator {
         if (this.loadedCount === 1) this.drawFrame(0);
         next();
       };
+
+      // Use native decode() if available to prevent main thread blocking on scroll
+      if ('decode' in img) {
+        img.decode().then(onReady).catch(() => {
+          img.onload = onReady;
+        });
+      } else {
+        img.onload = onReady;
+      }
       img.onerror = () => { idx += this.step; next(); };
     };
-    for (let c = 0; c < 4; c++) next();
+    // Load 3 concurrently to balance network/CPU
+    for (let c = 0; c < 3; c++) next();
   }
 
   bindScroll() {
@@ -89,7 +103,8 @@ class FrameAnimator {
     this._lastDrawn = idx;
     const dpr = Math.min(window.devicePixelRatio || 1, 2);
     const cw = this.canvas.width / dpr, ch = this.canvas.height / dpr;
-    this.ctx.clearRect(0, 0, cw, ch);
+    
+    // Calculate aspect ratio fill without clearRect (since image fills screen)
     const scale = Math.max(cw / img.naturalWidth, ch / img.naturalHeight);
     const w = img.naturalWidth * scale, h = img.naturalHeight * scale;
     this.ctx.drawImage(img, (cw - w) / 2, (ch - h) / 2, w, h);

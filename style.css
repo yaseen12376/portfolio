@@ -62,10 +62,9 @@ button,input,textarea{font:inherit;color:inherit;border:none;background:none;out
 /* ===== HERO ===== */
 #hero{height:600vh;position:relative}
 .hero-sticky{position:sticky;top:0;height:100vh;display:flex;align-items:center;justify-content:center;overflow:hidden}
-#hero-canvas{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+#hero-canvas{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;filter:brightness(1.05) contrast(0.95)}
 .hero-gradient-overlay{position:absolute;inset:0;background:
-  radial-gradient(ellipse 50% 50% at 50% 45%, transparent 20%, rgba(10,10,15,0.6) 100%),
-  linear-gradient(180deg, rgba(10,10,15,0.3) 0%, transparent 15%, transparent 80%, rgba(10,10,15,0.5) 100%);
+  linear-gradient(180deg, rgba(10,10,15,0.1) 0%, transparent 15%, transparent 80%, rgba(10,10,15,0.3) 100%);
   pointer-events:none;z-index:1}
 
 /* ===== HERO SPLIT TEXT (flanking the avatar) ===== */
