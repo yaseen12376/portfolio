@@ -36,40 +36,46 @@ class FrameAnimator {
     const loaderBar = document.getElementById('loader-bar');
     const loaderText = document.getElementById('loader-text');
     const loader = document.getElementById('loader');
-    let idx = 0;
+    let loaded = 0;
     const total = Math.ceil(this.frameCount / this.step);
-    const next = () => {
-      if (idx >= this.frameCount) {
-        setTimeout(() => loader.classList.add('done'), 300);
-        return;
-      }
-      const i = idx;
-      idx += this.step;
-      const img = new Image();
-      img.src = `/frames/frame_${String(i + 1).padStart(4, '0')}.webp`;
-      
-      const onReady = () => {
-        this.frames[i] = img;
-        this.loadedCount++;
-        const pct = Math.min(100, Math.round((this.loadedCount / total) * 100));
-        loaderBar.style.width = pct + '%';
-        loaderText.textContent = `Loading frames… ${pct}%`;
-        if (this.loadedCount === 1) this.drawFrame(0);
-        next();
-      };
 
-      // Use native decode() if available to prevent main thread blocking on scroll
-      if ('decode' in img) {
-        img.decode().then(onReady).catch(() => {
-          img.onload = onReady;
-        });
-      } else {
-        img.onload = onReady;
+    const loadFrame = async (i) => {
+      try {
+        const res = await fetch(`/frames/frame_${String(i + 1).padStart(4, '0')}.webp`);
+        const blob = await res.blob();
+        // Pre-decode into GPU-ready ImageBitmap — this is the key to zero-jitter scroll
+        const bitmap = await createImageBitmap(blob);
+        this.frames[i] = bitmap;
+      } catch (e) {
+        // skip failed frames
       }
-      img.onerror = () => { idx += this.step; next(); };
+      loaded++;
+      const pct = Math.min(100, Math.round((loaded / total) * 100));
+      loaderBar.style.width = pct + '%';
+      loaderText.textContent = `Loading frames… ${pct}%`;
+      if (loaded === 1) this.drawFrame(0);
+      if (loaded >= total) {
+        setTimeout(() => loader.classList.add('done'), 300);
+      }
     };
-    // Load 3 concurrently to balance network/CPU
-    for (let c = 0; c < 3; c++) next();
+
+    // Load frames 2 at a time with breathing room
+    const queue = [];
+    for (let i = 0; i < this.frameCount; i += this.step) {
+      queue.push(i);
+    }
+
+    let cursor = 0;
+    const runBatch = async () => {
+      while (cursor < queue.length) {
+        const batch = queue.slice(cursor, cursor + 2);
+        cursor += 2;
+        await Promise.all(batch.map(i => loadFrame(i)));
+        // Let the browser breathe between batches
+        await new Promise(r => setTimeout(r, 0));
+      }
+    };
+    runBatch();
   }
 
   bindScroll() {
@@ -97,8 +103,10 @@ class FrameAnimator {
     if (!img) return;
     this._lastDrawn = idx;
     const cw = this.canvas.width, ch = this.canvas.height;
-    const scale = Math.max(cw / img.naturalWidth, ch / img.naturalHeight);
-    const w = img.naturalWidth * scale, h = img.naturalHeight * scale;
+    const iw = img.width || img.naturalWidth;
+    const ih = img.height || img.naturalHeight;
+    const scale = Math.max(cw / iw, ch / ih);
+    const w = iw * scale, h = ih * scale;
     this.ctx.drawImage(img, (cw - w) / 2, (ch - h) / 2, w, h);
   }
 
@@ -128,29 +136,30 @@ function initHeroScrollEffects() {
     // Hide scroll hint early
     if (!hintHidden && progress > 0.05) { hint.classList.add('hidden'); hintHidden = true; }
 
-    // Hero text: visible 0-0.4, fades 0.4-0.6
-    if (progress < 0.4) {
+    // Hero text: visible 0-0.35, fades 0.35-0.5
+    if (progress < 0.35) {
       heroContent.style.opacity = '1';
       heroContent.style.transform = 'none';
       heroContent.style.filter = 'none';
-    } else if (progress < 0.6) {
-      const fade = (progress - 0.4) / 0.2;
+      heroContent.style.pointerEvents = 'all';
+    } else if (progress < 0.5) {
+      const fade = (progress - 0.35) / 0.15;
       heroContent.style.opacity = String(1 - fade);
       heroContent.style.transform = `translateY(${-fade * 40}px)`;
       heroContent.style.filter = `blur(${fade * 6}px)`;
+      heroContent.style.pointerEvents = 'none';
     } else {
       heroContent.style.opacity = '0';
       heroContent.style.pointerEvents = 'none';
     }
 
-    // Projects: hidden until 0.7, fades in 0.7-0.85
-    if (progress < 0.68) {
+    // Projects: appear at 0.55, fully visible by 0.7
+    if (progress < 0.53) {
       heroProjects.classList.remove('visible');
     } else {
       heroProjects.classList.add('visible');
-      // Stagger card animations
       const cards = heroProjects.querySelectorAll('.hp-card');
-      const cardProgress = Math.min(1, (progress - 0.68) / 0.15);
+      const cardProgress = Math.min(1, (progress - 0.53) / 0.15);
       cards.forEach((card, i) => {
         const delay = i * 0.12;
         const cp = Math.max(0, Math.min(1, (cardProgress - delay) / 0.4));
@@ -222,7 +231,7 @@ function initNavbar() {
         closeProjectDetail();
         if (navVal === 'projects') {
           setTimeout(() => {
-            const target = hero.offsetTop + hero.offsetHeight * 0.82;
+            const target = hero.offsetTop + hero.offsetHeight * 0.65;
             window.scrollTo({ top: target, behavior: 'smooth' });
           }, 400);
         } else {
@@ -234,7 +243,7 @@ function initNavbar() {
 
       if (navVal === 'projects') {
         // Scroll to the hero projects zone (around 80% of hero)
-        const target = hero.offsetTop + hero.offsetHeight * 0.82;
+        const target = hero.offsetTop + hero.offsetHeight * 0.65;
         window.scrollTo({ top: target, behavior: 'smooth' });
       } else {
         const id = a.getAttribute('href').replace('#', '');
