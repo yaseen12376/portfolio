@@ -135,9 +135,9 @@ class FrameAnimator {
 
   tick() {
     const delta = this.targetFrame - this.currentFrame;
-    // Skip entirely when animation has converged (not scrolling)
-    if (Math.abs(delta) > 0.3) {
-      this.currentFrame += delta * 0.18;
+    // Only skip when fully converged
+    if (Math.abs(delta) > 0.01) {
+      this.currentFrame += delta * 0.12;
       let idx = Math.round(this.currentFrame);
       if (this.step > 1) idx = Math.round(idx / this.step) * this.step;
       if (idx !== this._lastDrawn) this.drawFrame(idx);
