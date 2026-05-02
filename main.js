@@ -135,9 +135,20 @@ class FrameAnimator {
 
   tick() {
     const delta = this.targetFrame - this.currentFrame;
-    // Only skip when fully converged
     if (Math.abs(delta) > 0.01) {
-      this.currentFrame += delta * 0.12;
+      // Adaptive lerp: faster easing for small gaps, smoother for large jumps
+      const absDelta = Math.abs(delta);
+      const lerp = absDelta < 3 ? 0.18 : 0.10;
+      let step = delta * lerp;
+
+      // Clamp: never jump more than 4 frames per tick (prevents fast-scroll jumps)
+      // and always move at least 0.15 frames per tick (prevents frame-by-frame stutter)
+      const maxStep = 4;
+      const minStep = 0.15;
+      if (Math.abs(step) > maxStep) step = Math.sign(step) * maxStep;
+      if (Math.abs(step) < minStep && absDelta > 0.5) step = Math.sign(step) * minStep;
+
+      this.currentFrame += step;
       let idx = Math.round(this.currentFrame);
       if (this.step > 1) idx = Math.round(idx / this.step) * this.step;
       if (idx !== this._lastDrawn) this.drawFrame(idx);
