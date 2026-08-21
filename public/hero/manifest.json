@@ -1,0 +1,27 @@
+{
+  "tiers": {
+    "desktop": {
+      "dir": "/hero/desktop",
+      "count": 180,
+      "width": 1920,
+      "height": 1080,
+      "bytes": 11017042
+    },
+    "mobile": {
+      "dir": "/hero/mobile",
+      "count": 144,
+      "width": 1280,
+      "height": 720,
+      "bytes": 4107674
+    }
+  },
+  "ladder": {
+    "dir": "/hero/ladder",
+    "count": 45,
+    "every": 4,
+    "width": 960,
+    "height": 540,
+    "bytes": 728198
+  },
+  "poster": "/hero/poster.webp"
+}

@@ -1,0 +1,21 @@
+{
+  "name": "sheik-ahmed-yaseen-portfolio",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "encode:frames": "node scripts/encode-frames.mjs",
+    "gen:posters": "node scripts/gen-posters.mjs"
+  },
+  "devDependencies": {
+    "vite": "^6.3.5"
+  },
+  "dependencies": {
+    "gsap": "^3.15.0",
+    "lenis": "^1.3.26",
+    "sharp": "^0.34.5"
+  }
+}

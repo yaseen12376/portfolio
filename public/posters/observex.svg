@@ -1,0 +1,89 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 900" width="1600" height="900" role="img">
+
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#0c0c14"/>
+      <stop offset="60%" stop-color="#070709"/>
+      <stop offset="100%" stop-color="#040406"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="50%" cy="45%" r="55%">
+      <stop offset="0%" stop-color="#8b5cf6" stop-opacity="0.20"/>
+      <stop offset="100%" stop-color="#8b5cf6" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="vig" cx="50%" cy="50%" r="72%">
+      <stop offset="55%" stop-color="#000" stop-opacity="0"/>
+      <stop offset="100%" stop-color="#000" stop-opacity="0.62"/>
+    </radialGradient>
+    <linearGradient id="sweep" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#8b5cf6" stop-opacity="0"/>
+      <stop offset="50%" stop-color="#8b5cf6" stop-opacity="0.55"/>
+      <stop offset="100%" stop-color="#8b5cf6" stop-opacity="0"/>
+    </linearGradient>
+    <filter id="soft" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="18"/>
+    </filter>
+    <filter id="grain">
+      <feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="3" seed="7"/>
+      <feColorMatrix type="saturate" values="0"/>
+      <feComponentTransfer><feFuncA type="linear" slope="0.05"/></feComponentTransfer>
+    </filter>
+  </defs>
+
+  <rect width="1600" height="900" fill="url(#bg)"/>
+  <g stroke="rgba(255,255,255,0.045)" stroke-width="1"><line x1="0" y1="0" x2="0" y2="900"/><line x1="64" y1="0" x2="64" y2="900"/><line x1="128" y1="0" x2="128" y2="900"/><line x1="192" y1="0" x2="192" y2="900"/><line x1="256" y1="0" x2="256" y2="900"/><line x1="320" y1="0" x2="320" y2="900"/><line x1="384" y1="0" x2="384" y2="900"/><line x1="448" y1="0" x2="448" y2="900"/><line x1="512" y1="0" x2="512" y2="900"/><line x1="576" y1="0" x2="576" y2="900"/><line x1="640" y1="0" x2="640" y2="900"/><line x1="704" y1="0" x2="704" y2="900"/><line x1="768" y1="0" x2="768" y2="900"/><line x1="832" y1="0" x2="832" y2="900"/><line x1="896" y1="0" x2="896" y2="900"/><line x1="960" y1="0" x2="960" y2="900"/><line x1="1024" y1="0" x2="1024" y2="900"/><line x1="1088" y1="0" x2="1088" y2="900"/><line x1="1152" y1="0" x2="1152" y2="900"/><line x1="1216" y1="0" x2="1216" y2="900"/><line x1="1280" y1="0" x2="1280" y2="900"/><line x1="1344" y1="0" x2="1344" y2="900"/><line x1="1408" y1="0" x2="1408" y2="900"/><line x1="1472" y1="0" x2="1472" y2="900"/><line x1="1536" y1="0" x2="1536" y2="900"/><line x1="1600" y1="0" x2="1600" y2="900"/><line x1="0" y1="0" x2="1600" y2="0"/><line x1="0" y1="64" x2="1600" y2="64"/><line x1="0" y1="128" x2="1600" y2="128"/><line x1="0" y1="192" x2="1600" y2="192"/><line x1="0" y1="256" x2="1600" y2="256"/><line x1="0" y1="320" x2="1600" y2="320"/><line x1="0" y1="384" x2="1600" y2="384"/><line x1="0" y1="448" x2="1600" y2="448"/><line x1="0" y1="512" x2="1600" y2="512"/><line x1="0" y1="576" x2="1600" y2="576"/><line x1="0" y1="640" x2="1600" y2="640"/><line x1="0" y1="704" x2="1600" y2="704"/><line x1="0" y1="768" x2="1600" y2="768"/><line x1="0" y1="832" x2="1600" y2="832"/><line x1="0" y1="896" x2="1600" y2="896"/></g>
+  <rect width="1600" height="900" fill="url(#glow)"/>
+
+      <rect x="120" y="190" width="420" height="240" fill="#0b0b13"/>
+        <rect x="120" y="190" width="420" height="240" fill="none" stroke="rgba(255,255,255,0.14)" stroke-width="1" opacity="1"/><line x1="120" y1="338.8" x2="540" y2="338.8" stroke="rgba(255,255,255,0.14)" stroke-width="1"/><rect x="394.59" y="262.02" width="45.08" height="76.78" fill="#161622"/><rect x="154.84" y="301.56" width="46.7" height="37.24" fill="#161622"/><rect x="318.53" y="287.82" width="98.67" height="50.98" fill="#161622"/><rect x="120" y="396" width="420" height="34" fill="#07070a" opacity="0.86"/><text x="134" y="418" text-anchor="start" font-family="ui-monospace,'JetBrains Mono',monospace"
+     font-size="14" font-weight="400" letter-spacing="2" fill="#8a8f98">CAM 01 · PORCH</text><rect x="410" y="408" width="110" height="8" fill="#1a1a26"/>
+                <rect x="410" y="408" width="13.2" height="8" fill="#8b5cf6"/><rect x="566" y="190" width="420" height="240" fill="#0b0b13"/>
+        <rect x="566" y="190" width="420" height="240" fill="none" stroke="#f0506e" stroke-width="2" opacity="0.9"/><line x1="566" y1="338.8" x2="986" y2="338.8" stroke="rgba(255,255,255,0.14)" stroke-width="1"/><rect x="656.91" y="280.36" width="54.19" height="58.44" fill="#161622"/><rect x="866.86" y="258.59" width="77.02" height="80.21" fill="#161622"/><rect x="593.54" y="268.06" width="39.88" height="70.74" fill="#161622"/>
+  <g fill="#2c2130" opacity="1">
+    <circle cx="826.4" cy="303.76" r="9.66"/>
+    <path d="M813.8 313.84
+             q12.6 -5.88 25.2 0
+             l3.78 31.92 l-6.72 0 l-1.68 31.08
+             l-6.3 0 l-1.68 -24.36 l-1.68 24.36
+             l-6.3 0 l-1.68 -31.08 l-6.72 0 Z"/>
+  </g>
+  <g>
+    <rect x="784.4" y="257.2" width="84" height="118" fill="#f0506e" opacity="0.06"/>
+    <rect x="784.4" y="257.2" width="84" height="118" fill="none" stroke="#f0506e" stroke-width="1.2" opacity="0.55"/>
+    <path d="M810.4 257.2 H784.4 V283.2" fill="none" stroke="#f0506e" stroke-width="3" stroke-linecap="square"/><path d="M842.4 257.2 H868.4 V283.2" fill="none" stroke="#f0506e" stroke-width="3" stroke-linecap="square"/><path d="M810.4 375.2 H784.4 V349.2" fill="none" stroke="#f0506e" stroke-width="3" stroke-linecap="square"/><path d="M842.4 375.2 H868.4 V349.2" fill="none" stroke="#f0506e" stroke-width="3" stroke-linecap="square"/>
+    <rect x="784.4" y="227.2" width="119.2" height="26" fill="#f0506e" opacity="0.92"/>
+    <text x="793.4" y="246.2" font-family="ui-monospace,'JetBrains Mono',monospace"
+          font-size="15" font-weight="600" fill="#07070a">INTENT 0.86</text>
+  </g><rect x="566" y="396" width="420" height="34" fill="#07070a" opacity="0.86"/><text x="580" y="418" text-anchor="start" font-family="ui-monospace,'JetBrains Mono',monospace"
+     font-size="14" font-weight="400" letter-spacing="2" fill="#f0506e">CAM 02 · DRIVE</text><rect x="856" y="408" width="110" height="8" fill="#1a1a26"/>
+                <rect x="856" y="408" width="94.6" height="8" fill="#f0506e"/><rect x="1012" y="190" width="420" height="240" fill="#0b0b13"/>
+        <rect x="1012" y="190" width="420" height="240" fill="none" stroke="rgba(255,255,255,0.14)" stroke-width="1" opacity="1"/><line x1="1012" y1="338.8" x2="1432" y2="338.8" stroke="rgba(255,255,255,0.14)" stroke-width="1"/><rect x="1193.76" y="273.38" width="82.54" height="65.42" fill="#161622"/><rect x="1101.97" y="293.76" width="35.45" height="45.04" fill="#161622"/><rect x="1119.07" y="280.14" width="95.64" height="58.66" fill="#161622"/><rect x="1012" y="396" width="420" height="34" fill="#07070a" opacity="0.86"/><text x="1026" y="418" text-anchor="start" font-family="ui-monospace,'JetBrains Mono',monospace"
+     font-size="14" font-weight="400" letter-spacing="2" fill="#8a8f98">CAM 03 · GARDEN</text><rect x="1302" y="408" width="110" height="8" fill="#1a1a26"/>
+                <rect x="1302" y="408" width="22" height="8" fill="#8b5cf6"/><rect x="120" y="456" width="420" height="240" fill="#0b0b13"/>
+        <rect x="120" y="456" width="420" height="240" fill="none" stroke="rgba(255,255,255,0.14)" stroke-width="1" opacity="1"/><line x1="120" y1="604.8" x2="540" y2="604.8" stroke="rgba(255,255,255,0.14)" stroke-width="1"/><rect x="390.07" y="527.41" width="57.14" height="77.39" fill="#161622"/><rect x="186.14" y="555.82" width="82.42" height="48.98" fill="#161622"/><rect x="403.22" y="528.1" width="73.57" height="76.7" fill="#161622"/><rect x="120" y="662" width="420" height="34" fill="#07070a" opacity="0.86"/><text x="134" y="684" text-anchor="start" font-family="ui-monospace,'JetBrains Mono',monospace"
+     font-size="14" font-weight="400" letter-spacing="2" fill="#8a8f98">CAM 04 · SIDE</text><rect x="410" y="674" width="110" height="8" fill="#1a1a26"/>
+                <rect x="410" y="674" width="37.4" height="8" fill="#8b5cf6"/><rect x="566" y="456" width="420" height="240" fill="#0b0b13"/>
+        <rect x="566" y="456" width="420" height="240" fill="none" stroke="rgba(255,255,255,0.14)" stroke-width="1" opacity="1"/><line x1="566" y1="604.8" x2="986" y2="604.8" stroke="rgba(255,255,255,0.14)" stroke-width="1"/><rect x="757.97" y="554.02" width="75.29" height="50.78" fill="#161622"/><rect x="733.05" y="553.52" width="82.43" height="51.28" fill="#161622"/><rect x="728.27" y="563.57" width="59.46" height="41.23" fill="#161622"/><rect x="566" y="662" width="420" height="34" fill="#07070a" opacity="0.86"/><text x="580" y="684" text-anchor="start" font-family="ui-monospace,'JetBrains Mono',monospace"
+     font-size="14" font-weight="400" letter-spacing="2" fill="#8a8f98">CAM 05 · REAR</text><rect x="856" y="674" width="110" height="8" fill="#1a1a26"/>
+                <rect x="856" y="674" width="16.5" height="8" fill="#8b5cf6"/><rect x="1012" y="456" width="420" height="240" fill="#0b0b13"/>
+        <rect x="1012" y="456" width="420" height="240" fill="none" stroke="rgba(255,255,255,0.14)" stroke-width="1" opacity="1"/><line x1="1012" y1="604.8" x2="1432" y2="604.8" stroke="rgba(255,255,255,0.14)" stroke-width="1"/><rect x="1257.09" y="552.25" width="43.77" height="52.55" fill="#161622"/><rect x="1238.02" y="557.81" width="93.67" height="46.99" fill="#161622"/><rect x="1162.24" y="569.39" width="96.08" height="35.41" fill="#161622"/><rect x="1012" y="662" width="420" height="34" fill="#07070a" opacity="0.86"/><text x="1026" y="684" text-anchor="start" font-family="ui-monospace,'JetBrains Mono',monospace"
+     font-size="14" font-weight="400" letter-spacing="2" fill="#8a8f98">CAM 06 · GATE</text><rect x="1302" y="674" width="110" height="8" fill="#1a1a26"/>
+                <rect x="1302" y="674" width="29.7" height="8" fill="#8b5cf6"/>
+      <rect x="120" y="190" width="1312" height="4" fill="url(#sweep)" opacity="0.9"/>
+      <rect x="120" y="546" width="1312" height="3" fill="url(#sweep)" opacity="0.5"/>
+      <text x="120" y="152" text-anchor="start" font-family="ui-monospace,'JetBrains Mono',monospace"
+     font-size="22" font-weight="600" letter-spacing="5" fill="#8b5cf6">BEHAVIORAL THREAT DETECTION</text>
+      <text x="1480" y="152" text-anchor="end" font-family="ui-monospace,'JetBrains Mono',monospace"
+     font-size="16" font-weight="400" letter-spacing="2" fill="#f0506e">1 ELEVATED · 5 NOMINAL</text>
+
+  <rect x="44" y="44" width="1512" height="812" fill="none"
+        stroke="rgba(255,255,255,0.14)" stroke-width="1"/>
+  <path d="M78 44 H44 V78" fill="none" stroke="#8b5cf6" stroke-width="2" opacity="0.75"/><path d="M1522 44 H1556 V78" fill="none" stroke="#8b5cf6" stroke-width="2" opacity="0.75"/><path d="M78 856 H44 V822" fill="none" stroke="#8b5cf6" stroke-width="2" opacity="0.75"/><path d="M1522 856 H1556 V822" fill="none" stroke="#8b5cf6" stroke-width="2" opacity="0.75"/>
+  <text x="62" y="836" font-family="ui-monospace,'JetBrains Mono',monospace"
+        font-size="19" letter-spacing="3.5" fill="#8b5cf6" opacity="0.85">OBSERVEX / 05</text>
+  <circle cx="1534" cy="68" r="5" fill="#f0506e"/>
+  <text x="1518" y="74" text-anchor="end" font-family="ui-monospace,'JetBrains Mono',monospace"
+        font-size="16" letter-spacing="2" fill="#8a8f98">LIVE</text>
+
+  <rect width="1600" height="900" fill="url(#vig)"/>
+  <rect width="1600" height="900" filter="url(#grain)" opacity="0.55"/>
+</svg>

@@ -1,0 +1,72 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 900" width="1600" height="900" role="img">
+
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#0c0c14"/>
+      <stop offset="60%" stop-color="#070709"/>
+      <stop offset="100%" stop-color="#040406"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="50%" cy="45%" r="55%">
+      <stop offset="0%" stop-color="#06d6a0" stop-opacity="0.20"/>
+      <stop offset="100%" stop-color="#06d6a0" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="vig" cx="50%" cy="50%" r="72%">
+      <stop offset="55%" stop-color="#000" stop-opacity="0"/>
+      <stop offset="100%" stop-color="#000" stop-opacity="0.62"/>
+    </radialGradient>
+    <linearGradient id="sweep" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#06d6a0" stop-opacity="0"/>
+      <stop offset="50%" stop-color="#06d6a0" stop-opacity="0.55"/>
+      <stop offset="100%" stop-color="#06d6a0" stop-opacity="0"/>
+    </linearGradient>
+    <filter id="soft" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="18"/>
+    </filter>
+    <filter id="grain">
+      <feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="3" seed="7"/>
+      <feColorMatrix type="saturate" values="0"/>
+      <feComponentTransfer><feFuncA type="linear" slope="0.05"/></feComponentTransfer>
+    </filter>
+  </defs>
+
+  <rect width="1600" height="900" fill="url(#bg)"/>
+  <g stroke="rgba(255,255,255,0.045)" stroke-width="1"><line x1="0" y1="0" x2="0" y2="900"/><line x1="64" y1="0" x2="64" y2="900"/><line x1="128" y1="0" x2="128" y2="900"/><line x1="192" y1="0" x2="192" y2="900"/><line x1="256" y1="0" x2="256" y2="900"/><line x1="320" y1="0" x2="320" y2="900"/><line x1="384" y1="0" x2="384" y2="900"/><line x1="448" y1="0" x2="448" y2="900"/><line x1="512" y1="0" x2="512" y2="900"/><line x1="576" y1="0" x2="576" y2="900"/><line x1="640" y1="0" x2="640" y2="900"/><line x1="704" y1="0" x2="704" y2="900"/><line x1="768" y1="0" x2="768" y2="900"/><line x1="832" y1="0" x2="832" y2="900"/><line x1="896" y1="0" x2="896" y2="900"/><line x1="960" y1="0" x2="960" y2="900"/><line x1="1024" y1="0" x2="1024" y2="900"/><line x1="1088" y1="0" x2="1088" y2="900"/><line x1="1152" y1="0" x2="1152" y2="900"/><line x1="1216" y1="0" x2="1216" y2="900"/><line x1="1280" y1="0" x2="1280" y2="900"/><line x1="1344" y1="0" x2="1344" y2="900"/><line x1="1408" y1="0" x2="1408" y2="900"/><line x1="1472" y1="0" x2="1472" y2="900"/><line x1="1536" y1="0" x2="1536" y2="900"/><line x1="1600" y1="0" x2="1600" y2="900"/><line x1="0" y1="0" x2="1600" y2="0"/><line x1="0" y1="64" x2="1600" y2="64"/><line x1="0" y1="128" x2="1600" y2="128"/><line x1="0" y1="192" x2="1600" y2="192"/><line x1="0" y1="256" x2="1600" y2="256"/><line x1="0" y1="320" x2="1600" y2="320"/><line x1="0" y1="384" x2="1600" y2="384"/><line x1="0" y1="448" x2="1600" y2="448"/><line x1="0" y1="512" x2="1600" y2="512"/><line x1="0" y1="576" x2="1600" y2="576"/><line x1="0" y1="640" x2="1600" y2="640"/><line x1="0" y1="704" x2="1600" y2="704"/><line x1="0" y1="768" x2="1600" y2="768"/><line x1="0" y1="832" x2="1600" y2="832"/><line x1="0" y1="896" x2="1600" y2="896"/></g>
+  <rect width="1600" height="900" fill="url(#glow)"/>
+
+      <rect x="140" y="200" width="420" height="300" fill="none" stroke="rgba(255,255,255,0.14)" stroke-width="1.6"/><rect x="560" y="200" width="300" height="300" fill="none" stroke="rgba(255,255,255,0.14)" stroke-width="1.6"/><rect x="860" y="200" width="600" height="180" fill="none" stroke="rgba(255,255,255,0.14)" stroke-width="1.6"/><rect x="860" y="380" width="280" height="320" fill="none" stroke="rgba(255,255,255,0.14)" stroke-width="1.6"/><rect x="140" y="500" width="300" height="200" fill="none" stroke="rgba(255,255,255,0.14)" stroke-width="1.6"/><rect x="440" y="500" width="420" height="200" fill="none" stroke="rgba(255,255,255,0.14)" stroke-width="1.6"/><rect x="1140" y="380" width="320" height="320" fill="none" stroke="rgba(255,255,255,0.14)" stroke-width="1.6"/>
+      <circle cx="420" cy="330" r="99.11" fill="none" stroke="#06d6a0" stroke-width="1" opacity="0.26"/><circle cx="420" cy="330" r="198.21" fill="none" stroke="#06d6a0" stroke-width="1" opacity="0.18"/><circle cx="420" cy="330" r="297.32" fill="none" stroke="#06d6a0" stroke-width="1" opacity="0.1"/><circle cx="420" cy="330" r="297.32" fill="none" stroke="#06d6a0" stroke-width="1.6" opacity="0.5" stroke-dasharray="7 7"/><line x1="420" y1="330" x2="700" y2="430" stroke="#06d6a0" stroke-width="1" opacity="0.4" stroke-dasharray="4 6"/><g><rect x="386" y="284" width="68" height="24" fill="#06d6a0" opacity="0.9"/>
+                <text x="420" y="301" text-anchor="middle" font-family="ui-monospace,'JetBrains Mono',monospace"
+     font-size="14" font-weight="700" letter-spacing="1" fill="#07070a">B1</text></g><circle cx="420" cy="330" r="7" fill="#06d6a0"/><circle cx="1020" cy="300" r="115.13" fill="none" stroke="#06d6a0" stroke-width="1" opacity="0.26"/><circle cx="1020" cy="300" r="230.27" fill="none" stroke="#06d6a0" stroke-width="1" opacity="0.18"/><circle cx="1020" cy="300" r="345.4" fill="none" stroke="#06d6a0" stroke-width="1" opacity="0.1"/><circle cx="1020" cy="300" r="345.4" fill="none" stroke="#06d6a0" stroke-width="1.6" opacity="0.5" stroke-dasharray="7 7"/><line x1="1020" y1="300" x2="700" y2="430" stroke="#06d6a0" stroke-width="1" opacity="0.4" stroke-dasharray="4 6"/><g><rect x="986" y="254" width="68" height="24" fill="#06d6a0" opacity="0.9"/>
+                <text x="1020" y="271" text-anchor="middle" font-family="ui-monospace,'JetBrains Mono',monospace"
+     font-size="14" font-weight="700" letter-spacing="1" fill="#07070a">B2</text></g><circle cx="1020" cy="300" r="7" fill="#06d6a0"/><circle cx="700" cy="620" r="63.33" fill="none" stroke="#06d6a0" stroke-width="1" opacity="0.26"/><circle cx="700" cy="620" r="126.67" fill="none" stroke="#06d6a0" stroke-width="1" opacity="0.18"/><circle cx="700" cy="620" r="190" fill="none" stroke="#06d6a0" stroke-width="1" opacity="0.1"/><circle cx="700" cy="620" r="190" fill="none" stroke="#06d6a0" stroke-width="1.6" opacity="0.5" stroke-dasharray="7 7"/><line x1="700" y1="620" x2="700" y2="430" stroke="#06d6a0" stroke-width="1" opacity="0.4" stroke-dasharray="4 6"/><g><rect x="666" y="574" width="68" height="24" fill="#06d6a0" opacity="0.9"/>
+                <text x="700" y="591" text-anchor="middle" font-family="ui-monospace,'JetBrains Mono',monospace"
+     font-size="14" font-weight="700" letter-spacing="1" fill="#07070a">B3</text></g><circle cx="700" cy="620" r="7" fill="#06d6a0"/>
+      <path d="M440 610 L471.86 643.47 L525.36 607.64 L594.76 595.55 L648.65 586.09 L697.65 606.22 L735.98 606.53 L801.31 647.48 L700 430" fill="none" stroke="#8b5cf6" stroke-width="2.2" opacity="0.55" stroke-dasharray="3 8" stroke-linecap="round"/>
+      <circle cx="700" cy="430" r="42" fill="#8b5cf6" opacity="0.16" filter="url(#soft)"/>
+      <circle cx="700" cy="430" r="13" fill="#8b5cf6"/>
+      <circle cx="700" cy="430" r="24" fill="none" stroke="#8b5cf6" stroke-width="2" opacity="0.7"/>
+      <text x="740" y="416" text-anchor="start" font-family="ui-monospace,'JetBrains Mono',monospace"
+     font-size="16" font-weight="400" letter-spacing="1.4" fill="#e8e8ee">TAG 04 · ±3.0 m</text>
+      <text x="96" y="148" text-anchor="start" font-family="ui-monospace,'JetBrains Mono',monospace"
+     font-size="22" font-weight="600" letter-spacing="5" fill="#06d6a0">INDOOR POSITIONING</text>
+      <text x="96" y="178" text-anchor="start" font-family="ui-monospace,'JetBrains Mono',monospace"
+     font-size="15" font-weight="400" letter-spacing="2" fill="#8a8f98">BLE RSSI · TRILATERATION · MQTT</text>
+      <g>
+        <text x="1504" y="148" text-anchor="end" font-family="ui-monospace,'JetBrains Mono',monospace"
+     font-size="14" font-weight="400" letter-spacing="2" fill="#8a8f98">RSSI</text>
+        <text x="1504" y="176" text-anchor="end" font-family="ui-monospace,'JetBrains Mono',monospace"
+     font-size="15" font-weight="400" letter-spacing="2" fill="#06d6a0">B1 −62  B2 −71  B3 −68 dBm</text>
+      </g>
+
+  <rect x="44" y="44" width="1512" height="812" fill="none"
+        stroke="rgba(255,255,255,0.14)" stroke-width="1"/>
+  <path d="M78 44 H44 V78" fill="none" stroke="#06d6a0" stroke-width="2" opacity="0.75"/><path d="M1522 44 H1556 V78" fill="none" stroke="#06d6a0" stroke-width="2" opacity="0.75"/><path d="M78 856 H44 V822" fill="none" stroke="#06d6a0" stroke-width="2" opacity="0.75"/><path d="M1522 856 H1556 V822" fill="none" stroke="#06d6a0" stroke-width="2" opacity="0.75"/>
+  <text x="62" y="836" font-family="ui-monospace,'JetBrains Mono',monospace"
+        font-size="19" letter-spacing="3.5" fill="#06d6a0" opacity="0.85">INDOOR-TRACK / 04</text>
+  <circle cx="1534" cy="68" r="5" fill="#f0506e"/>
+  <text x="1518" y="74" text-anchor="end" font-family="ui-monospace,'JetBrains Mono',monospace"
+        font-size="16" letter-spacing="2" fill="#8a8f98">LIVE</text>
+
+  <rect width="1600" height="900" fill="url(#vig)"/>
+  <rect width="1600" height="900" filter="url(#grain)" opacity="0.55"/>
+</svg>
