@@ -1,6 +1,12 @@
 /**
  * Project content.
  *
+ * `metrics` renders as a figures strip on the detail page. Any entry whose
+ * value is 'TODO_' is skipped by the renderer — those are the numbers only you
+ * can supply (latency on your hardware, mAP from your training run, accuracy on
+ * your enrolled set). Filling them in is the single highest-value content
+ * change left on this site; recruiters read figures, not adjectives.
+ *
  * `poster` resolves to the generated SVG by default. To swap in a real render,
  * drop a 1920x1080 WebP at public/posters/<id>.webp and change the one line —
  * see docs/image-prompts.md for the generation spec.
@@ -31,6 +37,12 @@ export const projects = [
       'Wired MQTT publish/subscribe messaging for low-latency violation alerts to downstream systems',
       'Applied image pre-processing and object tracking to hold identity stable across frames',
       'Optimised the inference pipeline for edge hardware, trading model size against detection latency',
+    ],
+    metrics: [
+      { value: '4', label: 'PPE classes detected' },
+      { value: 'Multi-cam', label: 'Facility coverage' },
+      { value: 'TODO_', label: 'Inference latency (ms) — measure on your hardware' },
+      { value: 'TODO_', label: 'mAP@0.5 from your training run' },
     ],
     techStack: ['Python', 'YOLOv5', 'PyTorch', 'OpenCV', 'MQTT', 'NumPy', 'Docker'],
     outcomes: [
@@ -64,6 +76,12 @@ export const projects = [
       'Integrated InsightFace (RetinaFace detection + ArcFace embeddings) to identify violators by name, RRN and branch',
       'Added automatic timestamped screenshot capture on violation, with a per-person cooldown to suppress duplicate alerts',
       'Built CUDA acceleration with graceful CPU fallback, plus a Flask web interface for webcam and video-file sources',
+    ],
+    metrics: [
+      { value: '2', label: 'Detection models in parallel' },
+      { value: 'ArcFace', label: 'Violator identification' },
+      { value: 'CUDA', label: 'Accelerated, CPU fallback' },
+      { value: 'TODO_', label: 'FPS on your GPU' },
     ],
     techStack: ['Python', 'YOLOv8', 'Ultralytics', 'InsightFace', 'ONNX Runtime', 'OpenCV', 'Flask'],
     outcomes: [
@@ -99,6 +117,12 @@ export const projects = [
       'Generated daily CSV and Excel attendance exports keyed by date',
       'Built a Flask web interface with a fullscreen live monitoring view',
     ],
+    metrics: [
+      { value: '2', label: 'CCTV streams (entry + exit)' },
+      { value: 'InsightFace', label: 'Recognition backbone' },
+      { value: 'Daily', label: 'CSV + Excel export' },
+      { value: 'TODO_', label: 'Recognition accuracy % on your enrolled set' },
+    ],
     techStack: ['Python', 'InsightFace', 'OpenCV', 'Flask', 'NumPy', 'Pandas', 'openpyxl'],
     outcomes: [
       'Attendance captured passively from existing cameras — no queue, no new hardware',
@@ -130,6 +154,12 @@ export const projects = [
       'Built MQTT broker and subscriber architecture for lightweight real-time ingestion from constrained devices',
       'Wrote the position-computation and data-management backend, plus movement analysis over the resulting tracks',
       'Created a web floor-plan visualisation that updates positions live',
+    ],
+    metrics: [
+      { value: '±3 m', label: 'Positioning accuracy' },
+      { value: 'BLE', label: 'RSSI trilateration' },
+      { value: 'Kalman', label: 'Noise filtering' },
+      { value: 'TODO_', label: 'Number of beacons deployed' },
     ],
     techStack: ['BLE Beacons', 'ESP32', 'MQTT', 'Python', 'Node.js', 'WebSocket', 'Kalman Filter'],
     outcomes: [
@@ -165,6 +195,11 @@ export const projects = [
       'Integrated Three.js and React Three Fiber for 3D capability, with shadcn/ui for accessible primitives',
       'Implemented a validated lead-capture demo booking flow with confirmation state',
     ],
+    metrics: [
+      { value: '12', label: 'Composed sections' },
+      { value: 'React 19', label: 'TypeScript + Tailwind 4' },
+      { value: 'R3F', label: 'Three.js integration' },
+    ],
     techStack: ['React 19', 'TypeScript', 'Tailwind CSS 4', 'Framer Motion', 'Three.js', 'shadcn/ui', 'Vite'],
     outcomes: [
       'A pitch surface that reads as a funded startup rather than a student project',
@@ -196,6 +231,12 @@ export const projects = [
       'Built a temporal analysis module targeting inter-frame inconsistencies characteristic of generated video',
       'Exposed the pipeline through a Flask REST API for integration with existing systems',
       'Developed a monitoring dashboard for live authentication results and alerting',
+    ],
+    metrics: [
+      { value: '2', label: 'Benchmark datasets' },
+      { value: '3', label: 'Independent detection signals' },
+      { value: 'TODO_', label: 'Accuracy on FaceForensics++' },
+      { value: 'TODO_', label: 'Accuracy on Celeb-DF' },
     ],
     techStack: ['Python', 'TensorFlow', 'Keras', 'OpenCV', 'Flask', 'NumPy', 'dlib', 'MTCNN'],
     outcomes: [

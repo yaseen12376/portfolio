@@ -79,4 +79,51 @@ export function revealBatch(selector, { start = 'top 82%', stagger = 0.09, y = 3
   });
 }
 
+/**
+ * Line-masked reveal for every section heading, plus its eyebrow tag.
+ * Cheaper than the per-character version and reads considerably more composed.
+ */
+export function revealSectionHeadings() {
+  const splits = [];
+  gsap.utils.toArray('.section-header, .about-sticky').forEach((header) => {
+    const tag = header.querySelector('.section-tag');
+    const title = header.querySelector('.section-title');
+    const sub = header.querySelector('.section-subtitle');
+
+    if (tag) {
+      gsap.fromTo(
+        tag,
+        { autoAlpha: 0, x: -14 },
+        {
+          autoAlpha: 1, x: 0, duration: DUR.base, ease: EASE.out,
+          scrollTrigger: { trigger: header, start: 'top 85%', once: true },
+        }
+      );
+    }
+    if (title) {
+      const split = new SplitText(title, { type: 'lines', mask: 'lines', linesClass: 'line' });
+      splits.push(split);
+      gsap.from(split.lines, {
+        yPercent: 112,
+        duration: DUR.slow,
+        ease: EASE.expo,
+        stagger: 0.08,
+        delay: 0.08,
+        scrollTrigger: { trigger: header, start: 'top 85%', once: true },
+      });
+    }
+    if (sub) {
+      gsap.fromTo(
+        sub,
+        { autoAlpha: 0, y: 16 },
+        {
+          autoAlpha: 1, y: 0, duration: DUR.base, ease: EASE.out, delay: 0.25,
+          scrollTrigger: { trigger: header, start: 'top 85%', once: true },
+        }
+      );
+    }
+  });
+  return () => splits.forEach((s) => s.revert());
+}
+
 export { gsap, ScrollTrigger, SplitText, Flip };

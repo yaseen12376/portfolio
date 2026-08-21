@@ -17,3 +17,4 @@ test_frame.webp
 Thumbs.db
 .vscode/
 .idea/
+.env

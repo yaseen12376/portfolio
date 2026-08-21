@@ -117,6 +117,139 @@ input, textarea { font: inherit; color: inherit; }
   padding-inline: var(--gutter);
 }
 
+/* ───────────────────────────── preloader ───────────────────────────── */
+
+/* Scoped to html.js — without JS there is nothing to dismiss the curtain, and
+   an opaque full-page overlay would leave the visitor with a black screen. */
+#preloader { display: none; }
+html.js #preloader {
+  position: fixed;
+  inset: 0;
+  z-index: 250;
+  display: grid;
+  place-items: center;
+  background: var(--bg-deep);
+}
+html.js #preloader { display: grid; }
+.pre-inner { width: min(760px, 82vw); }
+.pre-row { overflow: hidden; }
+.pre-name {
+  display: block;
+  font-family: var(--font-heading);
+  font-size: clamp(1.4rem, 4.6vw, 3rem);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+  background: linear-gradient(100deg, var(--purple-light), var(--teal));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+.pre-meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-top: 12px;
+  font-family: var(--mono);
+  font-size: 0.8rem;
+  letter-spacing: 2.5px;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+.pre-count { color: var(--teal); font-size: 0.95rem; }
+.pre-track {
+  margin-top: 20px;
+  height: 2px;
+  background: rgba(255, 255, 255, 0.07);
+  overflow: hidden;
+}
+.pre-bar {
+  display: block;
+  height: 100%;
+  background: linear-gradient(90deg, var(--purple), var(--teal));
+  transform: scaleX(0);
+  transform-origin: left;
+}
+
+/* ────────────────────────── contextual cursor ────────────────────────── */
+
+.has-cursor,
+.has-cursor *,
+.has-cursor a,
+.has-cursor button,
+.has-cursor input,
+.has-cursor textarea,
+.has-cursor .row-link { cursor: none; }
+
+.cursor {
+  position: fixed;
+  top: 0; left: 0;
+  z-index: 210;
+  pointer-events: none;
+  opacity: 0;
+  /* No mix-blend-mode. `difference` inverts against whatever is underneath, so
+     the white dot rendered olive over the purple CTA and shifted colour across
+     the hero — it read as a rendering fault rather than a cursor. */
+}
+
+/* Centring is done ONCE, by xPercent/yPercent set in cursor.js.
+   Do not add negative margins here: GSAP parses a CSS translate(-50%,-50%)
+   into xPercent/yPercent and keeps it alongside the animated x/y, so a margin
+   on top of it centres the element twice. That displaced the ring by 34px and
+   the dot by 6px, leaving the dot stranded on the ring's edge. */
+.cursor-ring,
+.cursor-dot {
+  position: absolute;
+  top: 0; left: 0;
+  border-radius: 50%;
+  will-change: transform;
+}
+.cursor-ring {
+  display: grid;
+  place-items: center;
+  width: 34px; height: 34px;
+  border: 1.5px solid rgba(255, 255, 255, 0.55);
+  box-shadow: 0 0 12px rgba(0, 0, 0, 0.35);
+  transition: width var(--transition), height var(--transition),
+              background var(--transition), border-color var(--transition),
+              opacity var(--transition);
+}
+.cursor-dot {
+  width: 6px; height: 6px;
+  background: #fff;
+  box-shadow: 0 0 8px rgba(0, 0, 0, 0.4);
+  transition: opacity var(--transition), width var(--transition), height var(--transition);
+}
+
+/* The label lives INSIDE the ring so it inherits the ring's position. As a
+   sibling it never received x/y and rendered at the viewport origin. */
+.cursor-label {
+  font-family: var(--mono);
+  font-size: 0.66rem;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: #07070a;
+  opacity: 0;
+  transition: opacity var(--transition);
+  white-space: nowrap;
+}
+
+.cursor[data-state='view'] .cursor-ring {
+  width: 92px; height: 92px;
+  background: #fff;
+  border-color: #fff;
+}
+.cursor[data-state='view'] .cursor-dot { opacity: 0; }
+.cursor[data-state='view'] .cursor-label { opacity: 1; }
+
+.cursor[data-state='action'] .cursor-ring {
+  width: 56px; height: 56px;
+  border-color: rgba(255, 255, 255, 0.9);
+}
+.cursor[data-state='external'] .cursor-ring { width: 54px; height: 54px; }
+.cursor[data-state='text'] .cursor-ring { opacity: 0.25; }
+.cursor[data-state='text'] .cursor-dot { width: 3px; height: 3px; }
+
 /* ────────────────────── ambient background layers ────────────────────── */
 
 .aurora-mesh {
@@ -442,6 +575,10 @@ input, textarea { font: inherit; color: inherit; }
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  /* Icons were spaced with per-instance `style="margin-right:8px"`, which some
+     buttons had and some didn't — hence "View Projects" running into its icon.
+     One gap here covers every button. */
+  gap: 8px;
   padding: 13px 26px;
   border-radius: var(--radius-sm);
   font-size: 0.92rem;
@@ -815,6 +952,40 @@ input, textarea { font: inherit; color: inherit; }
 .pd-tags { display: flex; flex-wrap: wrap; gap: 9px; margin-top: 24px; }
 .pd-repo { margin-top: 26px; }
 
+.pd-metrics {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 1px;
+  margin-top: 44px;
+  background: var(--border);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+.pd-metric {
+  display: flex;
+  flex-direction: column-reverse;
+  gap: 6px;
+  padding: 22px 20px;
+  background: var(--bg-card);
+}
+.pd-metric dt {
+  font-family: var(--mono);
+  font-size: 0.7rem;
+  letter-spacing: 1.6px;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  line-height: 1.4;
+}
+.pd-metric dd {
+  font-family: var(--font-heading);
+  font-size: clamp(1.5rem, 3vw, 2.1rem);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1;
+  color: var(--accent);
+}
+
 .pd-media {
   margin: 52px 0;
   border-radius: var(--radius);
@@ -896,6 +1067,19 @@ input, textarea { font: inherit; color: inherit; }
   color: transparent;
   overflow-wrap: anywhere;
 }
+.footer-resume {
+  display: inline-block;
+  margin-top: 10px;
+  font-family: var(--mono);
+  font-size: 0.82rem;
+  letter-spacing: 1.5px;
+  color: var(--text-secondary);
+  border-bottom: 1px solid var(--border-hover);
+  padding-bottom: 3px;
+  transition: color var(--transition), border-color var(--transition);
+}
+.footer-resume:hover { color: var(--teal); border-color: var(--teal); }
+
 .footer-bottom {
   display: flex;
   justify-content: space-between;
@@ -1041,5 +1225,8 @@ html.js:not(.intro-done) .reveal-hero { opacity: 0; }
   html.js:not(.intro-done) .reveal-hero { opacity: 1; }
   .aurora-mesh, .orb { animation: none; }
   .projects-panel { position: static; transform: none; height: auto; }
+  #preloader { display: none; }
+  .cursor { display: none; }
+  .has-cursor, .has-cursor a, .has-cursor button, .has-cursor .row-link { cursor: auto; }
   .about-sticky { position: static; }
 }

@@ -129,6 +129,30 @@ export function initProjects({ desktop, reduced }) {
     });
   });
 
+  // Hovering a row tilts the panel a few degrees toward the pointer. Makes the
+  // list feel like it is driving the panel rather than merely indexing it.
+  if (desktop && !reduced && panel) {
+    const frame = panel.querySelector('.panel-frame');
+    const rotX = gsap.quickTo(frame, 'rotationX', { duration: 0.6, ease: EASE.out });
+    const rotY = gsap.quickTo(frame, 'rotationY', { duration: 0.6, ease: EASE.out });
+    const scale = gsap.quickTo(frame, 'scale', { duration: 0.6, ease: EASE.out });
+    gsap.set(frame, { transformPerspective: 900, transformOrigin: 'center' });
+
+    rows.forEach((row) => {
+      row.addEventListener('pointermove', (e) => {
+        const r = row.getBoundingClientRect();
+        rotY(gsap.utils.clamp(-6, 6, ((e.clientX - (r.left + r.width / 2)) / r.width) * 10));
+        rotX(gsap.utils.clamp(-5, 5, -((e.clientY - (r.top + r.height / 2)) / r.height) * 8));
+        scale(1.02);
+      });
+      row.addEventListener('pointerleave', () => {
+        rotX(0);
+        rotY(0);
+        scale(1);
+      });
+    });
+  }
+
   // Slight drift on the panel so it doesn't feel welded to the viewport.
   if (desktop && !reduced && panel) {
     gsap.fromTo(

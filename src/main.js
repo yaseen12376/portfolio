@@ -9,12 +9,15 @@
  * query stops matching — replacing the old scattered innerWidth checks,
  * 'ontouchstart' guards and setTimeout(..., 1200) init deferral.
  */
-import { gsap, ScrollTrigger } from './core/motion.js';
+import { gsap, ScrollTrigger, revealSectionHeadings } from './core/motion.js';
 import { detectTier, prefersReducedMotion } from './core/device.js';
 import { initSmoothScroll, bindFocusScroll } from './core/smooth-scroll.js';
 
 import { initNav, initScrollProgress } from './ui/nav.js';
 import { initMagnetic, initRoleMorph } from './ui/magnetic.js';
+import { initPreloader } from './ui/preloader.js';
+import { initCursor } from './ui/cursor.js';
+import { initVelocitySkew } from './ui/velocity-skew.js';
 
 import { initHero, playHeroIntro } from './sections/hero.js';
 import { initAbout } from './sections/about.js';
@@ -26,6 +29,7 @@ import { initProjectRouting } from './sections/project-detail.js';
 
 function boot() {
   const tier = detectTier();
+  const reduced = prefersReducedMotion();
   document.documentElement.dataset.tier = tier;
 
   // 1. Render everything that comes from data, before triggers are created.
@@ -38,6 +42,8 @@ function boot() {
   bindFocusScroll();
 
   // 3. Chrome that isn't breakpoint-dependent.
+  const preloader = initPreloader({ reduced });
+  initCursor({ reduced });
   initNav();
   initScrollProgress();
   initProjectRouting();
@@ -56,21 +62,25 @@ function boot() {
 
       const hero = initHero({ tier, reduced: reduce });
       const cleanupAbout = initAbout(opts);
+      const cleanupHeadings = reduce ? null : revealSectionHeadings();
       initSkills(opts);
       initProjects(opts);
       initExperience(opts);
       initContact(opts);
       initMagnetic(opts);
       initRoleMorph(opts);
+      initVelocitySkew(opts);
 
       return () => {
         hero?.destroy();
         cleanupAbout?.();
+        cleanupHeadings?.();
       };
     }
   );
 
-  playHeroIntro({ reduced: prefersReducedMotion() });
+  // The hero copy waits for the preloader curtain so the two don't play at once.
+  preloader.done.then(() => playHeroIntro({ reduced }));
 
   // Fonts change metrics, which changes every trigger's start/end.
   document.fonts?.ready.then(() => ScrollTrigger.refresh());

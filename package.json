@@ -8,7 +8,8 @@
     "build": "vite build",
     "preview": "vite preview",
     "encode:frames": "node scripts/encode-frames.mjs",
-    "gen:posters": "node scripts/gen-posters.mjs"
+    "gen:posters": "node scripts/gen-posters.mjs",
+    "gen:brand": "node scripts/gen-brand.mjs"
   },
   "devDependencies": {
     "vite": "^6.3.5"
