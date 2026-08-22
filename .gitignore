@@ -1,0 +1,21 @@
+# dependencies
+node_modules/
+
+# build output
+dist/
+
+# 4K source frame sets — build inputs, not web assets.
+# Regenerate the shipped hero with `npm run encode:frames`.
+_source-frames/
+
+# source footage (kept locally, too large for git)
+*.mp4
+test_frame.webp
+
+# editor / os
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+.env
+_incoming/

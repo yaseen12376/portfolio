@@ -6,9 +6,19 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "encode:frames": "node scripts/encode-frames.mjs",
+    "gen:posters": "node scripts/gen-posters.mjs",
+    "gen:brand": "node scripts/gen-brand.mjs",
+    "gen:posters:ai": "node scripts/gen-posters-ai.mjs",
+    "encode:videos": "node scripts/encode-videos.mjs"
   },
   "devDependencies": {
     "vite": "^6.3.5"
+  },
+  "dependencies": {
+    "gsap": "^3.15.0",
+    "lenis": "^1.3.26",
+    "sharp": "^0.34.5"
   }
 }
