@@ -51,14 +51,24 @@ const mb = (b) => (b / 1048576).toFixed(2);
  * The crossfade ends showing exactly the frame body starts on, so the loop
  * point is continuous.
  */
-// Crop 5% off the right and bottom before anything else: Veo stamps a sparkle
-// watermark in the bottom-right corner, and the panel has no caption bar to
-// hide it behind. Scaling both axes by the same factor keeps 16:9 exactly
-// (1216x684 -> 1280x720).
-const CROP = 'crop=iw*0.95:ih*0.95:0:0,scale=1280:720';
+/**
+ * Veo stamps a sparkle watermark in the frame. Measured on a clip with a black
+ * corner (Attendance), it occupies x 1137-1184, y 576-622 in the 1280x720
+ * source — i.e. 89-93% across and 80-86% down.
+ *
+ * A 5% corner crop was the first attempt and did not touch it; cropping far
+ * enough to exclude it (1011x569, to keep 16:9) would zoom 1.27x and cut the
+ * bottom row off the ObserveX camera grid.
+ *
+ * delogo interpolates the box from its surrounding pixels instead. On flat dark
+ * areas it is invisible; on detailed areas it leaves a soft patch roughly
+ * 20x20 CSS px at panel size, which is far less conspicuous than the mark. Keep
+ * the box tight — a generous margin is what makes the smear obvious.
+ */
+const WATERMARK = 'delogo=x=1136:y=574:w=50:h=50';
 
 const LOOP_FILTER =
-  `[0:v]${CROP},split=3[c0][c1][c2];` +
+  `[0:v]${WATERMARK},split=3[c0][c1][c2];` +
   `[c0]trim=start=${FADE}:end=${DUR - FADE},setpts=PTS-STARTPTS[body];` +
   `[c1]trim=start=${DUR - FADE}:end=${DUR},setpts=PTS-STARTPTS[tail];` +
   `[c2]trim=start=0:end=${FADE},setpts=PTS-STARTPTS[head];` +
@@ -93,7 +103,7 @@ async function encode(srcPath, id) {
   // Poster: a frame from a little way in, so it isn't a fade-in frame.
   await run('ffmpeg', [
     '-v', 'error', '-y', '-ss', '2.0', '-i', srcPath,
-    '-vframes', '1', '-vf', CROP, '-q:v', '4', poster,
+    '-vframes', '1', '-vf', WATERMARK, '-q:v', '4', poster,
   ]);
 
   const [w, m, p] = await Promise.all([stat(webm), stat(mp4), stat(poster)]);

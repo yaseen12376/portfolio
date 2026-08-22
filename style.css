@@ -753,7 +753,13 @@ html.js #preloader { display: grid; }
 .panel-layer .panel-video {
   opacity: 0;
   transition: opacity 0.45s var(--ease-out-expo);
+  /* The panel is decoration behind a link, not a player. Without this Chrome
+     overlays its own picture-in-picture and play controls on hover. */
+  pointer-events: none;
 }
+.panel-layer .panel-video::-webkit-media-controls,
+.panel-layer .panel-video::-webkit-media-controls-enclosure,
+.panel-layer .panel-video::-webkit-media-controls-panel { display: none !important; }
 .panel-layer.is-playing .panel-video { opacity: 1; }
 
 .projects-list { display: flex; flex-direction: column; }

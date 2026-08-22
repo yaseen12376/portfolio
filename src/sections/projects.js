@@ -50,7 +50,9 @@ function rowMarkup(p, i) {
 function panelMarkup(p, i) {
   const media = p.video
     ? `<video class="panel-video" data-src="${p.video}" poster="${p.poster}"
-              muted loop playsinline preload="none" aria-hidden="true"></video>`
+              muted loop playsinline preload="none" aria-hidden="true" tabindex="-1"
+              disablepictureinpicture disableremoteplayback
+              controlslist="nodownload noplaybackrate noremoteplayback"></video>`
     : '';
   return `
     <figure class="panel-layer${i === 0 ? ' is-active' : ''}" data-id="${p.id}" data-accent="${p.accent}">
