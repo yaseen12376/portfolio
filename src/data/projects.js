@@ -7,6 +7,11 @@
  * your enrolled set). Filling them in is the single highest-value content
  * change left on this site; recruiters read figures, not adjectives.
  *
+ * `video` (optional) is the basename of a panel loop in public/project-video/;
+ * the panel plays <id>.webm with an <id>.mp4 fallback, muted, only while that
+ * project is the active row, and never on mobile or under reduced motion.
+ * Projects without it simply show `poster`.
+ *
  * `poster` resolves to the generated SVG by default. To swap in a real render,
  * drop a 1920x1080 WebP at public/posters/<id>.webp and change the one line —
  * see docs/image-prompts.md for the generation spec.
@@ -101,7 +106,8 @@ export const projects = [
     tags: ['Python', 'InsightFace', 'Flask', 'CCTV', 'OpenCV'],
     year: '2025',
     accent: 'purple',
-    poster: '/posters/attendance.svg',
+    poster: '/posters/attendance.webp',
+    video: '/project-video/attendance',
     repo: 'https://github.com/yaseen12376/EIT_FACE_PROJ',
     overview:
       'An attendance platform that reads existing CCTV infrastructure rather than requiring new hardware, recognising faces as people walk past and recording arrivals and departures without anyone stopping to check in.',
@@ -141,7 +147,8 @@ export const projects = [
     tags: ['IoT', 'BLE', 'MQTT', 'ESP32', 'Python'],
     year: '2025',
     accent: 'teal',
-    poster: '/posters/indoor-tracking.svg',
+    poster: '/posters/indoor-tracking.webp',
+    video: '/project-video/indoor-tracking',
     overview:
       'An indoor positioning system built on Bluetooth Low Energy beacons and MQTT messaging, giving live location awareness inside buildings where satellite positioning is unavailable.',
     problem:
@@ -179,7 +186,8 @@ export const projects = [
     tags: ['React 19', 'TypeScript', 'Framer Motion', 'Three.js', 'Tailwind 4'],
     year: '2026',
     accent: 'purple',
-    poster: '/posters/observex.svg',
+    poster: '/posters/observex.webp',
+    video: '/project-video/observex',
     repo: 'https://github.com/yaseen12376/observex',
     overview:
       'An investor-facing product site for ObserveX, an AI home security system built on behavioural threat detection — reading intent from how a person moves and lingers rather than simply recording that they were there.',
@@ -218,7 +226,8 @@ export const projects = [
     tags: ['Python', 'TensorFlow', 'OpenCV', 'Flask', 'Deep Learning'],
     year: '2025',
     accent: 'purple',
-    poster: '/posters/adraf.svg',
+    poster: '/posters/adraf.webp',
+    video: '/project-video/adraf',
     overview:
       'A detection framework that authenticates video and image content in real time, identifying synthetic media by the artefacts generation leaves behind rather than by anything visible to a viewer.',
     problem:

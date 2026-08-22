@@ -43,10 +43,19 @@ function rowMarkup(p, i) {
 // No caption here on purpose: the poster art carries its own HUD labelling, and
 // the row sitting beside the panel already shows number, title and tags. A
 // figcaption would both duplicate that and collide with the artwork's own text.
+//
+// The <video> carries preload="none" and no src until it is needed — see
+// initProjects. Nothing downloads for a project the visitor never reaches, and
+// the poster image is what shows until a loop is actually playing.
 function panelMarkup(p, i) {
+  const media = p.video
+    ? `<video class="panel-video" data-src="${p.video}" poster="${p.poster}"
+              muted loop playsinline preload="none" aria-hidden="true"></video>`
+    : '';
   return `
     <figure class="panel-layer${i === 0 ? ' is-active' : ''}" data-id="${p.id}" data-accent="${p.accent}">
       <img src="${p.poster}" alt="${p.title}" loading="${i === 0 ? 'eager' : 'lazy'}" decoding="async" />
+      ${media}
     </figure>`;
 }
 
@@ -70,12 +79,42 @@ export function initProjects({ desktop, reduced }) {
   const swapDuration = reduced ? 0.01 : 0.45;
   let active = 0;
 
+  // Video only where it earns its place: a phone gets stills (data cost, and
+  // the panel is inline rather than sticky there), and reduced motion means a
+  // looping clip is exactly what the visitor asked not to see.
+  const useVideo = desktop && !reduced;
+
+  /** Attach the source on first use, so nothing is fetched speculatively. */
+  const playVideo = (layer) => {
+    const v = layer.querySelector('.panel-video');
+    if (!v) return;
+    if (!v.dataset.loaded) {
+      const base = v.dataset.src;
+      v.innerHTML =
+        `<source src="${base}.webm" type="video/webm">` +
+        `<source src="${base}.mp4" type="video/mp4">`;
+      v.dataset.loaded = '1';
+      v.load();
+    }
+    // A rejected play() is normal (autoplay policy, tab backgrounded); the
+    // poster stays up and nothing breaks.
+    v.play().then(() => layer.classList.add('is-playing')).catch(() => {});
+  };
+
+  const stopVideo = (layer) => {
+    const v = layer.querySelector('.panel-video');
+    if (!v) return;
+    v.pause();
+    layer.classList.remove('is-playing');
+  };
+
   const setActive = (i) => {
     if (i === active) return;
     active = i;
     layers.forEach((layer, n) => {
       const isOn = n === i;
       layer.classList.toggle('is-active', isOn);
+      if (useVideo) (isOn ? playVideo : stopVideo)(layer);
       gsap.to(layer, {
         autoAlpha: isOn ? 1 : 0,
         duration: swapDuration,
@@ -97,6 +136,24 @@ export function initProjects({ desktop, reduced }) {
   gsap.set(layers, { autoAlpha: 0 });
   gsap.set(layers[0], { autoAlpha: 1 });
   rows[0].classList.add('is-active');
+
+  if (useVideo) {
+    // Decoding a loop nobody can see is wasted battery, so playback is tied to
+    // the section being on screen, not just to which row is active.
+    ScrollTrigger.create({
+      trigger: section,
+      start: 'top bottom',
+      end: 'bottom top',
+      onToggle: (self) => {
+        if (self.isActive) playVideo(layers[active]);
+        else layers.forEach(stopVideo);
+      },
+    });
+    document.addEventListener('visibilitychange', () => {
+      if (document.hidden) layers.forEach(stopVideo);
+      else if (ScrollTrigger.isInViewport(section)) playVideo(layers[active]);
+    });
+  }
 
   rows.forEach((row, i) => {
     ScrollTrigger.create({

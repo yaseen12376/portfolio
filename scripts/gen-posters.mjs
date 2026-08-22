@@ -437,6 +437,26 @@ const POSTERS = {
   },
 };
 
+/**
+ * Overlay-only variant: the HUD and detection art with no background.
+ * Used by gen-posters-ai.mjs to composite this precise linework over a
+ * FLUX-generated photographic base — diffusion models can't draw crisp
+ * bounding boxes, and this can't invent a photographic scene, so each does
+ * the half it is actually good at.
+ */
+export function overlaySvg(id) {
+  const accent = ACCENTS[id];
+  const draw = POSTERS[id];
+  if (!draw || !accent) throw new Error(`Unknown poster id: ${id}`);
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}" width="${W}" height="${H}">
+${defs(accent)}
+${draw(accent)}
+${chrome(LABELS[id], accent)}
+</svg>`;
+}
+
+export const POSTER_IDS = () => Object.keys(POSTERS);
+
 const LABELS = {
   ppe: 'PPE-DETECT / 01',
   constructsafe: 'CONSTRUCTSAFE / 02',
@@ -472,7 +492,10 @@ ${finish()}
   console.log(`\n  ${Object.keys(POSTERS).length} posters written to ${OUT}/\n`);
 }
 
-main().catch((e) => {
-  console.error(e);
-  process.exit(1);
-});
+// Only run as a CLI; importing this module must not write files.
+if (process.argv[1] && process.argv[1].endsWith('gen-posters.mjs')) {
+  main().catch((e) => {
+    console.error(e);
+    process.exit(1);
+  });
+}
