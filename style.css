@@ -664,7 +664,7 @@ html.js #preloader {
 /* Short laptop viewports (a 768px-tall screen leaves ~640px of page). The copy
    column is simply taller than the stage there, so trim its vertical bulk
    instead of letting it ride up under the nav. */
-@media (min-width: 900px) and (max-height: 720px) {
+@media (min-width: 900px) and (max-height: 720.98px) {
   .hero-inner { gap: 18px; padding-bottom: clamp(28px, 5vh, 56px); }
   .hero-title { font-size: clamp(2.25rem, 16cqw, 4.25rem); }
   .hero-sub { margin-top: 14px; }
@@ -868,7 +868,6 @@ html.js .reveal.is-in { opacity: 1; transform: none; filter: none; }
 
 .more-body .proj-title a { transition: color var(--t); }
 .more-body .proj-title a:hover { color: var(--accent); }
-.more-body .chips { margin-top: 14px; padding-top: 0; }
 .more-body .proj-actions {
   display: flex;
   flex-wrap: wrap;
@@ -1504,7 +1503,13 @@ html.js:not(.intro-done) .reveal-hero { opacity: 0; }
   .pd-rail { position: sticky; top: 104px; order: 2; }
 }
 
-@media (max-width: 899px) {
+/* 899.98, not 899. On a display at fractional scaling -- 125% is the common
+   Windows case -- the CSS viewport width is fractional too, so a window sized
+   between 899 and 900 matched NEITHER `max-width: 899px` NOR `min-width: 900px`
+   and fell through to the base styles: full-bleed canvas with no phone band,
+   desktop nav links with no mobile treatment, and the headline painted through
+   the nav island. Same reason `max-height` below carries the .98. */
+@media (max-width: 899.98px) {
   .nav-links, .nav-cta { display: none; }
   .nav-toggle { display: block; }
   .nav-island { width: min(100%, 420px); justify-content: space-between; }
