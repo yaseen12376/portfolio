@@ -94,7 +94,8 @@ movement, no cuts". That is the most important instruction in each one.
    - In `src/data/projects.js`, add `video: '/project-video/<id>'` to each of those four projects.
 2. **Stills**
    - Convert each one to `public/posters/<id>.webp` at 1920×1080. The sharp one-liner in the git history for `retail-analytics.webp` does exactly this.
-   - Set each project's `poster:` to that path. For ConstructSafe this replaces `/posters/constructsafe.svg`.
+   - Set each project's `poster:` to that path. (All eight already point at a
+     `.webp` lifted from their loop; the interim SVGs have been deleted.)
    - If a loop exists, you can use its `.jpg` poster frame instead.
 3. **Retail Analytics' proof card:** `src/sections/about.js` uses the same poster for the "2.4×" cell. Point it at the new still too.
 

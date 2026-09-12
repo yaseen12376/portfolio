@@ -627,18 +627,6 @@ html.js #preloader {
   }
   .hero-meta { align-items: flex-end; text-align: right; }
 }
-@media (max-width: 899px) {
-  /* On a phone the figure fills the frame, so the copy shares space with him
-     rather than dodging him: full width, and clear of the nav island. */
-  .hero-copy { max-width: none; }
-  .hero-title { font-size: clamp(2.5rem, 13vw, 3.75rem); }
-  .hero-inner { padding-top: 104px; align-content: safe end; }
-  .hero-meta { flex-direction: row; flex-wrap: wrap; align-items: center; gap: 6px 16px; font-size: 0.875rem; }
-  .hero-social { display: none; }
-  .hero-figures { gap: 8px 22px; margin-top: 24px; padding-top: 16px; }
-  .hero-figures dt { font-size: 1.25rem; }
-  .hero-figures dd { max-width: 14ch; font-size: 0.75rem; }
-}
 
 .hero-title {
   font-family: var(--font-display);
@@ -662,6 +650,67 @@ html.js #preloader {
   color: #c4c4cc;
 }
 .hero-ctas { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 30px; }
+
+@media (max-width: 899px) {
+  /* PHONE HERO — a band, not a full bleed.
+     
+     The mobile frame is already a head-and-shoulders portrait. Stretching it
+     over a 100svh portrait box with object-fit:cover scaled it 1.92x and left
+     only 26% of the frame's width visible, which cut his hair off at both sides
+     and put the headline across his eye. Giving the figure its own 62% band
+     drops the scale to ~1.19 and shows ~42% of the width -- his whole head,
+     uncropped -- and hands the top third back to the copy.
+     
+     The mask feathers the band's top edge so it reads as depth rather than as a
+     seam between the frame's purple and the page's near-black. */
+  .hero-poster,
+  #hero-canvas {
+    top: auto;
+    bottom: 0;
+    height: 62%;
+    object-position: 50% 42%;
+    -webkit-mask-image: linear-gradient(180deg, transparent 0%, #000 16%);
+    mask-image: linear-gradient(180deg, transparent 0%, #000 16%);
+  }
+
+  /* Vertical scrim: the copy sits at the top, the meta line at the bottom, and
+     the figure owns the middle. The desktop left-to-right scrim does nothing
+     useful in a single column. */
+  .hero-vignette {
+    background:
+      linear-gradient(180deg, rgba(5, 5, 6, 0.9) 0%, rgba(5, 5, 6, 0.55) 28%, transparent 46%),
+      linear-gradient(0deg, rgba(5, 5, 6, 0.82) 0%, rgba(5, 5, 6, 0.3) 12%, transparent 22%);
+  }
+
+  .hero-copy { max-width: none; }
+  .hero-title { font-size: clamp(2.5rem, 13vw, 3.75rem); }
+  /* space-between, not end: copy to the top above his head, status pinned to
+     the bottom. Both clear of the figure. */
+  .hero-inner {
+    align-content: space-between;
+    padding-top: 104px;
+    padding-bottom: 24px;
+    gap: 16px;
+  }
+  .hero-sub { margin-top: 16px; }
+  .hero-ctas { margin-top: 22px; }
+  .hero-meta { flex-direction: row; flex-wrap: wrap; align-items: center; gap: 6px 16px; font-size: 0.875rem; }
+  .hero-social { display: none; }
+  /* The same three numbers open the About proof grid two screens down. On a
+     phone that repetition costs a third of the first screen, and the first
+     screen is where 80% of viewing time goes. */
+  .hero-figures { display: none; }
+
+  /* Tap targets. Both of these were under the 44px floor, where error rates
+     run about 3x higher. */
+  .nav-toggle { width: 44px; height: 44px; }
+  .nav-toggle span { left: 14px; right: 14px; }
+  .nav-toggle span:nth-child(1) { top: 18px; }
+  .nav-toggle span:nth-child(2) { top: 25px; }
+  .nav-toggle[aria-expanded='true'] span:nth-child(1),
+  .nav-toggle[aria-expanded='true'] span:nth-child(2) { top: 21.5px; }
+  .card-toggle { min-height: 44px; }
+}
 
 /* Short laptop viewports (a 768px-tall screen leaves ~640px of page). The copy
    column is simply taller than the stage there, so trim its vertical bulk
@@ -1528,11 +1577,27 @@ html.js:not(.intro-done) .reveal-hero { opacity: 0; }
 @media (max-width: 560px) {
   .hero-ctas .btn { flex: 1 1 auto; }
   .facts { grid-template-columns: 1fr; }
-  /* Figures become rows (value beside label) so an odd count never orphans. */
-  .metrics, .card-body .metrics { grid-template-columns: 1fr; gap: 8px; }
-  .metric { display: grid; grid-template-columns: 5.5rem 1fr; align-items: center; gap: 14px; padding: 16px 18px; }
-  .metric-value { font-size: 1.625rem; }
-  .metric-label { margin-top: 0; }
+  /* Figures become rows (value beside label) so an odd count never orphans.
+     
+     And they lose the box. Three nested cards inside a card is chrome doing no
+     work -- none of them sits at a different elevation from the others -- and
+     on a 390px screen it cost about a third of the card's height in padding and
+     borders alone. A hairline between rows carries the same grouping. */
+  .metrics, .card-body .metrics { grid-template-columns: 1fr; gap: 0; }
+  .metric {
+    display: grid;
+    grid-template-columns: 5.25rem 1fr;
+    align-items: center;
+    gap: 14px;
+    padding: 13px 2px;
+    background: none;
+    border: 0;
+    border-top: 1px solid var(--line);
+    border-radius: 0;
+  }
+  .metric:first-child { border-top: 0; padding-top: 2px; }
+  .metric-value { font-size: 1.5rem; }
+  .metric-label { margin-top: 0; font-size: 0.8125rem; }
   .pd-next .btn-icon { display: none; }
 }
 
