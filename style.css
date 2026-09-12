@@ -77,7 +77,16 @@ body {
   text-rendering: optimizeLegibility;
 }
 
-body.detail-open,
+/* Only the menu locks the viewport. The menu is an overlay ON TOP of the page,
+   so the page behind it must not move.
+
+   The case study is not: opening one sets #main-content to display:none, which
+   makes the case study itself the document's only scrollable content. Locking
+   the viewport locked the very thing the reader just opened. It went unnoticed
+   because Lenis intercepts the wheel and scrolls programmatically, which
+   bypasses a hidden viewport -- but on a phone `syncTouch: false` deliberately
+   leaves touch to the browser for native momentum, and native touch scrolling
+   is blocked by it. So case studies could not be scrolled on mobile at all. */
 body.menu-open { overflow: hidden; }
 
 img, svg, canvas, video { display: block; max-width: 100%; }
