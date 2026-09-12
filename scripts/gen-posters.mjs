@@ -157,42 +157,151 @@ const mono = (x, y, text, { size = 16, fill = PALETTE.text, anchor = 'start', ls
 
 // ------------------------------------------------------------------- posters
 
+// The retired 'ppe' poster lived here; PPE detection is now part of the
+// ConstructSafe case study (src/data/projects.js).
 const POSTERS = {
-  ppe(accent) {
-    const r = rng(101);
-    const people = [
-      { x: 300, s: 1.15, ok: true, c: 0.96 },
-      { x: 620, s: 1.0, ok: true, c: 0.94 },
-      { x: 940, s: 1.08, ok: false, c: 0.88 },
-      { x: 1250, s: 0.92, ok: true, c: 0.91 },
+  /**
+   * Courier: a route network seen from above. Hubs joined by roads, parcels
+   * partway through their legs with the distance already covered drawn in,
+   * and one hub acknowledging a delivery.
+   */
+  courier() {
+    const r = rng(7731);
+    // Everything lives inside a centred safe zone (x 380-1230). These posters
+    // are cropped to roughly a square in the stacked cards, so anything near
+    // the left or right edge is the first thing to disappear.
+    const hubs = [
+      { x: 400, y: 646 },
+      { x: 622, y: 302 },
+      { x: 858, y: 540 },
+      { x: 1118, y: 300 },
+      { x: 1222, y: 664 },
     ];
-    const baseY = 700;
-    let out = '';
-    for (const p of people) {
-      const color = p.ok ? PALETTE.teal : PALETTE.red;
-      out += figure(p.x, baseY, p.s, '#232334', 1);
-      out += helmet(p.x, baseY - 172 * p.s, p.s, p.ok ? PALETTE.teal : '#2a2a3a');
-      const w = 150 * p.s;
-      const h = 250 * p.s;
-      out += box(p.x - w / 2, baseY - h - 40 * p.s, w, h, color, p.ok ? 'PPE OK' : 'NO HELMET', p.c.toFixed(2));
+    const legs = [[0, 1], [1, 2], [2, 3], [3, 4], [0, 2], [2, 4]];
+
+    // Background roads: no destination, just a country underneath the network.
+    let minor = '';
+    for (let i = 0; i < 11; i++) {
+      const x1 = r() * W;
+      const y1 = r() * H;
+      const x2 = x1 + (r() - 0.5) * 760;
+      const y2 = y1 + (r() - 0.5) * 520;
+      minor += `<path d="M${n(x1)} ${n(y1)} Q${n((x1 + x2) / 2 + (r() - 0.5) * 180)} ${n((y1 + y2) / 2 + (r() - 0.5) * 180)} ${n(x2)} ${n(y2)}"/>`;
     }
-    // scan lines
-    let scan = '';
-    for (let y = 120; y < H - 120; y += 5) scan += `<line x1="90" y1="${y}" x2="${W - 90}" y2="${y}"/>`;
-    return `
-      ${out}
-      <g stroke="${accent}" stroke-width="1" opacity="0.05">${scan}</g>
-      <g>
-        ${mono(96, 148, 'PPE COMPLIANCE', { size: 22, fill: accent, ls: 5, weight: 600 })}
-        ${mono(96, 178, 'YOLOv5 · 4 TRACKED · 1 VIOLATION', { size: 15 })}
-      </g>
-      <g>
-        <rect x="${W - 340}" y="120" width="244" height="76" fill="#0e0e16" opacity="0.9" stroke="${PALETTE.line}"/>
-        ${mono(W - 322, 152, 'SAFE', { size: 15 })}
-        ${mono(W - 322, 178, '3', { size: 26, fill: PALETTE.teal, weight: 700 })}
-        ${mono(W - 200, 152, 'UNSAFE', { size: 15 })}
-        ${mono(W - 200, 178, '1', { size: 26, fill: PALETTE.red, weight: 700 })}
+
+    const paths = legs.map(([i, j]) => {
+      const a = hubs[i];
+      const b = hubs[j];
+      const c = { x: (a.x + b.x) / 2 + (r() - 0.5) * 230, y: (a.y + b.y) / 2 + (r() - 0.5) * 230 };
+      return { a, b, c, d: `M${a.x} ${a.y} Q${n(c.x)} ${n(c.y)} ${b.x} ${b.y}` };
+    });
+
+    const roads = paths
+      .map((p) => `<path d="${p.d}" fill="none" stroke="${PALETTE.teal}" stroke-width="1.8" opacity="0.45"/>`)
+      .join('');
+
+    // Quadratic point and tangent, so a parcel sits on its road facing along it.
+    const at = (p, t) => ({
+      x: (1 - t) ** 2 * p.a.x + 2 * (1 - t) * t * p.c.x + t ** 2 * p.b.x,
+      y: (1 - t) ** 2 * p.a.y + 2 * (1 - t) * t * p.c.y + t ** 2 * p.b.y,
+    });
+    const angle = (p, t) => {
+      const dx = 2 * (1 - t) * (p.c.x - p.a.x) + 2 * t * (p.b.x - p.c.x);
+      const dy = 2 * (1 - t) * (p.c.y - p.a.y) + 2 * t * (p.b.y - p.c.y);
+      return (Math.atan2(dy, dx) * 180) / Math.PI;
+    };
+
+    const inTransit = [
+      { leg: 0, t: 0.62 },
+      { leg: 2, t: 0.38 },
+      { leg: 5, t: 0.74 },
+    ];
+    const parcels = inTransit
+      .map(({ leg, t }) => {
+        const p = paths[leg];
+        const pos = at(p, t);
+        return `
+      <path d="${p.d}" pathLength="100" stroke-dasharray="${n(t * 100)} 100"
+            fill="none" stroke="${PALETTE.purple}" stroke-width="2.6" opacity="0.8" stroke-linecap="round"/>
+      <g transform="translate(${n(pos.x)} ${n(pos.y)}) rotate(${n(angle(p, t))})">
+        <rect x="-14" y="-14" width="28" height="28" rx="6" fill="${PALETTE.purple}" opacity="0.95"/>
+        <path d="M-14 0 H14 M0 -14 V14" stroke="#0d0a16" stroke-width="2" opacity="0.45"/>
       </g>`;
+      })
+      .join('');
+
+    const nodes = hubs
+      .map(
+        (h) => `
+      <g>
+        <circle cx="${h.x}" cy="${h.y}" r="27" fill="none" stroke="${PALETTE.teal}" stroke-width="1.2" opacity="0.3"/>
+        <circle cx="${h.x}" cy="${h.y}" r="13" fill="none" stroke="${PALETTE.teal}" stroke-width="1.8" opacity="0.85"/>
+        <circle cx="${h.x}" cy="${h.y}" r="4.5" fill="${PALETTE.teal}"/>
+      </g>`
+      )
+      .join('');
+
+    const ack = hubs[3];
+    return `
+      <g stroke="${PALETTE.teal}" stroke-width="1" fill="none" opacity="0.12">${minor}</g>
+      ${roads}
+      ${parcels}
+      ${nodes}
+      <g fill="none" stroke="${PALETTE.amber}">
+        <circle cx="${ack.x}" cy="${ack.y}" r="44" stroke-width="2" opacity="0.5"/>
+        <circle cx="${ack.x}" cy="${ack.y}" r="70" stroke-width="1.4" opacity="0.22"/>
+      </g>`;
+  },
+
+  /**
+   * AirDraw: the 21 hand landmarks the tracker returns, and the ink the
+   * fingertip has left behind.
+   */
+  airdraw() {
+    const pts = [
+      [520, 780],
+      [452, 742], [404, 700], [378, 656], [372, 610],
+      [556, 614], [566, 520], [572, 462], [578, 404],
+      [622, 606], [664, 556], [636, 532], [604, 540],
+      [676, 624], [722, 586], [692, 560], [660, 566],
+      [724, 652], [764, 624], [738, 600], [708, 604],
+    ];
+    const bones = [
+      [0, 1], [1, 2], [2, 3], [3, 4],
+      [0, 5], [5, 6], [6, 7], [7, 8],
+      [5, 9], [9, 10], [10, 11], [11, 12],
+      [9, 13], [13, 14], [14, 15], [15, 16],
+      [13, 17], [17, 18], [18, 19], [19, 20],
+      [0, 17],
+    ];
+
+    const skeleton = bones
+      .map(([i, j]) => `<line x1="${pts[i][0]}" y1="${pts[i][1]}" x2="${pts[j][0]}" y2="${pts[j][1]}"/>`)
+      .join('');
+    const joints = pts
+      .map(([x, y], i) => `<circle cx="${x}" cy="${y}" r="${i === 8 ? 9 : i % 4 === 0 ? 6.5 : 5}" fill="${PALETTE.teal}" opacity="${i === 8 ? 1 : 0.85}"/>`)
+      .join('');
+
+    const stroke = 'M714 396 C 846 300 1032 330 1102 460 C 1162 570 1092 680 992 700 C 922 714 880 660 926 614';
+    const ghost = 'M1150 250 C 1216 276 1246 336 1232 392';
+
+    // The landmarks are drawn at their natural size, then scaled up and pushed
+    // toward the middle: the stacked cards crop these posters to roughly a
+    // square, and a hand at the edge loses its fingers.
+    return `
+      <g stroke="${PALETTE.purple}" fill="none" opacity="0.3" filter="url(#soft)">
+        <path d="${stroke}" stroke-width="22" stroke-linecap="round"/>
+      </g>
+      <g stroke="${PALETTE.purple}" fill="none" stroke-linecap="round">
+        <path d="${stroke}" stroke-width="5.5"/>
+        <path d="${ghost}" stroke-width="3" opacity="0.3" stroke-dasharray="3 10"/>
+      </g>
+      <circle cx="926" cy="614" r="10" fill="${PALETTE.purple}"/>
+      <g transform="translate(90 -40) scale(1.08)">
+        <g stroke="${PALETTE.teal}" stroke-width="2.4" opacity="0.75" stroke-linecap="round">${skeleton}</g>
+        ${joints}
+      </g>
+      ${box(452, 350, 505, 500, PALETTE.teal, 'HAND', '0.98')}`;
   },
 
   constructsafe(accent) {
@@ -458,7 +567,8 @@ ${chrome(LABELS[id], accent)}
 export const POSTER_IDS = () => Object.keys(POSTERS);
 
 const LABELS = {
-  ppe: 'PPE-DETECT / 01',
+  courier: 'COURIER-OPS / 03',
+  airdraw: 'AIRDRAW / 08',
   constructsafe: 'CONSTRUCTSAFE / 02',
   attendance: 'FACE-ATTEND / 03',
   'indoor-tracking': 'INDOOR-TRACK / 04',
@@ -467,7 +577,8 @@ const LABELS = {
 };
 
 const ACCENTS = {
-  ppe: PALETTE.teal,
+  courier: PALETTE.teal,
+  airdraw: PALETTE.purple,
   constructsafe: PALETTE.amber,
   attendance: PALETTE.purple,
   'indoor-tracking': PALETTE.teal,

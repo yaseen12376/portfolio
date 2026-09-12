@@ -11,11 +11,15 @@ _source-frames/
 # source footage (kept locally, too large for git)
 *.mp4
 test_frame.webp
+# ...but the encoded panel loops are web assets: the MP4 is the fallback for
+# browsers without VP9, and without this it 404s in production.
+!public/project-video/*.mp4
 
-# editor / os
+# editor / os / tooling
 .DS_Store
 Thumbs.db
 .vscode/
 .idea/
 .env
 _incoming/
+.playwright-mcp/

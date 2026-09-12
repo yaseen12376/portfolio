@@ -9,8 +9,8 @@
  * site already expects. Switch a project over by changing its one `poster:`
  * line in src/data/projects.js from .svg to .webp.
  *
- * Run: npm run gen:posters:ai            (all six)
- *      npm run gen:posters:ai -- ppe     (just one)
+ * Run: npm run gen:posters:ai                    (all of them)
+ *      npm run gen:posters:ai -- constructsafe   (just one)
  *
  * Seeds are fixed so re-running reproduces the same images. Change a seed to
  * roll a different composition for that project.
@@ -34,12 +34,6 @@ const H = 1080;
 const STYLE = 'cinematic dark teal and violet lighting, volumetric haze, shallow depth of field, photographic';
 
 const PROJECTS = [
-  {
-    id: 'ppe',
-    seed: 1041,
-    prompt:
-      'Construction workers in hard hats and hi-vis vests on a dark industrial floor at dusk, seen from a security camera angle, wide empty foreground',
-  },
   {
     id: 'constructsafe',
     seed: 2277,

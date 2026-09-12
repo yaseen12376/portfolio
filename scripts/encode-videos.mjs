@@ -34,9 +34,15 @@ const FADE = 0.6; // seconds of loop-seam crossfade
 const DUR = 10.005; // measured source duration
 
 /** Source filenames are inconsistent; map them onto the project ids. */
+// Keys are the filename lowercased with spaces and hyphens turned into "_".
+// After encoding a new id, add `video: '/project-video/<id>'` to that project
+// in src/data/projects.js (constructsafe, retail-analytics, courier, airdraw
+// have no video field until their clips exist).
 const ID_MAP = {
-  ppe: 'ppe',
+  retail_analytics: 'retail-analytics',
   constructsafe: 'constructsafe',
+  courier: 'courier',
+  airdraw: 'airdraw',
   attandance: 'attendance', // sic — source file is misspelled
   attendance: 'attendance',
   indoor_tracking: 'indoor-tracking',

@@ -3,6 +3,10 @@
   "buildCommand": "vite build",
   "outputDirectory": "dist",
   "framework": "vite",
+  "redirects": [
+    { "source": "/project/ppe", "destination": "/project/constructsafe/", "permanent": true },
+    { "source": "/project/ppe/", "destination": "/project/constructsafe/", "permanent": true }
+  ],
   "headers": [
     {
       "source": "/(hero|project-video|posters)/(.*)",

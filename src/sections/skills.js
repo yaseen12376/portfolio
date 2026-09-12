@@ -1,74 +1,78 @@
 /**
- * Skills: a velocity-reactive marquee over a grouped grid.
- *
- * The marquee is GSAP-driven rather than a CSS @keyframes loop, because a CSS
- * animation can't react to scroll — here it surges and skews with scroll
- * velocity and reverses with direction.
+ * Toolkit: grouped tools, each showing how many projects on the page use it.
+ * Hovering or focusing a tool names those projects, with links, in the line
+ * under its group, so the list is evidence rather than a claim.
  */
-import { gsap, ScrollTrigger, EASE, revealBatch } from '../core/motion.js';
-import { skills, skillGroups } from '../data/skills.js';
-import { scrollVelocity } from '../core/smooth-scroll.js';
+import { revealOnScroll } from '../core/motion.js';
+import { skillGroups } from '../data/skills.js';
+import { projects } from '../data/projects.js';
+import { esc } from '../core/util.js';
+
+const usedIn = (item) => projects.filter((p) => p.techStack.some((t) => item.match.includes(t)));
+const shortTitle = (p) => p.title.split(':')[0];
+
+const joinAnd = (parts) =>
+  parts.length < 2 ? parts.join('') : `${parts.slice(0, -1).join(', ')} and ${parts[parts.length - 1]}`;
 
 export function renderSkills() {
-  const track = document.querySelector('#skills-track');
-  const grid = document.querySelector('#skills-grid');
-
-  if (track) {
-    // Two copies so the -50% loop is seamless.
-    const pills = skills.map((s) => `<span class="skill-pill">${s}</span>`).join('');
-    track.innerHTML = `<div class="skills-set">${pills}</div><div class="skills-set" aria-hidden="true">${pills}</div>`;
-  }
-
-  if (grid) {
-    grid.innerHTML = skillGroups
-      .map(
-        (g) => `
-        <div class="skill-group">
-          <h3 class="skill-group-label">${g.label}</h3>
-          <ul class="skill-group-items">
-            ${g.items.map((i) => `<li>${i}</li>`).join('')}
-          </ul>
-        </div>`
-      )
-      .join('');
-  }
+  const host = document.querySelector('#skills-grid');
+  if (!host) return;
+  host.innerHTML = skillGroups
+    .map((g, gi) => {
+      const tools = g.items
+        .map((item) => {
+          const ids = usedIn(item).map((p) => p.id);
+          const n = ids.length;
+          return `<button type="button" class="tool" data-name="${esc(item.name)}" data-projects="${ids.join(' ')}"
+                    aria-label="${esc(item.name)}, used in ${n} project${n === 1 ? '' : 's'}">
+                    <span>${esc(item.name)}</span><span class="count" aria-hidden="true">${n}</span>
+                  </button>`;
+        })
+        .join('');
+      return `
+        <div class="tool-group">
+          <h3>${esc(g.label)}</h3>
+          <div class="tool-list">${tools}</div>
+          <p class="tool-where" id="tool-where-${gi}" aria-live="polite"></p>
+        </div>`;
+    })
+    .join('');
 }
 
-export function initSkills({ reduced }) {
-  revealBatch('#skills-grid .skill-group', { stagger: 0.08 });
+let bound = false;
 
-  const track = document.querySelector('#skills-track');
-  if (!track) return;
+export function initSkills() {
+  // Per-chip rather than per-group: the chips land in sequence, which reads as
+  // a list being filled in rather than three blocks appearing.
+  revealOnScroll('#skills .tool-group h3, #skills .tool');
+  const host = document.querySelector('#skills-grid');
+  if (!host || bound) return;
+  bound = true;
 
-  if (reduced) {
-    track.classList.add('is-static');
-    return;
-  }
+  const show = (tool) => {
+    const group = tool.closest('.tool-group');
+    group.querySelectorAll('.tool.is-on').forEach((t) => t.classList.remove('is-on'));
+    tool.classList.add('is-on');
+    const ids = tool.dataset.projects.split(' ').filter(Boolean);
+    const links = ids
+      .map((id) => projects.find((p) => p.id === id))
+      .filter(Boolean)
+      .map((p) => `<a href="#/project/${esc(p.id)}">${esc(shortTitle(p))}</a>`);
+    group.querySelector('.tool-where').innerHTML = links.length
+      ? `${esc(tool.dataset.name)} is used in ${joinAnd(links)}.`
+      : '';
+  };
 
-  const loop = gsap.to(track, {
-    xPercent: -50,
-    duration: 28,
-    ease: 'none',
-    repeat: -1,
+  host.addEventListener('pointerover', (e) => {
+    const tool = e.target.closest('.tool');
+    if (tool && e.pointerType === 'mouse') show(tool);
   });
-
-  const skewTo = gsap.quickTo(track, 'skewX', { duration: 0.5, ease: EASE.out });
-
-  ScrollTrigger.create({
-    trigger: '#skills',
-    start: 'top bottom',
-    end: 'bottom top',
-    onUpdate: (self) => {
-      const v = scrollVelocity();
-      const boost = 1 + Math.min(Math.abs(v) / 900, 3);
-      loop.timeScale(self.direction * boost || boost);
-      skewTo(gsap.utils.clamp(-8, 8, v / 260));
-    },
-    onLeave: () => skewTo(0),
-    onLeaveBack: () => skewTo(0),
+  host.addEventListener('focusin', (e) => {
+    const tool = e.target.closest('.tool');
+    if (tool) show(tool);
   });
-
-  const wrapper = document.querySelector('.skills-marquee');
-  wrapper?.addEventListener('mouseenter', () => gsap.to(loop, { timeScale: 0.15, duration: 0.4 }));
-  wrapper?.addEventListener('mouseleave', () => gsap.to(loop, { timeScale: 1, duration: 0.4 }));
+  host.addEventListener('click', (e) => {
+    const tool = e.target.closest('.tool');
+    if (tool) show(tool);
+  });
 }

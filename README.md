@@ -1,7 +1,9 @@
-# Sheik Ahmed Yaseen — portfolio
+# Sheik Ahmed Yaseen: portfolio
 
-Scroll-animated personal site. Vanilla JS + Vite, GSAP (ScrollTrigger / SplitText / Flip)
-and Lenis for smooth scroll. No framework.
+Scroll-animated personal site. Vanilla JS + Vite, GSAP (ScrollTrigger /
+SplitText / Flip) and Lenis for smooth scroll. There is no framework. Type is
+Geist and Geist Mono, self-hosted via `@fontsource-variable`, and icons are
+Phosphor (light), imported as raw SVG.
 
 ```bash
 npm install
@@ -12,99 +14,67 @@ npm run preview    # serve the build
 
 ---
 
-## Three things you need to add
+## Still needed from you
 
-These are placeholders the site links to but the repo can't supply.
+1. **Résumé: `public/resume.pdf`.** Every résumé link (nav, hero, menu, footer) is hidden until this file exists. Drop it in and restart the dev server or rebuild. `vite.config.js` checks for it at startup.
+2. **Contact form endpoint.** Without one, the form opens the visitor's mail client with the message filled in. To make it post:
+   ```bash
+   cp .env.example .env   # then paste your Formspree URL into VITE_CONTACT_ENDPOINT
+   ```
+3. **Project footage** for retail-analytics, constructsafe, courier and airdraw. [`docs/image-prompts.md`](docs/image-prompts.md) has the Gemini and Veo prompts and the three wiring steps.
+4. **Numbers only you have.** Metrics set to `'TODO_'` in `src/data/projects.js` are hidden until filled in:
 
-### 1. Your résumé — `public/resume.pdf`
-
-Two links point at `/resume.pdf` (hero button, footer). Drop the PDF in as
-`public/resume.pdf` and they work. Until then both 404.
-
-### 2. Contact form endpoint
-
-The form currently falls back to opening the visitor's mail client. To make it
-post properly, create a form at [Formspree](https://formspree.io), then:
-
-```bash
-cp .env.example .env
-# paste your endpoint into VITE_CONTACT_ENDPOINT
-```
-
-### 3. The project numbers only you have
-
-`src/data/projects.js` has a `metrics` array per project. Entries marked
-`'TODO_'` are skipped by the renderer, so nothing broken shows — but these are
-the figures recruiters actually read, and right now they're missing:
-
-| Project | Needed |
-|---|---|
-| PPE Detection | Inference latency (ms) on your hardware, mAP@0.5 from your training run |
-| ConstructSafe | FPS on your GPU |
-| Attendance | Recognition accuracy % against your enrolled set |
-| Indoor Tracking | Number of beacons deployed |
-| ADRAF | Accuracy on FaceForensics++ and on Celeb-DF |
-
-Replace `'TODO_'` with the value and it appears automatically.
-
-> Your `sem_defect` repo has the strongest numbers you own — ROC-AUC 0.9993, a
-> 2.7 MB INT8 TFLite model, 38,015 wafer maps. It isn't on the site. Worth
-> adding as a seventh project.
-
----
+   | Project | Needed |
+   |---|---|
+   | Attendance | Recognition accuracy % on your enrolled set |
+   | Indoor Tracking | Number of beacons deployed |
+   | ADRAF | Accuracy on FaceForensics++ and on Celeb-DF |
 
 ## Content
 
-All copy lives in `src/data/` — nothing is hardcoded in markup:
+All copy lives in `src/data/`, apart from the hero, About bio and contact text in `index.html`.
 
 | File | Holds |
 |---|---|
-| `profile.js` | Name, role, contact links, rotating role words |
-| `projects.js` | The six case studies, incl. `metrics`, `poster`, `repo` |
-| `skills.js` | Grouped skills (drives both the marquee and the grid) |
-| `experience.js` | Work + education timeline |
+| `projects.js` | The eight case studies. `tier` places each one (flagship / featured stack / more builds). Also holds `metrics`, `role`, `team`, `limitations`, `poster`, `video` and `repo` |
+| `experience.js` | Work, client and education rows |
+| `skills.js` | Toolkit groups. Each tool's `match` list maps to project `techStack` names, which is how the "used in" counts are computed |
+| `profile.js` | Name, contact links, location, education |
+
+Rules the renderers rely on:
+- **Everything is escaped** (`esc()` in `src/core/util.js`), so write plain text.
+- **No em or en dashes** in visible copy. Use commas, colons or full stops.
+- **`repo`** is only set for repositories that are public. `private: true` shows "Private repository" instead.
+- **`num`** is derived from array order.
+
+## Design system
+
+Everything is in `style.css`, with tokens at the top.
+- **Colour:** dark only, because the hero frames are dark. There is one UI accent, violet `#a78bfa`. Turquoise, red and amber appear only inside project media, where they mean safe, unsafe and alert.
+- **Shape:** shells are 28px, cores 22px and inputs 14px. Interactive elements are full pills.
+- **Motion:** content enters with a fade-up and unblur (`revealOnScroll` in `src/core/motion.js`). Project media get "lock-on" bracket corners when active. Everything collapses under `prefers-reduced-motion`.
 
 ## Asset pipelines
 
 ```bash
 npm run encode:frames   # hero sequence  (needs _source-frames/, see below)
-npm run gen:posters     # six project poster SVGs
+npm run encode:videos   # project loops from "Project vids/*.mp4"
+npm run gen:posters     # legacy SVG posters
 npm run gen:brand       # favicons, og-image.png, robots.txt
 ```
 
-**Hero frames.** `_source-frames/frames_lossless_webp/` holds the 276 lossless 4K
-frames and is gitignored (7.7 GB). `encode:frames` decimates non-uniformly —
-every frame through the action, the static tail thinned 3× — and writes two
-resolution tiers plus a low-res "ladder" into `public/hero/`. Only one tier is
-downloaded per device (~11 MB desktop, ~4 MB mobile). Keep the source folder if
-you ever want to re-encode; the site doesn't need it.
-
-**Project posters.** Generated SVGs. To swap in real renders, see
-[`docs/image-prompts.md`](docs/image-prompts.md) — it has a per-project
-generation prompt and the exact spec so an image drops into the slot with a
-one-line data edit.
+- **Hero frames.** `_source-frames/frames_lossless_webp/` holds the 276 lossless 4K frames and is gitignored (7.7 GB). `encode:frames` writes two resolution tiers plus a low-res "ladder" into `public/hero/`. Only one tier is downloaded per device (about 11 MB on desktop, about 4 MB on mobile).
+- **Project loops.** `encode:videos` drops audio, crossfades the loop seam, removes the Veo watermark and writes VP9 WebM, an H.264 MP4 fallback and a poster JPG. New ids need an entry in its `ID_MAP`.
 
 ## Architecture notes
 
-- `src/core/smooth-scroll.js` — Lenis ⇄ ScrollTrigger wiring. One rAF loop,
-  fixed ordering. Don't add `scroll-behavior: smooth`; it fights Lenis.
-- `src/media/frame-sequence.js` — the hero canvas sequence. Uses `<img>` +
-  `img.decode()` rather than ImageBitmap, deliberately; the reasoning (and the
-  measurements that forced it) is in the file header.
-- `body` uses `overflow-x: clip`, **not** `hidden` — `hidden` makes body a
-  scroll container and silently breaks `position: sticky` everywhere.
-- The hero pin carries `refreshPriority: 1` so every trigger below it measures
-  against the pin-spacer.
-- `vite.config.js` emits a real `/project/<id>/index.html` per project at build
-  time, with its own title/description/canonical and a `<noscript>` copy of the
-  case study.
+- `src/core/smooth-scroll.js`: Lenis and ScrollTrigger share one rAF loop in a fixed order. Don't add `scroll-behavior: smooth`; it fights Lenis.
+- `src/media/frame-sequence.js`: the hero canvas sequence. It uses `<img>` + `img.decode()` rather than ImageBitmap, deliberately; the reasoning is in the file header.
+- `src/sections/hero.js`: a single ScrollTrigger owns the pin, the scrub and the frame index, with `refreshPriority: 1` so every trigger below measures against its spacer.
+- `src/sections/projects.js`: the featured stack pins each card with `pinSpacing: false` (desktop only). A card's media plays only while it is the active card.
+- `body` uses `overflow-x: clip`, **not** `hidden`. `hidden` makes body a scroll container and silently breaks sticky positioning and every pin.
+- `vite.config.js` emits a real `/project/<id>/index.html` per project at build time, with its own title, description, canonical and a `<noscript>` copy of the case study, plus `sitemap.xml`. `vercel.json` redirects the retired `/project/ppe` to ConstructSafe.
 
 ## Deploy
 
-Static. `npm run build` then serve `dist/`. Needs an SPA-style rewrite so
-unknown paths fall back to `index.html` (the generated `/project/*` pages are
-real files, so they're served directly).
-
-Update the domain in `scripts/gen-brand.mjs` (robots.txt) and `vite.config.js`
-(canonical + sitemap) before going live — both currently say
-`sheikahmedyaseen.com`.
+Static. `npm run build`, then serve `dist/`. Update the domain in `scripts/gen-brand.mjs` (robots.txt) and `vite.config.js` (`SITE`) before going live; both currently say `sheikahmedyaseen.com`.

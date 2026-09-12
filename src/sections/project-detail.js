@@ -1,119 +1,129 @@
 /**
  * Project detail view.
  *
- * A client-side overlay rather than a real route, kept from the previous build
- * so existing #/project/<id> links stay valid. Two things the old version got
- * wrong are fixed here: scroll position is stored in history state instead of
- * being guessed as `hero.offsetHeight * 0.82`, and restoration waits for
- * ScrollTrigger to finish refreshing before scrolling.
+ * A client-side overlay rather than a real route, so #/project/<id> links stay
+ * valid (the build also emits /project/<id>/ pages that hand over to this).
+ * Scroll position is stored in history state and restored after ScrollTrigger
+ * has re-measured, because the overlay hides #main-content while it is open.
  */
-import { gsap, ScrollTrigger, Flip, EASE, revealLines } from '../core/motion.js';
-import { getProject, projects } from '../data/projects.js';
+import { gsap, ScrollTrigger, Flip, EASE, revealLines, countUp } from '../core/motion.js';
+import { getProject, projects, liveMetrics } from '../data/projects.js';
 import { scrollTo, stopScroll, startScroll, resizeScroll } from '../core/smooth-scroll.js';
+import { esc, icons, brandIcons } from '../core/util.js';
+import { mediaMarkup, metricMarkup, playMedia, stopMedia, shortTitle } from './projects.js';
 
-/** Figures strip. Entries still marked TODO_ are skipped rather than shown. */
-function metricsMarkup(p) {
-  const live = (p.metrics ?? []).filter((m) => m.value !== 'TODO_');
-  if (!live.length) return '';
-  return `<dl class="pd-metrics">${live
-    .map(
-      (m) => `<div class="pd-metric"><dt>${m.label}</dt><dd>${m.value}</dd></div>`
-    )
-    .join('')}</dl>`;
+const list = (items, cls) => `<ul class="${cls}">${items.map((i) => `<li>${esc(i)}</li>`).join('')}</ul>`;
+
+function railMarkup(p) {
+  const rows = [
+    p.role && ['Role', esc(p.role)],
+    p.team && ['Team', esc(p.team)],
+    ['Year', esc(p.year)],
+    p.status && ['Status', esc(p.status)],
+  ].filter(Boolean);
+  const code = p.repo
+    ? `<a class="btn btn-ghost" href="${esc(p.repo)}" target="_blank" rel="noopener noreferrer">
+         <span style="display:inline-flex;gap:8px;align-items:center">${brandIcons.github} View code</span>
+         <span class="btn-icon up">${icons.arrowUpRight}</span>
+       </a>`
+    : `<span class="private-note">${icons.lock} Private repository${p.id === 'courier' ? ', client work' : ''}</span>`;
+  return `
+    <aside class="pd-rail">
+      <dl>
+        ${rows.map(([k, v]) => `<div><dt>${k}</dt><dd>${v}</dd></div>`).join('')}
+        <div><dt>Stack</dt><dd><div class="chips">${p.techStack.map((t) => `<span class="chip">${esc(t)}</span>`).join('')}</div></dd></div>
+        <div><dt>Code</dt><dd>${code}</dd></div>
+      </dl>
+    </aside>`;
 }
-
-const list = (items, cls = '') =>
-  `<ul class="${cls}">${items.map((i) => `<li>${i}</li>`).join('')}</ul>`;
 
 function detailMarkup(p) {
   const idx = projects.findIndex((x) => x.id === p.id);
   const next = projects[(idx + 1) % projects.length];
+  const metrics = liveMetrics(p);
   return `
-    <article class="pd-inner" data-accent="${p.accent}">
+    <article class="pd-inner">
+      <div class="pd-bar">
+        <button class="pd-back" id="pd-back" type="button">${icons.arrowLeft}<span>All work</span></button>
+      </div>
+
       <header class="pd-head">
-        <button class="pd-back" id="pd-back" type="button">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg>
-          <span>All projects</span>
-        </button>
-        <div class="pd-meta">
-          <span class="pd-num">${p.num}</span>
-          <span class="pd-year">${p.year}</span>
-        </div>
+        <p class="proj-meta"><span class="num">${p.num}</span><span>${esc(p.year)}</span>
+          ${p.status ? `<span class="chip chip-accent">${esc(p.status)}</span>` : ''}</p>
+        <h1 class="pd-title">${esc(p.title)}</h1>
+        <p class="pd-short">${esc(p.short)}</p>
       </header>
 
-      <div class="pd-hero">
-        <h1 class="pd-title">${p.title}</h1>
-        <p class="pd-short">${p.short}</p>
-        <div class="pd-tags">${p.tags.map((t) => `<span class="pill">${t}</span>`).join('')}</div>
-        ${
-          p.repo
-            ? `<a class="btn btn-primary pd-repo" href="${p.repo}" target="_blank" rel="noopener noreferrer">
-                 <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0 0 24 12c0-6.63-5.37-12-12-12z"/></svg>
-                 View on GitHub
-               </a>`
-            : ''
-        }
+      <div class="shell pd-hero-media is-locked"><div class="core">${mediaMarkup(p, { eager: true })}</div></div>
+
+      <div class="pd-layout">
+        ${railMarkup(p)}
+        <div class="pd-main">
+          <section class="pd-block"><h2>Overview</h2><p>${esc(p.overview)}</p></section>
+          <section class="pd-block pd-split">
+            <div><h2>The problem</h2><p>${esc(p.problem)}</p></div>
+            <div><h2>The approach</h2><p>${esc(p.solution)}</p></div>
+          </section>
+          <section class="pd-block"><h2>What I built</h2>${list(p.implementation, 'pd-list')}</section>
+          <section class="pd-block">
+            <h2>Results</h2>
+            ${metrics.length ? `<div class="metrics">${metrics.map(metricMarkup).join('')}</div>` : ''}
+            ${list(p.outcomes, 'pd-list')}
+          </section>
+          ${
+            p.limitations?.length
+              ? `<section class="pd-block"><h2>Limitations, stated plainly</h2><div class="pd-limits">${list(p.limitations, '')}</div></section>`
+              : ''
+          }
+        </div>
       </div>
 
-      ${metricsMarkup(p)}
-
-      <figure class="pd-media" id="pd-media">
-        <img src="${p.poster}" alt="${p.title}" />
-      </figure>
-
-      <div class="pd-body">
-        <section class="pd-block">
-          <h2 class="pd-h">Overview</h2>
-          <p>${p.overview}</p>
-        </section>
-        <section class="pd-block pd-split">
-          <div><h2 class="pd-h">The problem</h2><p>${p.problem}</p></div>
-          <div><h2 class="pd-h">The approach</h2><p>${p.solution}</p></div>
-        </section>
-        <section class="pd-block">
-          <h2 class="pd-h">Implementation</h2>
-          ${list(p.implementation, 'pd-list')}
-        </section>
-        <section class="pd-block">
-          <h2 class="pd-h">Stack</h2>
-          <div class="pd-tags">${p.techStack.map((t) => `<span class="pill">${t}</span>`).join('')}</div>
-        </section>
-        <section class="pd-block">
-          <h2 class="pd-h">Outcomes</h2>
-          ${list(p.outcomes, 'pd-list pd-list-check')}
-        </section>
-      </div>
-
-      <a class="pd-next" href="#/project/${next.id}">
-        <span class="pd-next-label">Next project</span>
-        <span class="pd-next-title">${next.title}</span>
+      <a class="pd-next" href="#/project/${esc(next.id)}">
+        <span><span class="pd-next-label">Next project</span><span class="pd-next-title">${esc(next.title)}</span></span>
+        <span class="btn-icon">${icons.arrowRight}</span>
       </a>
     </article>`;
 }
 
 const reducedMotion = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-/** When the DOM swap happens, relative to the wipe covering the screen. */
-const swapAt = () => (reducedMotion() ? 0 : 0.5);
+const desktop = () => window.matchMedia('(min-width: 900px)').matches;
 
 const detail = () => document.querySelector('#project-detail');
 const main = () => document.querySelector('#main-content');
+const siteTitle = document.title;
 
 let isOpen = false;
 let splits = [];
+let returnFocus = null;
 
-function playWipe() {
-  const panels = gsap.utils.toArray('#page-transition .wipe-panel');
-  // Reduced motion gets an instant swap rather than a 1s curtain.
-  if (!panels.length || reducedMotion()) {
-    return gsap.timeline();
+// The case study's markup is thrown away on every open and close, so anything
+// scroll-driven inside it has to be killed with it or it accumulates triggers
+// pointing at elements that no longer exist.
+let detailTriggers = [];
+const killDetailTriggers = () => {
+  detailTriggers.forEach((t) => t?.kill());
+  detailTriggers = [];
+};
+
+/**
+ * Cross-fade between page and case study. Only opacity on the way out: a
+ * transform on #main-content would re-anchor the pinned hero (a position:fixed
+ * descendant) to the transformed ancestor and visibly jump it.
+ */
+function swapViews(from, swap) {
+  if (reducedMotion() || !from) {
+    swap();
+    return;
   }
-  return gsap
-    .timeline()
-    .set('#page-transition', { pointerEvents: 'auto' })
-    .to(panels, { scaleY: 1, duration: 0.42, ease: EASE.inOut, stagger: 0.05 })
-    .to(panels, { scaleY: 0, duration: 0.42, ease: EASE.inOut, stagger: 0.05, transformOrigin: 'top' }, '+=0.1')
-    .set('#page-transition', { pointerEvents: 'none' })
-    .set(panels, { transformOrigin: 'bottom' });
+  gsap.to(from, {
+    autoAlpha: 0,
+    duration: 0.28,
+    ease: EASE.in,
+    onComplete: () => {
+      gsap.set(from, { clearProps: 'opacity,visibility' });
+      swap();
+    },
+  });
 }
 
 export function openProject(id, { push = true } = {}) {
@@ -121,82 +131,117 @@ export function openProject(id, { push = true } = {}) {
   const el = detail();
   if (!p || !el) return;
 
-  const scrollY = window.scrollY;
-  const sourceImg = document.querySelector(`.panel-layer[data-id="${id}"] img`);
+  const scrollY = isOpen ? history.state?.scrollY ?? 0 : window.scrollY;
+  const sourceImg = !isOpen ? main().querySelector(`.media[data-id="${p.id}"] img`) : null;
   const flipState = sourceImg ? Flip.getState(sourceImg) : null;
+  if (!isOpen) returnFocus = document.activeElement;
 
-  const wipe = playWipe();
-  wipe.add(() => {
+  stopScroll();
+  if (push) {
+    history.replaceState({ ...history.state, scrollY }, '');
+    history.pushState({ project: p.id, scrollY }, '', `#/project/${p.id}`);
+  }
+
+  swapViews(isOpen ? el : main(), () => {
+    el.querySelectorAll('.media').forEach(stopMedia);
+    killDetailTriggers();
     el.innerHTML = detailMarkup(p);
     el.classList.remove('hidden');
     el.setAttribute('aria-hidden', 'false');
     main().style.display = 'none';
     document.body.classList.add('detail-open');
+    document.title = `${shortTitle(p)} | Sheik Ahmed Yaseen`;
     window.scrollTo(0, 0);
+    resizeScroll();
     ScrollTrigger.refresh();
 
-    // Shared-element morph: the panel poster becomes the detail poster.
-    const target = el.querySelector('#pd-media img');
-    if (flipState && target) {
+    const media = el.querySelector('.pd-hero-media .media');
+    if (desktop() && !reducedMotion()) playMedia(media);
+
+    // Shared-element morph: the card's poster becomes the detail poster.
+    const target = media?.querySelector('img');
+    if (flipState && target && !reducedMotion()) {
       Flip.fit(target, flipState, { scale: true });
-      gsap.to(target, { scale: 1, x: 0, y: 0, duration: 0.7, ease: EASE.inOut, clearProps: 'transform' });
+      gsap.to(target, { scale: 1, x: 0, y: 0, duration: 0.8, ease: EASE.inOut, clearProps: 'transform' });
     }
+
+    el.querySelectorAll('.pd-main .metric-value').forEach((m) => countUp(m, { immediate: true }));
 
     splits.forEach((s) => s.revert());
     splits = [];
-    const title = el.querySelector('.pd-title');
-    if (title) splits.push(revealLines(title, { trigger: null }));
+    if (!reducedMotion()) {
+      const title = el.querySelector('.pd-title');
+      if (title) splits.push(revealLines(title, { trigger: null }));
+      gsap.from(el.querySelectorAll('.pd-head .proj-meta, .pd-short, .pd-hero-media'), {
+        autoAlpha: 0, y: 22, duration: 0.7, stagger: 0.07, delay: 0.1,
+      });
+      const blocks = gsap.from(el.querySelectorAll('.pd-block'), {
+        autoAlpha: 0, y: 30, duration: 0.7, stagger: 0.06,
+        scrollTrigger: { trigger: el.querySelector('.pd-layout'), start: 'top 85%', once: true },
+      });
+      detailTriggers.push(blocks.scrollTrigger);
 
-    gsap.from(el.querySelectorAll('.pd-short, .pd-tags, .pd-repo'), {
-      autoAlpha: 0,
-      y: 22,
-      duration: 0.6,
-      stagger: 0.06,
-      delay: 0.15,
-    });
-    gsap.from(el.querySelectorAll('.pd-block'), {
-      autoAlpha: 0,
-      y: 34,
-      duration: 0.7,
-      stagger: 0.08,
-      scrollTrigger: { trigger: el.querySelector('.pd-body'), start: 'top 85%', once: true },
-    });
+      // The facts rail fills in row by row beside the prose.
+      gsap.from(el.querySelectorAll('.pd-rail dl > div'), {
+        autoAlpha: 0, x: 14, duration: 0.6, stagger: 0.05, delay: 0.4,
+      });
+
+      // Parallax waits for the shared-element morph to finish: both drive the
+      // same image, and starting now would fight it.
+      gsap.delayedCall(0.95, () => {
+        const img = el.querySelector('.pd-hero-media img');
+        if (!isOpen || !img?.isConnected) return;
+        const tween = gsap.fromTo(
+          img,
+          { yPercent: -3, scale: 1.07 },
+          {
+            yPercent: 3,
+            ease: 'none',
+            scrollTrigger: {
+              trigger: el.querySelector('.pd-hero-media'),
+              start: 'top bottom',
+              end: 'bottom top',
+              scrub: true,
+            },
+          }
+        );
+        detailTriggers.push(tween.scrollTrigger);
+      });
+    }
 
     el.querySelector('#pd-back')?.addEventListener('click', () => {
       // Arriving directly on /project/<id>/ means there is no history to pop.
       if (window.__openProject && history.length <= 1) window.location.href = '/';
       else history.back();
     });
+    el.querySelector('#pd-back')?.focus({ preventScroll: true });
     isOpen = true;
     startScroll();
-  }, swapAt());
-
-  stopScroll();
-  if (push) {
-    history.replaceState({ ...history.state, scrollY }, '');
-    history.pushState({ project: id, scrollY }, '', `#/project/${id}`);
-  }
+  });
 }
 
 export function closeProject({ restoreY = 0 } = {}) {
   const el = detail();
   if (!el || !isOpen) return;
+  stopScroll();
 
-  const wipe = playWipe();
-  wipe.add(() => {
+  swapViews(el, () => {
+    el.querySelectorAll('.media').forEach(stopMedia);
+    killDetailTriggers();
     el.classList.add('hidden');
     el.setAttribute('aria-hidden', 'true');
     el.innerHTML = '';
     main().style.display = '';
     document.body.classList.remove('detail-open');
+    document.title = siteTitle;
     splits.forEach((s) => s.revert());
     splits = [];
     isOpen = false;
 
-    // While the detail was open #main-content was display:none, so the document
-    // had collapsed to the overlay's height. Flush layout to get the full height
-    // back BEFORE refreshing and restoring, or the restore is silently clamped
-    // to the shorter page (lands ~1700px short with the hero pin in play).
+    // While the detail was open #main-content was display:none, so the
+    // document had collapsed to the overlay's height. Flush layout to get the
+    // full height back BEFORE refreshing and restoring, or the restore is
+    // clamped to the shorter page (lands ~1700px short with the hero pin).
     void document.documentElement.scrollHeight;
     ScrollTrigger.refresh();
     resizeScroll();
@@ -208,19 +253,24 @@ export function closeProject({ restoreY = 0 } = {}) {
     requestAnimationFrame(() => {
       restore();
       // Pin spacers can settle a frame late; re-assert once they have.
-      requestAnimationFrame(restore);
+      requestAnimationFrame(() => {
+        restore();
+        returnFocus?.focus?.({ preventScroll: true });
+      });
     });
     startScroll();
-  }, swapAt());
-  stopScroll();
+  });
 }
+
+const hashProject = () =>
+  location.hash.startsWith('#/project/') ? decodeURIComponent(location.hash.slice('#/project/'.length)) : null;
 
 export function initProjectRouting() {
   history.scrollRestoration = 'manual';
 
   document.addEventListener('click', (e) => {
     const link = e.target.closest('a[href^="#/project/"]');
-    if (!link) return;
+    if (!link || e.metaKey || e.ctrlKey || e.shiftKey) return;
     e.preventDefault();
     const id = link.getAttribute('href').replace('#/project/', '');
     if (isOpen) {
@@ -232,10 +282,18 @@ export function initProjectRouting() {
     }
   });
 
+  // Back/forward, and also a hand-typed or pasted #/project/<id> on a page that
+  // is already open: that is a same-document navigation, which fires popstate
+  // with no state. Falling back to the hash is what makes it open the project
+  // instead of being treated as "close".
   window.addEventListener('popstate', (e) => {
-    const id = e.state?.project;
-    if (id) openProject(id, { push: false });
-    else closeProject({ restoreY: e.state?.scrollY ?? 0 });
+    const id = e.state?.project ?? hashProject();
+    if (id && getProject(id)) {
+      if (!e.state) history.replaceState({ project: id, scrollY: window.scrollY }, '');
+      openProject(id, { push: false });
+    } else {
+      closeProject({ restoreY: e.state?.scrollY ?? 0 });
+    }
   });
 
   document.addEventListener('keydown', (e) => {
@@ -243,12 +301,8 @@ export function initProjectRouting() {
   });
 
   // Entry points, in order: a real /project/<id>/ page (window.__openProject is
-  // written into those builds), then a legacy #/project/<id> hash link.
-  const fromPage = window.__openProject;
-  const fromHash = location.hash.startsWith('#/project/')
-    ? location.hash.replace('#/project/', '')
-    : null;
-  const id = fromPage || fromHash;
+  // written into those builds), then a #/project/<id> hash link.
+  const id = window.__openProject || hashProject();
   if (id && getProject(id)) {
     history.replaceState({ project: id, scrollY: 0 }, '', location.pathname + location.hash);
     openProject(id, { push: false });

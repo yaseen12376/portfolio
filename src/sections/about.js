@@ -1,52 +1,81 @@
 /**
- * About: sticky heading beside scrolling prose and stat cards.
+ * About: short bio with facts, beside a proof bento.
+ *
+ * Every figure in the bento is also stated, with its source, in the matching
+ * project's data (src/data/projects.js). Keep the two in step.
  */
-import { gsap, ScrollTrigger, EASE, DUR, revealLines, revealBatch } from '../core/motion.js';
+import { gsap, revealOnScroll, countUp } from '../core/motion.js';
+import { profile } from '../data/profile.js';
+import { esc, icons } from '../core/util.js';
 
-let splits = [];
+const PROOF = [
+  {
+    value: '2.4×',
+    label: 'faster inference after moving Retail Analytics to TensorRT, with identical counts on every test clip.',
+    project: 'retail-analytics',
+    img: '/posters/retail-analytics.webp',
+  },
+  {
+    value: '6 cams',
+    label: 'batched through one model on a laptop GPU, above the 15 FPS target per stream.',
+    project: 'retail-analytics',
+  },
+  {
+    word: 'Client software',
+    label: 'Booking, billing and tracking for a courier franchise, in ASP.NET Core 8 with WhatsApp and SMS updates.',
+    project: 'courier',
+    soft: true,
+  },
+  {
+    word: 'Top contributor',
+    label: 'to the ConstructSafe detection engine: PPE, falls, fire and faces in one pipeline, in a team of seven.',
+    project: 'constructsafe',
+    img: '/posters/constructsafe.svg',
+  },
+];
 
-export function initAbout({ reduced }) {
-  const section = document.querySelector('#about');
-  if (!section) return;
+export function renderAbout() {
+  const facts = document.querySelector('#about-facts');
+  const grid = document.querySelector('#proof-grid');
 
-  splits.forEach((s) => s.revert());
-  splits = [];
-
-  if (!reduced) {
-    const lead = section.querySelector('.about-lead');
-    if (lead) splits.push(revealLines(lead, { stagger: 0.07 }));
-    section.querySelectorAll('.about-body p').forEach((p, i) => {
-      splits.push(revealLines(p, { stagger: 0.05, delay: 0.05 * i }));
-    });
+  if (facts) {
+    const rows = [
+      ['Based in', profile.location],
+      ['Studying', `${profile.education.degree}, graduating ${profile.education.year}`],
+      ['Currently', profile.current],
+      ['Languages', profile.languages.join(', ')],
+    ];
+    facts.innerHTML = rows.map(([k, v]) => `<div><dt>${esc(k)}</dt><dd>${esc(v)}</dd></div>`).join('');
   }
 
-  revealBatch('#about .stat-card', { stagger: 0.09 });
-  initCounters(section, reduced);
-
-  return () => {
-    splits.forEach((s) => s.revert());
-    splits = [];
-  };
+  if (grid) {
+    grid.innerHTML = PROOF.map(
+      (p) => `
+      <div class="proof${p.soft ? ' proof-soft' : ''}">
+        ${p.img ? `<img class="proof-img" src="${esc(p.img)}" alt="" loading="lazy" decoding="async" />` : ''}
+        ${p.value ? `<span class="proof-value">${esc(p.value)}</span>` : `<span class="proof-word">${esc(p.word)}</span>`}
+        <p class="proof-label">${esc(p.label)}</p>
+        <a class="proof-link" href="#/project/${esc(p.project)}">View project ${icons.arrowRight}</a>
+      </div>`
+    ).join('');
+  }
 }
 
-/** Count-up on the stat cards, driven by ScrollTrigger rather than its own observer. */
-function initCounters(scope, reduced) {
-  scope.querySelectorAll('.stat-number[data-count]').forEach((el) => {
-    const target = parseFloat(el.dataset.count);
-    const suffix = el.dataset.suffix ?? '';
-    if (reduced) {
-      el.textContent = `${target}${suffix}`;
-      return;
-    }
-    const obj = { v: 0 };
-    gsap.to(obj, {
-      v: target,
-      duration: DUR.slow * 1.4,
-      ease: EASE.expo,
-      onUpdate: () => {
-        el.textContent = `${Math.round(obj.v)}${suffix}`;
-      },
-      scrollTrigger: { trigger: el, start: 'top 88%', once: true },
-    });
+export function initAbout({ reduced } = {}) {
+  revealOnScroll('#proof-grid .proof, #about-facts');
+  gsap.utils.toArray('#proof-grid .proof-value').forEach((el) => countUp(el));
+
+  // The image inside a proof tile drifts a little as the tile passes.
+  if (reduced) return;
+  gsap.utils.toArray('#proof-grid .proof-img').forEach((img) => {
+    gsap.fromTo(
+      img,
+      { yPercent: -4 },
+      {
+        yPercent: 4,
+        ease: 'none',
+        scrollTrigger: { trigger: img.closest('.proof'), start: 'top bottom', end: 'bottom top', scrub: true },
+      }
+    );
   });
 }

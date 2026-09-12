@@ -1,15 +1,12 @@
 /**
- * Experience: a timeline whose rail draws with scroll, with each entry's dot
- * lighting up off the rail's own progress rather than its own trigger — so the
- * leading edge and the dots can't drift apart.
+ * Experience: one row per role, organisation pinned beside its points.
+ *
+ * Each row's rule draws itself in as the row passes, and the points arrive one
+ * after another, so the timeline reads in the order it happened.
  */
-import { gsap, ScrollTrigger, EASE, DUR } from '../core/motion.js';
+import { gsap, revealOnScroll } from '../core/motion.js';
 import { experience } from '../data/experience.js';
-
-const ICON = {
-  work: '<rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a4 4 0 0 0-8 0v2"/>',
-  education: '<path d="M22 10 12 5 2 10l10 5 10-5Z"/><path d="M6 12v5c0 1.7 2.7 3 6 3s6-1.3 6-3v-5"/>',
-};
+import { esc, icons } from '../core/util.js';
 
 export function renderExperience() {
   const host = document.querySelector('#experience-timeline');
@@ -17,89 +14,45 @@ export function renderExperience() {
   host.innerHTML = experience
     .map(
       (e) => `
-    <article class="exp-card" data-kind="${e.kind}">
-      <div class="exp-header">
-        <div class="exp-company">
-          <div class="exp-icon" aria-hidden="true">
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">${ICON[e.kind] ?? ICON.work}</svg>
-          </div>
-          <div>
-            <h3>${e.org}</h3>
-            <span class="exp-role">${e.role}</span>
-          </div>
-        </div>
-        <div class="exp-tags">
-          <span class="exp-period">${e.period}</span>
-          <span class="exp-badge">${e.badge}</span>
-        </div>
+    <article class="tl-row">
+      <span class="tl-line" aria-hidden="true"></span>
+      <div class="tl-side">
+        <p class="tl-period">${esc(e.period)}</p>
+        <h3 class="tl-org">${esc(e.org)}</h3>
+        <p class="tl-role">${esc(e.role)}</p>
+        <span class="chip">${esc(e.badge)}</span>
       </div>
-      <ul class="exp-list">
+      <div class="tl-points">
         ${e.points
           .map(
             (p) => `
-          <li>
-            <span class="exp-dot" aria-hidden="true"></span>
-            <div><strong>${p.title}</strong><p>${p.body}</p></div>
-          </li>`
+          <div class="tl-point">
+            <h4>${esc(p.title)}</h4>
+            <p>${esc(p.body)}</p>
+            ${p.project ? `<a class="tl-link" href="#/project/${esc(p.project)}">Read the case study ${icons.arrowRight}</a>` : ''}
+          </div>`
           )
           .join('')}
-      </ul>
+      </div>
     </article>`
     )
     .join('');
 }
 
-export function initExperience({ reduced }) {
-  const section = document.querySelector('#experience');
-  const rail = section?.querySelector('.exp-rail-fill');
-  if (!section) return;
+export function initExperience({ reduced } = {}) {
+  revealOnScroll('#experience .tl-side, #experience .tl-point');
+  if (reduced) return;
 
-  const dots = gsap.utils.toArray('#experience .exp-dot');
-  const items = gsap.utils.toArray('#experience .exp-list li');
-
-  if (reduced) {
-    gsap.set(rail, { scaleY: 1 });
-    gsap.set(dots, { scale: 1 });
-    return;
-  }
-
-  gsap.set(dots, { scale: 0 });
-
-  if (rail) {
+  gsap.utils.toArray('#experience .tl-row').forEach((row) => {
     gsap.fromTo(
-      rail,
-      { scaleY: 0 },
+      row.querySelector('.tl-line'),
+      { scaleX: 0 },
       {
-        scaleY: 1,
+        scaleX: 1,
         ease: 'none',
-        transformOrigin: 'top',
-        scrollTrigger: {
-          trigger: '#experience-timeline',
-          start: 'top 72%',
-          end: 'bottom 78%',
-          scrub: 0.5,
-          // Light each dot as the rail's leading edge passes it.
-          onUpdate: (self) => {
-            const reached = Math.floor(self.progress * dots.length + 0.001);
-            dots.forEach((dot, i) => {
-              const on = i < reached;
-              if (dot._on === on) return;
-              dot._on = on;
-              gsap.to(dot, { scale: on ? 1 : 0, duration: 0.35, ease: on ? EASE.spring : EASE.in });
-            });
-          },
-        },
+        transformOrigin: 'left center',
+        scrollTrigger: { trigger: row, start: 'top 88%', end: 'bottom 70%', scrub: 0.4 },
       }
     );
-  }
-
-  items.forEach((li) => {
-    gsap.from(li.querySelector('div'), {
-      autoAlpha: 0,
-      x: 24,
-      duration: DUR.base,
-      ease: EASE.out,
-      scrollTrigger: { trigger: li, start: 'top 82%', once: true },
-    });
   });
 }

@@ -1,7 +1,7 @@
 /**
  * GSAP setup and shared motion vocabulary.
  *
- * Every plugin used here is free as of GSAP 3.13 — SplitText and Flip included.
+ * Every plugin used here is free as of GSAP 3.13, SplitText and Flip included.
  */
 import { gsap } from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
@@ -19,7 +19,6 @@ export const EASE = {
   in: 'power2.in',
   inOut: 'power3.inOut',
   expo: 'expo.out',
-  spring: 'back.out(1.7)',
 };
 
 export const DUR = {
@@ -30,17 +29,18 @@ export const DUR = {
 
 gsap.defaults({ ease: EASE.out, duration: DUR.base });
 
+const reducedMotion = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
 /**
  * Split an element into masked lines and reveal them on scroll.
- * Returns the SplitText so callers can revert() it on breakpoint change —
+ * Returns the SplitText so callers can revert() it on breakpoint change;
  * leaving splits in place across a resize is what causes broken wrapping.
  */
-export function revealLines(el, { trigger, start = 'top 78%', stagger = 0.06, delay = 0 } = {}) {
+export function revealLines(el, { trigger, start = 'top 80%', stagger = 0.06, delay = 0 } = {}) {
   if (!el) return null;
   const split = new SplitText(el, { type: 'lines', mask: 'lines', linesClass: 'line' });
   gsap.from(split.lines, {
     yPercent: 110,
-    opacity: 0,
     duration: DUR.slow,
     ease: EASE.expo,
     stagger,
@@ -50,56 +50,77 @@ export function revealLines(el, { trigger, start = 'top 78%', stagger = 0.06, de
   return split;
 }
 
-/** Character-level reveal, for short headings only. */
-export function revealChars(el, { trigger, start = 'top 80%', stagger = 0.025, delay = 0 } = {}) {
-  if (!el) return null;
-  const split = new SplitText(el, { type: 'chars,lines', mask: 'lines' });
-  gsap.from(split.chars, {
-    yPercent: 120,
-    opacity: 0,
-    duration: DUR.base,
-    ease: EASE.expo,
-    stagger,
-    delay,
-    scrollTrigger: trigger === null ? undefined : { trigger: trigger || el, start, once: true },
-  });
-  return split;
-}
-
-/** Staggered entrance for a set of sibling elements. */
-export function revealBatch(selector, { start = 'top 82%', stagger = 0.09, y = 34 } = {}) {
+/**
+ * Fade-up-and-unblur entrance for blocks of content. The transition itself is
+ * CSS (.reveal / .is-in in style.css); this only decides when. Elements that
+ * enter together are staggered by a few frames so a grid doesn't land as one.
+ */
+export function revealOnScroll(selector, { start = 'top 88%' } = {}) {
   const els = gsap.utils.toArray(selector);
   if (!els.length) return;
-  gsap.set(els, { opacity: 0, y });
+  els.forEach((el) => el.classList.add('reveal'));
+  if (reducedMotion()) {
+    els.forEach((el) => el.classList.add('is-in'));
+    return;
+  }
   ScrollTrigger.batch(els, {
     start,
     once: true,
     onEnter: (batch) =>
-      gsap.to(batch, { opacity: 1, y: 0, duration: DUR.base, ease: EASE.out, stagger, overwrite: true }),
+      batch.forEach((el, i) => {
+        el.style.transitionDelay = `${i * 80}ms`;
+        el.classList.add('is-in');
+        // Clear the delay once it has played, or it lags every hover state.
+        setTimeout(() => (el.style.transitionDelay = ''), 1200 + i * 80);
+      }),
   });
 }
 
 /**
- * Line-masked reveal for every section heading, plus its eyebrow tag.
- * Cheaper than the per-character version and reads considerably more composed.
+ * Count a display figure up when it arrives.
+ *
+ * Only the leading number moves; any prefix or suffix is preserved, so "2.4×",
+ * "143 FPS", "±3 m" and "+8.1%" all survive. Values with no digits at all
+ * ("JWT", "ArcFace") are left alone. The real value stays in the DOM until the
+ * tween actually starts, so a figure that is never scrolled to still reads
+ * correctly, and so does the crawler's copy.
  */
+export function countUp(el, { start = 'top 90%', immediate = false } = {}) {
+  if (reducedMotion()) return;
+  const match = el.textContent.trim().match(/^(\D*?)(-?[\d.]+)(\D*)$/);
+  if (!match) return;
+  const [, pre, digits, post] = match;
+  const target = parseFloat(digits);
+  if (!isFinite(target)) return;
+  const decimals = (digits.split('.')[1] ?? '').length;
+  const obj = { v: 0 };
+
+  gsap.fromTo(
+    obj,
+    { v: 0 },
+    {
+      v: target,
+      duration: 1.3,
+      ease: EASE.expo,
+      immediateRender: false,
+      // The case study builds its figures inside a view that is swapped in
+      // wholesale, so there is nothing to scroll into: those run on a delay.
+      delay: immediate ? 0.35 : 0,
+      onUpdate: () => {
+        el.textContent = `${pre}${obj.v.toFixed(decimals)}${post}`;
+      },
+      scrollTrigger: immediate ? undefined : { trigger: el, start, once: true },
+    }
+  );
+}
+
+/** Line-masked reveal for every section heading plus its lede. */
 export function revealSectionHeadings() {
   const splits = [];
-  gsap.utils.toArray('.section-header, .about-sticky').forEach((header) => {
-    const tag = header.querySelector('.section-tag');
+  gsap.utils.toArray('.section-head, .about-copy').forEach((header) => {
     const title = header.querySelector('.section-title');
-    const sub = header.querySelector('.section-subtitle');
+    const sub = header.querySelector('.section-lede, .about-bio');
 
-    if (tag) {
-      gsap.fromTo(
-        tag,
-        { autoAlpha: 0, x: -14 },
-        {
-          autoAlpha: 1, x: 0, duration: DUR.base, ease: EASE.out,
-          scrollTrigger: { trigger: header, start: 'top 85%', once: true },
-        }
-      );
-    }
     if (title) {
       const split = new SplitText(title, { type: 'lines', mask: 'lines', linesClass: 'line' });
       splits.push(split);
@@ -108,7 +129,6 @@ export function revealSectionHeadings() {
         duration: DUR.slow,
         ease: EASE.expo,
         stagger: 0.08,
-        delay: 0.08,
         scrollTrigger: { trigger: header, start: 'top 85%', once: true },
       });
     }
@@ -117,7 +137,7 @@ export function revealSectionHeadings() {
         sub,
         { autoAlpha: 0, y: 16 },
         {
-          autoAlpha: 1, y: 0, duration: DUR.base, ease: EASE.out, delay: 0.25,
+          autoAlpha: 1, y: 0, duration: DUR.base, ease: EASE.out, delay: 0.2,
           scrollTrigger: { trigger: header, start: 'top 85%', once: true },
         }
       );

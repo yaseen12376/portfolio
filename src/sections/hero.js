@@ -1,14 +1,14 @@
 /**
  * Hero: pinned frame sequence with a scrubbed text choreography over it.
  *
- * ONE ScrollTrigger owns everything — the pin, the scrub, the timeline and the
+ * ONE ScrollTrigger owns everything: the pin, the scrub, the timeline and the
  * frame index. An earlier version used two triggers over the same range (one to
  * pin, one for the timeline) with different scrub values, which let the canvas
  * and the text drift apart during fast scrolling. They cannot desync now.
  *
  * The scroll length is owned by ScrollTrigger rather than a CSS height, and
- * `end` is a function (not '+=400%') so it is recomputed on every refresh —
- * a static string is measured once against the initial viewport and goes wrong
+ * `end` is a function (not '+=400%') so it is recomputed on every refresh; a
+ * static string is measured once against the initial viewport and goes wrong
  * the moment a mobile URL bar collapses.
  *
  * Note there is deliberately no `height` on #hero in the stylesheet: the pin
@@ -32,7 +32,7 @@ export function initHero({ tier, reduced }) {
   const poster = section?.querySelector('.hero-poster');
   if (!section || !stage) return null;
 
-  // Low tier and reduced motion never fetch the sequence at all — the poster
+  // Low tier and reduced motion never fetch the sequence at all: the poster
   // is the hero, and the copy is simply visible.
   if (reduced || tier === 'low' || !canvas) {
     canvas?.remove();
@@ -55,15 +55,19 @@ export function initHero({ tier, reduced }) {
   // written this frame's transforms, so the composited result is coherent.
   gsap.ticker.add(() => sequence.draw());
 
-  const left = section.querySelector('.hero-left');
-  const right = section.querySelector('.hero-right');
-  const hint = section.querySelector('.hero-scroll-hint');
+  // Everything that belongs to frame 0 moves and leaves together.
+  const frame0 = [
+    section.querySelector('.hero-copy'),
+    section.querySelector('.hero-meta'),
+    section.querySelector('.hero-index'),
+  ].filter(Boolean);
+  const lock = section.querySelector('.hero-lock');
+  const progress = section.querySelector('.hero-progress');
+  const progressBar = progress?.querySelector('i');
+  const setProgress = progressBar ? gsap.quickSetter(progressBar, 'scaleX') : null;
   const outro = section.querySelector('.hero-outro');
   const vignette = section.querySelector('.hero-vignette');
-  const hud = section.querySelector('.hero-hud');
   const statements = gsap.utils.toArray('#hero .hero-statement');
-  const hudFrame = section.querySelector('#hud-frame');
-  const hudProgress = section.querySelector('#hud-progress');
 
   const tl = gsap.timeline({
     scrollTrigger: {
@@ -76,57 +80,50 @@ export function initHero({ tier, reduced }) {
       invalidateOnRefresh: true,
       // This pin inserts ~3x viewport of spacer, so every trigger below it
       // depends on it having been measured first. Without this the nav and
-      // footer triggers keep the positions they had before the spacer existed
-      // (the footer's range started 2800px too early), and they were created
-      // earlier so refresh order alone doesn't save us.
+      // stack triggers keep the positions they had before the spacer existed.
       refreshPriority: 1,
       // A little catch-up smoothing on top of Lenis. Not enough to let the
       // canvas visibly lag the copy, which is what a larger value would do.
       scrub: 0.5,
       onUpdate: (self) => {
         sequence.setProgress(self.progress, self.direction);
-        // Live readouts. Writing text every tick is cheap, but only when it
-        // actually changed — otherwise this is a layout thrash for nothing.
-        const f = String(sequence.index + 1).padStart(3, '0');
-        if (hudFrame && hudFrame.textContent !== f) hudFrame.textContent = f;
-        const pct = String(Math.round(self.progress * 100)).padStart(2, '0') + '%';
-        if (hudProgress && hudProgress.textContent !== pct) hudProgress.textContent = pct;
+        setProgress?.(self.progress);
       },
       onLeave: () => sequence.shrink(),
       onLeaveBack: () => sequence.shrink(),
     },
   });
 
-  // 0.00 – 0.06  the hint retires
-  tl.to(hint, { autoAlpha: 0, y: 18, duration: 0.06 }, 0);
+  // 0.05 - 0.28  the copy drifts up with the scroll
+  tl.to(frame0, { y: -44, duration: 0.23, ease: 'none' }, 0.05);
 
-  // 0.05 – 0.28  columns drift apart
-  tl.to(left, { x: -30, y: -44, duration: 0.23, ease: 'none' }, 0.05)
-    .to(right, { x: 30, y: -44, duration: 0.23, ease: 'none' }, 0.05);
+  // The progress hairline joins once you have committed to scrolling, and
+  // retires before the handoff so it doesn't follow you into the next section.
+  tl.fromTo(progress, { autoAlpha: 0 }, { autoAlpha: 1, duration: 0.04 }, 0.06)
+    .to(progress, { autoAlpha: 0, duration: 0.04 }, 0.9);
 
-  // 0.28 – 0.42  copy exits on blur, left leading right
-  tl.to(left, { yPercent: -16, autoAlpha: 0, filter: 'blur(9px)', duration: 0.12, ease: EASE.in }, 0.28)
-    .to(right, { yPercent: -16, autoAlpha: 0, filter: 'blur(9px)', duration: 0.12, ease: EASE.in }, 0.32);
+  // 0.28 - 0.40  copy exits on blur
+  tl.to(frame0, { yPercent: -14, autoAlpha: 0, filter: 'blur(9px)', duration: 0.12, ease: EASE.in, stagger: 0.015 }, 0.28);
 
-  // 0.34 – 0.92  the HUD holds the frame while the copy is gone
-  tl.fromTo(hud, { autoAlpha: 0 }, { autoAlpha: 1, duration: 0.06 }, 0.34)
-    .to(hud, { autoAlpha: 0, duration: 0.05 }, 0.9);
+  // 0.34 - 0.76  the figure gets "detected": brackets lock on, hold, release
+  tl.fromTo(lock, { autoAlpha: 0, scale: 1.2 }, { autoAlpha: 1, scale: 1, duration: 0.08, ease: EASE.out }, 0.34)
+    .to(lock, { autoAlpha: 0, scale: 0.92, duration: 0.05, ease: EASE.in }, 0.72);
 
-  // 0.42 – 0.74  two statements carry the middle of the sequence
+  // 0.44 - 0.70  two statements carry the middle of the sequence
   statements.forEach((el, i) => {
-    const at = 0.44 + i * 0.16;
+    const at = 0.44 + i * 0.14;
     tl.fromTo(
       el,
       { autoAlpha: 0, y: 26, filter: 'blur(8px)' },
       { autoAlpha: 1, y: 0, filter: 'blur(0px)', duration: 0.05, ease: EASE.out },
       at
-    ).to(el, { autoAlpha: 0, y: -22, filter: 'blur(8px)', duration: 0.04, ease: EASE.in }, at + 0.1);
+    ).to(el, { autoAlpha: 0, y: -22, filter: 'blur(8px)', duration: 0.04, ease: EASE.in }, at + 0.09);
   });
 
-  // 0.68 – 0.96  slow push in, vignette closes, handoff title arrives
+  // 0.68 - 0.96  slow push in, vignette closes, handoff title arrives
   tl.to(canvas, { scale: 1.05, duration: 0.26, ease: 'none' }, 0.68)
-    .to(vignette, { opacity: 0.9, duration: 0.26, ease: 'none' }, 0.68)
-    .fromTo(outro, { autoAlpha: 0, y: 44 }, { autoAlpha: 1, y: 0, duration: 0.08 }, 0.78)
+    .to(vignette, { opacity: 0.6, duration: 0.26, ease: 'none' }, 0.68)
+    .fromTo(outro, { autoAlpha: 0, y: 44 }, { autoAlpha: 1, y: 0, duration: 0.08 }, 0.8)
     .to(outro, { autoAlpha: 0, y: -30, duration: 0.05 }, 0.95);
 
   // Width-only resize handling. Height-only changes are the mobile URL bar and
@@ -167,7 +164,7 @@ export function playHeroIntro({ reduced }) {
   // fromTo, not from: the .js CSS guard pre-hides these, and gsap.from() would
   // read that hidden state as the animation's END value.
   //
-  // No clearProps either, for the same reason — clearing the inline transform
+  // No clearProps either, for the same reason: clearing the inline transform
   // would hand control back to the CSS guard and snap the name off-screen
   // again. The guard is switched off with .intro-done once we're done.
   const tl = gsap.timeline({
