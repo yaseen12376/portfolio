@@ -1569,6 +1569,47 @@ html.js:not(.intro-done) .reveal-hero { opacity: 0; }
   .nav-toggle[aria-expanded='true'] span:nth-child(2) { top: 21.5px; }
   .card-toggle { min-height: 44px; }
 
+  /* The rest of the touch targets.
+     
+     WCAG 2.2 puts the floor at 24px, Apple and Material at 44. These render
+     18-40px tall on a phone: the footer row was the worst at 18px with three
+     links side by side, which is a mis-tap waiting to happen.
+
+     Controls that can absorb the height take real padding. Text links get a
+     transparent ::before instead, which grows the hit area to 44px without
+     moving anything -- padding them would re-crowd the screens this pass just
+     decluttered. ::after is already the hover underline, hence ::before. */
+  .footer-links { gap: 4px 20px; }
+  .footer-links a { padding-block: 13px; }
+  .tool { min-height: 44px; }
+  .copy-btn { width: 44px; height: 44px; }
+  .social a { min-height: 44px; }
+
+  .card-link,
+  .proof-link,
+  .tl-link,
+  .private-note,
+  .email-link,
+  .nav-logo,
+  .nav-overlay-mail,
+  .proj-title a { position: relative; }
+  .card-link::before,
+  .proof-link::before,
+  .tl-link::before,
+  .private-note::before,
+  .email-link::before,
+  .nav-logo::before,
+  .nav-overlay-mail::before,
+  .proj-title a::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 50%;
+    height: 44px;
+    transform: translateY(-50%);
+  }
+
   /* The brackets frame the figure, and the figure now lives in the bottom band
      rather than the whole stage. Measured across the window where they are
      visible (progress 0.36-0.74) he holds centre x 50%, centre y ~71.5% of the
