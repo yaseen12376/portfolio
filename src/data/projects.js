@@ -384,7 +384,8 @@ export const projects = [
     role: 'Solo project',
     status: 'In progress',
     private: true,
-    poster: '/posters/airdraw.svg',
+    poster: '/posters/airdraw.webp',
+    video: '/project-video/airdraw',
     metrics: [
       { value: '21', label: 'hand landmarks tracked every frame' },
       { value: '3', label: 'gestures: draw, erase and pinch to zoom' },

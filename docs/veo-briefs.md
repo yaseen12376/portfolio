@@ -6,8 +6,9 @@ hand to ChatGPT so it can write a fuller Veo 3 prompt for you.
 Use it in one ChatGPT conversation: paste **Block A** once, then paste **one
 clip brief per message**. Take each prompt it returns straight to Veo.
 
-Four clips are missing: `retail-analytics`, `constructsafe`, `courier`,
-`airdraw`. The other four are done.
+**All eight clips are done as of September 2026.** The briefs below are kept
+for regenerating any of them — Courier in particular, which came back with a
+slow zoom despite the static-camera instruction.
 
 ---
 

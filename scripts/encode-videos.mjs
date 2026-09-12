@@ -37,7 +37,7 @@ const POSTER_AT = 2.0; // seconds; must sit inside any EXTRA_PATCH window
 /** Source filenames are inconsistent; map them onto the project ids. */
 // Keys are the filename lowercased with spaces and hyphens turned into "_".
 // After encoding a new id, add `video: '/project-video/<id>'` to that project
-// in src/data/projects.js (airdraw has no video field until its clip exists).
+// in src/data/projects.js.
 //
 // Note what is NOT here: `constructsafe` and `ppe`. Those two August files are
 // the superseded takes and are deliberately left unmapped so they skip rather
@@ -46,7 +46,7 @@ const ID_MAP = {
   retail_store: 'retail-analytics',
   construct_safe: 'constructsafe',
   courier_tracking: 'courier',
-  airdraw: 'airdraw',
+  air_draw: 'airdraw',
   attandance: 'attendance', // sic — source file is misspelled
   attendance: 'attendance',
   indoor_tracking: 'indoor-tracking',
@@ -100,6 +100,11 @@ const WATERMARK = 'delogo=x=1136:y=574:w=50:h=50';
  * never fire on a single seeked frame. Keep POSTER_AT inside the window.
  */
 const EXTRA_PATCH = {
+  // A third-party tool's branding burned into the bottom-right corner, not
+  // Veo's own mark: it sits at x 1100-1244, y 662-684, outside the WATERMARK
+  // box, and is on all 240 frames. The background there is flat black, which is
+  // the one case delogo handles perfectly -- it leaves no trace at all.
+  airdraw: { chain: () => 'delogo=x=1094:y=656:w=156:h=34[base];' },
   constructsafe: {
     window: 'between(t,0.4,4.6)',
     chain: (gate) =>
@@ -122,7 +127,7 @@ const preFilter = (id, gate) => {
 const loopFilter = (id) => {
   const p = EXTRA_PATCH[id];
   return (
-  preFilter(id, p ? `:enable='${p.window}'` : '') +
+  preFilter(id, p?.window ? `:enable='${p.window}'` : '') +
   `[base]split=3[c0][c1][c2];` +
   `[c0]trim=start=${FADE}:end=${DUR - FADE},setpts=PTS-STARTPTS[body];` +
   `[c1]trim=start=${DUR - FADE}:end=${DUR},setpts=PTS-STARTPTS[tail];` +

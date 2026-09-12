@@ -1,16 +1,23 @@
 # Project media prompts (Gemini stills, Veo loops)
 
-**Seven of eight are done.** Only **airdraw** still needs footage; it shows a
-typographic SVG frame until then.
+**All eight have footage.** Every project carries a poster lifted from its own
+loop, so the still matches the first frame the video plays. The interim SVG
+posters are retired.
 
-retail-analytics, constructsafe and courier were shot in September 2026. Two
-notes from encoding them:
+retail-analytics, constructsafe, courier and airdraw were shot in September
+2026. Three notes from encoding them:
 - ConstructSafe came back with a garbled turquoise caption above the left
   worker's box, on screen from t=0.5s to t=4.5s. It is patched out in
   `scripts/encode-videos.mjs` (see EXTRA_PATCH) rather than regenerated.
 - Courier slowly zooms in about 7% across its ten seconds despite "no zoom" in
   the prompt. The loop crossfade absorbs it into a gentle drift; regenerate it
   if you ever want the framing truly locked.
+- AirDraw arrived with a third-party tool's branding ("InstaVA60") burned into
+  the bottom-right corner, outside Veo's own watermark box. Also patched in
+  EXTRA_PATCH. If you re-export anything through that tool, check the corner.
+
+**Check every new clip for burned-in text before wiring it in.** Two of the
+four had some, in different places, and neither was Veo's watermark.
 
 ## Spec
 
