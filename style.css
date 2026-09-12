@@ -532,7 +532,12 @@ html.js #preloader {
   height: 100%;
   display: grid;
   grid-template-columns: 1fr;
-  align-content: end;
+  /* `safe` matters on short viewports. Plain `end` bottom-aligns the column and,
+     when the copy is taller than the stage, pushes the overflow out of the TOP
+     edge -- which clipped the name and ran it through the nav island at
+     1280x600 and 1000x640. `safe end` falls back to start-alignment in exactly
+     that case, so the overflow goes downward where it can be scrolled to. */
+  align-content: safe end;
   gap: 26px;
   padding-bottom: clamp(48px, 11vh, 120px);
 }
@@ -612,7 +617,14 @@ html.js #preloader {
    immediately below it. */
 
 @media (min-width: 900px) {
-  .hero-inner { grid-template-columns: minmax(0, 1fr) auto; align-items: end; gap: 48px; }
+  .hero-inner {
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: end;
+    gap: 48px;
+    /* Clears the nav island (which ends at 66px) so the copy has a floor to
+       start from once `safe end` flips it to start-alignment. */
+    padding-top: 96px;
+  }
   .hero-meta { align-items: flex-end; text-align: right; }
 }
 @media (max-width: 899px) {
@@ -620,7 +632,7 @@ html.js #preloader {
      rather than dodging him: full width, and clear of the nav island. */
   .hero-copy { max-width: none; }
   .hero-title { font-size: clamp(2.5rem, 13vw, 3.75rem); }
-  .hero-inner { padding-top: 104px; align-content: end; }
+  .hero-inner { padding-top: 104px; align-content: safe end; }
   .hero-meta { flex-direction: row; flex-wrap: wrap; align-items: center; gap: 6px 16px; font-size: 0.875rem; }
   .hero-social { display: none; }
   .hero-figures { gap: 8px 22px; margin-top: 24px; padding-top: 16px; }
@@ -650,6 +662,18 @@ html.js #preloader {
   color: #c4c4cc;
 }
 .hero-ctas { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 30px; }
+
+/* Short laptop viewports (a 768px-tall screen leaves ~640px of page). The copy
+   column is simply taller than the stage there, so trim its vertical bulk
+   instead of letting it ride up under the nav. */
+@media (min-width: 900px) and (max-height: 720px) {
+  .hero-inner { gap: 18px; padding-bottom: clamp(28px, 5vh, 56px); }
+  .hero-title { font-size: clamp(2.25rem, 16cqw, 4.25rem); }
+  .hero-sub { margin-top: 14px; }
+  .hero-figures { margin-top: 18px; padding-top: 14px; gap: 8px 26px; }
+  .hero-figures dt { font-size: 1.5rem; }
+  .hero-figures dd { font-size: 0.75rem; }
+}
 
 .hero-lock {
   position: absolute;

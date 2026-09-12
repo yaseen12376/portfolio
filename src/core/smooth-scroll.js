@@ -24,8 +24,14 @@ export function initSmoothScroll() {
 
   lenis = new Lenis({
     autoRaf: false, // GSAP drives the loop
-    lerp: 0.085,
-    wheelMultiplier: 1,
+    // Measured, not guessed. At lerp 0.085 a quarter-second wheel gesture
+    // travelled 373px under your finger and then coasted 1125px further over
+    // 1.2s: three quarters of the movement happened after you stopped, which
+    // reads as the page accelerating away from you. At 0.25 the coast is 646px
+    // over 0.53s -- still visibly smooth, but the page stops when you do.
+    lerp: 0.25,
+    // Slightly under native so a fast flick doesn't overshoot a section.
+    wheelMultiplier: 0.9,
     smoothWheel: true,
     syncTouch: false, // let iOS keep its native momentum
     anchors: false, // navigation handles anchors itself

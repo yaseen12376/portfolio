@@ -14,7 +14,7 @@ import '@fontsource-variable/big-shoulders-display';
 
 import { gsap, ScrollTrigger, revealSectionHeadings } from './core/motion.js';
 import { detectTier, prefersReducedMotion } from './core/device.js';
-import { initSmoothScroll, bindFocusScroll } from './core/smooth-scroll.js';
+import { initSmoothScroll, bindFocusScroll, getLenis } from './core/smooth-scroll.js';
 import { icons, brandIcons } from './core/util.js';
 
 import { initNav } from './ui/nav.js';
@@ -122,7 +122,7 @@ function boot() {
   document.fonts?.ready.then(() => ScrollTrigger.refresh());
 
   if (import.meta.env.DEV) {
-    window.__portfolio = { gsap, ScrollTrigger, tier };
+    window.__portfolio = { gsap, ScrollTrigger, tier, lenis: getLenis() };
   }
 }
 
