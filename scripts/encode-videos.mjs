@@ -32,16 +32,20 @@ const SRC = 'Project vids';
 const OUT = 'public/project-video';
 const FADE = 0.6; // seconds of loop-seam crossfade
 const DUR = 10.005; // measured source duration
+const POSTER_AT = 2.0; // seconds; must sit inside any EXTRA_PATCH window
 
 /** Source filenames are inconsistent; map them onto the project ids. */
 // Keys are the filename lowercased with spaces and hyphens turned into "_".
 // After encoding a new id, add `video: '/project-video/<id>'` to that project
-// in src/data/projects.js (constructsafe, retail-analytics, courier, airdraw
-// have no video field until their clips exist).
+// in src/data/projects.js (airdraw has no video field until its clip exists).
+//
+// Note what is NOT here: `constructsafe` and `ppe`. Those two August files are
+// the superseded takes and are deliberately left unmapped so they skip rather
+// than silently overwrite `construct_safe.mp4`. Delete them when convenient.
 const ID_MAP = {
-  retail_analytics: 'retail-analytics',
-  constructsafe: 'constructsafe',
-  courier: 'courier',
+  retail_store: 'retail-analytics',
+  construct_safe: 'constructsafe',
+  courier_tracking: 'courier',
   airdraw: 'airdraw',
   attandance: 'attendance', // sic — source file is misspelled
   attendance: 'attendance',
@@ -73,13 +77,60 @@ const mb = (b) => (b / 1048576).toFixed(2);
  */
 const WATERMARK = 'delogo=x=1136:y=574:w=50:h=50';
 
-const LOOP_FILTER =
-  `[0:v]${WATERMARK},split=3[c0][c1][c2];` +
+/**
+ * Per-clip patches for artefacts Veo left in frame, beyond its own watermark.
+ *
+ * constructsafe: a garbled turquoise caption ("ƎᴚOM") sits above the left
+ * worker's detection box — the "no labels" instruction not quite landing. Not a
+ * flash: it holds one position from t=0.5s to t=4.5s, 97 of 240 frames, and
+ * POSTER_AT lands inside that window, so it was in the still too.
+ *
+ * delogo does NOT work here, which is worth recording. It interpolates from the
+ * box border, and the border sits on the detection bracket's arm; every box
+ * size tried dragged the bracket's turquoise across the whole patch and left a
+ * glowing rectangle worse than the caption. Widening it only widened the smear.
+ *
+ * So: copy clean background down from 24px above instead. Two overlays — the
+ * main box, plus a short strip under its left half for the glow that spills
+ * below the bracket line. The strip stops at x=283 because the bracket's
+ * vertical arm starts at x=284 and that is wanted content.
+ *
+ * Gated to the window for the video. The poster's copy is ungated: `-ss` before
+ * `-i` restarts output timestamps at zero, so an `enable` expression would
+ * never fire on a single seeked frame. Keep POSTER_AT inside the window.
+ */
+const EXTRA_PATCH = {
+  constructsafe: {
+    window: 'between(t,0.4,4.6)',
+    chain: (gate) =>
+      'split=3[b][s1][s2];' +
+      '[s1]crop=56:24:250:162,boxblur=2:1[p1];' +
+      '[s2]crop=33:8:250:150,boxblur=1:1[p2];' +
+      `[b][p1]overlay=250:186${gate}[o1];` +
+      `[o1][p2]overlay=250:207${gate}[base];`,
+  },
+};
+
+/** `[0:v]` -> `[base]`: watermark removal plus any per-clip patch. */
+const preFilter = (id, gate) => {
+  const p = EXTRA_PATCH[id];
+  return p
+    ? `[0:v]${WATERMARK},${p.chain(gate)}`
+    : `[0:v]${WATERMARK}[base];`;
+};
+
+const loopFilter = (id) => {
+  const p = EXTRA_PATCH[id];
+  return (
+  preFilter(id, p ? `:enable='${p.window}'` : '') +
+  `[base]split=3[c0][c1][c2];` +
   `[c0]trim=start=${FADE}:end=${DUR - FADE},setpts=PTS-STARTPTS[body];` +
   `[c1]trim=start=${DUR - FADE}:end=${DUR},setpts=PTS-STARTPTS[tail];` +
   `[c2]trim=start=0:end=${FADE},setpts=PTS-STARTPTS[head];` +
   `[tail][head]blend=all_expr='A*(1-T/${FADE})+B*(T/${FADE})'[xf];` +
-  `[body][xf]concat=n=2:v=1:a=0[v]`;
+  `[body][xf]concat=n=2:v=1:a=0[v]`
+  );
+};
 
 async function encode(srcPath, id) {
   const webm = join(OUT, `${id}.webm`);
@@ -90,7 +141,7 @@ async function encode(srcPath, id) {
   // negligible win at this bitrate; -crf with -b:v 0 is constant-quality.
   await run('ffmpeg', [
     '-v', 'error', '-y', '-i', srcPath,
-    '-filter_complex', LOOP_FILTER, '-map', '[v]', '-an',
+    '-filter_complex', loopFilter(id), '-map', '[v]', '-an',
     '-c:v', 'libvpx-vp9', '-crf', '36', '-b:v', '0',
     '-row-mt', '1', '-deadline', 'good', '-cpu-used', '2',
     '-pix_fmt', 'yuv420p',
@@ -99,7 +150,7 @@ async function encode(srcPath, id) {
 
   await run('ffmpeg', [
     '-v', 'error', '-y', '-i', srcPath,
-    '-filter_complex', LOOP_FILTER, '-map', '[v]', '-an',
+    '-filter_complex', loopFilter(id), '-map', '[v]', '-an',
     '-c:v', 'libx264', '-crf', '28', '-preset', 'slow',
     '-profile:v', 'main', '-pix_fmt', 'yuv420p',
     '-movflags', '+faststart',
@@ -108,8 +159,9 @@ async function encode(srcPath, id) {
 
   // Poster: a frame from a little way in, so it isn't a fade-in frame.
   await run('ffmpeg', [
-    '-v', 'error', '-y', '-ss', '2.0', '-i', srcPath,
-    '-vframes', '1', '-vf', WATERMARK, '-q:v', '4', poster,
+    '-v', 'error', '-y', '-ss', String(POSTER_AT), '-i', srcPath,
+    '-filter_complex', `${preFilter(id, '')}[base]null[v]`, '-map', '[v]',
+    '-vframes', '1', '-q:v', '4', poster,
   ]);
 
   const [w, m, p] = await Promise.all([stat(webm), stat(mp4), stat(poster)]);
@@ -120,6 +172,22 @@ async function main() {
   await mkdir(OUT, { recursive: true });
   const files = (await readdir(SRC)).filter((f) => /\.(mp4|mov|webm)$/i.test(f));
   if (!files.length) throw new Error(`No videos found in ${SRC}/`);
+
+  // Fail loudly if two sources claim the same id. Without this the later
+  // ffmpeg run silently wins, which is exactly what the superseded
+  // constructsafe.mp4 would have done to the new take.
+  const claimed = new Map();
+  for (const f of files) {
+    const id = ID_MAP[f.replace(/\.[^.]+$/, '').toLowerCase().replace(/[\s-]+/g, '_')];
+    if (!id) continue;
+    if (claimed.has(id)) {
+      throw new Error(
+        `Two sources both map to "${id}": ${claimed.get(id)} and ${f}. ` +
+          'Remove one, or drop its key from ID_MAP.'
+      );
+    }
+    claimed.set(id, f);
+  }
 
   console.log(`Encoding ${files.length} panel loops -> ${OUT}/\n`);
   const done = [];

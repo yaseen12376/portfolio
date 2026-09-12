@@ -2,7 +2,10 @@
   "ids": [
     "adraf",
     "attendance",
+    "constructsafe",
+    "courier",
     "indoor-tracking",
-    "observex"
+    "observex",
+    "retail-analytics"
   ]
 }

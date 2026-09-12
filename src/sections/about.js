@@ -30,7 +30,7 @@ const PROOF = [
     word: 'Top contributor',
     label: 'to the ConstructSafe detection engine: PPE, falls, fire and faces in one pipeline, in a team of seven.',
     project: 'constructsafe',
-    img: '/posters/constructsafe.svg',
+    img: '/posters/constructsafe.webp',
   },
 ];
 

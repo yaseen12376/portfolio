@@ -40,6 +40,7 @@ export const projects = [
     // The pipeline's own visualiser output on a synthetic scene (no real
     // shoppers). Swap for the Veo loop once it exists: see docs/image-prompts.md.
     poster: '/posters/retail-analytics.webp',
+    video: '/project-video/retail-analytics',
     metrics: [
       { value: '2.4×', label: 'faster inference after TensorRT export, counts unchanged' },
       { value: '6', label: 'camera streams batched through one model' },
@@ -97,7 +98,8 @@ export const projects = [
     team: 'Team of 7 at Ethical Intelligence Technologies',
     private: true,
     // Interim art until the corrected Veo clip lands (docs/image-prompts.md).
-    poster: '/posters/constructsafe.svg',
+    poster: '/posters/constructsafe.webp',
+    video: '/project-video/constructsafe',
     metrics: [
       { value: '1.31×', label: 'faster inference with ONNX Runtime (97 to 74 ms a frame)' },
       { value: '10', label: 'PPE classes, with a safe or unsafe state per worker' },
@@ -148,7 +150,8 @@ export const projects = [
     role: 'Main developer',
     team: 'Client project for a courier franchise in Tamil Nadu',
     private: true,
-    poster: '/posters/courier.svg',
+    poster: '/posters/courier.webp',
+    video: '/project-video/courier',
     metrics: [
       { value: '16', label: 'MVC controllers over 18 services' },
       { value: '4×', label: 'daily background sync with the courier network' },

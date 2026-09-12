@@ -1,14 +1,16 @@
 # Project media prompts (Gemini stills, Veo loops)
 
-Four projects still need footage: **retail-analytics**, **constructsafe**,
-**courier** and **airdraw**. Until they get it:
-- Retail Analytics shows its visualiser's own output, a synthetic scene with no
-  real shoppers.
-- ConstructSafe keeps its interim SVG.
-- Courier and AirDraw show a typographic frame.
+**Seven of eight are done.** Only **airdraw** still needs footage; it shows a
+typographic SVG frame until then.
 
-The other four (attendance, indoor-tracking, observex, adraf) already have their
-posters and loops.
+retail-analytics, constructsafe and courier were shot in September 2026. Two
+notes from encoding them:
+- ConstructSafe came back with a garbled turquoise caption above the left
+  worker's box, on screen from t=0.5s to t=4.5s. It is patched out in
+  `scripts/encode-videos.mjs` (see EXTRA_PATCH) rather than regenerated.
+- Courier slowly zooms in about 7% across its ten seconds despite "no zoom" in
+  the prompt. The loop crossfade absorbs it into a gentle drift; regenerate it
+  if you ever want the framing truly locked.
 
 ## Spec
 
@@ -56,6 +58,10 @@ movement, no cuts". That is the most important instruction in each one.
 ---
 
 ## Loops: Veo 3.1 (colour names only)
+
+> To have an LLM write a longer prompt instead of using these verbatim, hand it
+> the briefs in [`veo-briefs.md`](./veo-briefs.md) — same constraints, stated as
+> a spec rather than a finished prompt.
 
 ### `retail-analytics`
 > Static locked-off high-angle security camera view looking down into a modern clothing store at evening, warm dim lighting, rails of hanging shirts and a checkout counter at the right edge. Four shoppers walk slowly between the rails. Each shopper is enclosed in a thin bright turquoise rectangular detection box with bracket corners that follows them smoothly, and a faint dotted turquoise trail draws behind each one. A soft translucent glow in violet and warm amber builds on the floor where people pause, then gently fades. A thin glowing line across the entrance at the bottom edge brightens for a moment when a shopper steps over it. Near-black shadows, calm, cinematic. Seamless loop, static camera, no camera movement, no cuts. Absolutely no text, no letters, no numbers, no labels, no logos, no brand names anywhere in the frame.
