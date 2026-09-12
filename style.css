@@ -651,66 +651,6 @@ html.js #preloader {
 }
 .hero-ctas { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 30px; }
 
-@media (max-width: 899px) {
-  /* PHONE HERO — a band, not a full bleed.
-     
-     The mobile frame is already a head-and-shoulders portrait. Stretching it
-     over a 100svh portrait box with object-fit:cover scaled it 1.92x and left
-     only 26% of the frame's width visible, which cut his hair off at both sides
-     and put the headline across his eye. Giving the figure its own 62% band
-     drops the scale to ~1.19 and shows ~42% of the width -- his whole head,
-     uncropped -- and hands the top third back to the copy.
-     
-     The mask feathers the band's top edge so it reads as depth rather than as a
-     seam between the frame's purple and the page's near-black. */
-  .hero-poster,
-  #hero-canvas {
-    top: auto;
-    bottom: 0;
-    height: 62%;
-    object-position: 50% 42%;
-    -webkit-mask-image: linear-gradient(180deg, transparent 0%, #000 16%);
-    mask-image: linear-gradient(180deg, transparent 0%, #000 16%);
-  }
-
-  /* Vertical scrim: the copy sits at the top, the meta line at the bottom, and
-     the figure owns the middle. The desktop left-to-right scrim does nothing
-     useful in a single column. */
-  .hero-vignette {
-    background:
-      linear-gradient(180deg, rgba(5, 5, 6, 0.9) 0%, rgba(5, 5, 6, 0.55) 28%, transparent 46%),
-      linear-gradient(0deg, rgba(5, 5, 6, 0.82) 0%, rgba(5, 5, 6, 0.3) 12%, transparent 22%);
-  }
-
-  .hero-copy { max-width: none; }
-  .hero-title { font-size: clamp(2.5rem, 13vw, 3.75rem); }
-  /* space-between, not end: copy to the top above his head, status pinned to
-     the bottom. Both clear of the figure. */
-  .hero-inner {
-    align-content: space-between;
-    padding-top: 104px;
-    padding-bottom: 24px;
-    gap: 16px;
-  }
-  .hero-sub { margin-top: 16px; }
-  .hero-ctas { margin-top: 22px; }
-  .hero-meta { flex-direction: row; flex-wrap: wrap; align-items: center; gap: 6px 16px; font-size: 0.875rem; }
-  .hero-social { display: none; }
-  /* The same three numbers open the About proof grid two screens down. On a
-     phone that repetition costs a third of the first screen, and the first
-     screen is where 80% of viewing time goes. */
-  .hero-figures { display: none; }
-
-  /* Tap targets. Both of these were under the 44px floor, where error rates
-     run about 3x higher. */
-  .nav-toggle { width: 44px; height: 44px; }
-  .nav-toggle span { left: 14px; right: 14px; }
-  .nav-toggle span:nth-child(1) { top: 18px; }
-  .nav-toggle span:nth-child(2) { top: 25px; }
-  .nav-toggle[aria-expanded='true'] span:nth-child(1),
-  .nav-toggle[aria-expanded='true'] span:nth-child(2) { top: 21.5px; }
-  .card-toggle { min-height: 44px; }
-}
 
 /* Short laptop viewports (a 768px-tall screen leaves ~640px of page). The copy
    column is simply taller than the stage there, so trim its vertical bulk
@@ -1560,15 +1500,75 @@ html.js:not(.intro-done) .reveal-hero { opacity: 0; }
   .nav-toggle { display: block; }
   .nav-island { width: min(100%, 420px); justify-content: space-between; }
 
-  .hero-inner { padding-bottom: 56px; }
-  /* On a phone the figure fills the frame and the copy has to sit on top of
-     him, so the scrim under the copy does the work the empty left column does
-     on desktop. */
+
+  /* PHONE HERO — a band, not a full bleed.
+     
+     The mobile frame is already a head-and-shoulders portrait. Stretching it
+     over a 100svh portrait box with object-fit:cover scaled it 1.92x and left
+     only 26% of the frame's width visible, which cut his hair off at both sides
+     and put the headline across his eye. Giving the figure its own 62% band
+     drops the scale to ~1.19 and shows ~42% of the width -- his whole head,
+     uncropped -- and hands the top third back to the copy.
+     
+     The mask feathers the band's top edge so it reads as depth rather than as a
+     seam between the frame's purple and the page's near-black. */
+  .hero-poster,
+  #hero-canvas {
+    top: auto;
+    bottom: 0;
+    height: 62%;
+    object-position: 50% 42%;
+    -webkit-mask-image: linear-gradient(180deg, transparent 0%, #000 16%);
+    mask-image: linear-gradient(180deg, transparent 0%, #000 16%);
+  }
+
+  /* Vertical scrim: the copy sits at the top, the meta line at the bottom, and
+     the figure owns the middle. The desktop left-to-right scrim does nothing
+     useful in a single column. */
   .hero-vignette {
     background:
-      linear-gradient(180deg, rgba(5, 5, 6, 0.6) 0%, rgba(5, 5, 6, 0.25) 22%, rgba(5, 5, 6, 0.72) 46%, rgba(5, 5, 6, 0.94) 72%, rgba(5, 5, 6, 0.98) 100%);
+      linear-gradient(180deg, rgba(5, 5, 6, 0.9) 0%, rgba(5, 5, 6, 0.55) 28%, transparent 46%),
+      linear-gradient(0deg, rgba(5, 5, 6, 0.82) 0%, rgba(5, 5, 6, 0.3) 12%, transparent 22%);
   }
-  .hero-lock { top: 38%; width: 58vmin; }
+
+  .hero-copy { max-width: none; }
+  .hero-title { font-size: clamp(2.5rem, 13vw, 3.75rem); }
+  /* space-between, not end: copy to the top above his head, status pinned to
+     the bottom. Both clear of the figure. */
+  .hero-inner {
+    align-content: space-between;
+    padding-top: 104px;
+    padding-bottom: 24px;
+    gap: 16px;
+  }
+  .hero-sub { margin-top: 16px; }
+  .hero-ctas { margin-top: 22px; }
+  .hero-meta { flex-direction: row; flex-wrap: wrap; align-items: center; gap: 6px 16px; font-size: 0.875rem; }
+  .hero-social { display: none; }
+  /* The same three numbers open the About proof grid two screens down. On a
+     phone that repetition costs a third of the first screen, and the first
+     screen is where 80% of viewing time goes. */
+  .hero-figures { display: none; }
+
+  /* Tap targets. Both of these were under the 44px floor, where error rates
+     run about 3x higher. */
+  .nav-toggle { width: 44px; height: 44px; }
+  .nav-toggle span { left: 14px; right: 14px; }
+  .nav-toggle span:nth-child(1) { top: 18px; }
+  .nav-toggle span:nth-child(2) { top: 25px; }
+  .nav-toggle[aria-expanded='true'] span:nth-child(1),
+  .nav-toggle[aria-expanded='true'] span:nth-child(2) { top: 21.5px; }
+  .card-toggle { min-height: 44px; }
+
+  /* The brackets frame the figure, and the figure now lives in the bottom band
+     rather than the whole stage. Measured across the window where they are
+     visible (progress 0.36-0.74) he holds centre x 50%, centre y ~71.5% of the
+     stage, and about 115px of width. The old `top: 38%; width: 58vmin` was
+     inherited from the full-bleed layout and left the box floating ~290px above
+     him and ~100px too wide. */
+  .hero-lock { top: 71.5%; width: min(40vw, 168px); aspect-ratio: 0.68; }
+  .lock-c { width: 26px; height: 26px; }
+
   .hero-statement { max-width: 16ch; }
 
   .stack-card + .stack-card { margin-top: 16px; }
