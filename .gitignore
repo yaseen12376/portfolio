@@ -3,6 +3,9 @@ node_modules/
 
 # build output
 dist/
+# Blender intermediates (.blend, raw bakes, un-optimised GLBs). The shipped,
+# optimised scenes live in public/3d/ and ARE committed.
+build/
 
 # 4K source frame sets — build inputs, not web assets.
 # Regenerate the shipped hero with `npm run encode:frames`.

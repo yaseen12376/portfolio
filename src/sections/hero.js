@@ -42,10 +42,14 @@ export function initHero({ tier, reduced }) {
 
   const sequence = new FrameSequence(canvas, { tier });
   let resizeRaf;
+  let destroyed = false;
 
   sequence
     .init()
     .then(() => {
+      // init() can resolve after a breakpoint change has already torn this
+      // instance down; refreshing then would measure a hero that's gone.
+      if (destroyed) return;
       gsap.to(poster, { autoAlpha: 0, duration: 0.6, ease: 'none' });
       ScrollTrigger.refresh();
     })
@@ -53,7 +57,11 @@ export function initHero({ tier, reduced }) {
 
   // The blit runs last in the tick, after ScrollTrigger has updated and GSAP has
   // written this frame's transforms, so the composited result is coherent.
-  gsap.ticker.add(() => sequence.draw());
+  //
+  // Named so destroy() can remove it. An anonymous listener here was never
+  // removed, so every breakpoint change stacked another blit per frame.
+  const draw = () => sequence.draw();
+  gsap.ticker.add(draw);
 
   // Everything that belongs to frame 0 moves and leaves together.
   const frame0 = [
@@ -144,6 +152,8 @@ export function initHero({ tier, reduced }) {
   return {
     sequence,
     destroy() {
+      destroyed = true;
+      gsap.ticker.remove(draw);
       window.removeEventListener('resize', onResize);
       tl.scrollTrigger?.kill();
       tl.kill();

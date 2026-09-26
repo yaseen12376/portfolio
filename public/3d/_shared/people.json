@@ -1,0 +1,169 @@
+{
+ "regions": [
+  "eyes",
+  "white",
+  "skin",
+  "top",
+  "bottom",
+  "shoes",
+  "sole",
+  "hair",
+  "mouth",
+  "accent",
+  "trim",
+  "vest",
+  "strip",
+  "badge",
+  "lens",
+  "belt"
+ ],
+ "bodies": [
+  "body_a",
+  "body_b",
+  "body_c"
+ ],
+ "overlays": [
+  "vest_a",
+  "vest_b"
+ ],
+ "hair": [
+  "hair_short",
+  "hair_quiff",
+  "hair_crop",
+  "hair_bun",
+  "hair_ponytail",
+  "hair_long",
+  "hair_curly",
+  "hair_bob"
+ ],
+ "attachments": {
+  "hair_short": "head",
+  "hair_quiff": "head",
+  "hair_crop": "head",
+  "hair_bun": "head",
+  "hair_ponytail": "head",
+  "hair_long": "head",
+  "hair_curly": "head",
+  "hair_bob": "head",
+  "hat": "head",
+  "cap": "head",
+  "glasses": "head",
+  "bag": "hand.R",
+  "phone": "hand.R",
+  "card": "hand.R",
+  "box": "chest",
+  "clipboard": "hand.L",
+  "hammer": "hand.R",
+  "broom": "hand.R",
+  "torch": "hand.R"
+ },
+ "clips": {
+  "walk": {
+   "frames": 32,
+   "seconds": 1.0667,
+   "loop": true
+  },
+  "idle": {
+   "frames": 120,
+   "seconds": 4.0,
+   "loop": true
+  },
+  "browse": {
+   "frames": 96,
+   "seconds": 3.2,
+   "loop": true
+  },
+  "queue": {
+   "frames": 150,
+   "seconds": 5.0,
+   "loop": true
+  },
+  "pay": {
+   "frames": 60,
+   "seconds": 2.0,
+   "loop": true
+  },
+  "tryon": {
+   "frames": 96,
+   "seconds": 3.2,
+   "loop": true
+  },
+  "carry": {
+   "frames": 32,
+   "seconds": 1.0667,
+   "loop": true
+  },
+  "point": {
+   "frames": 60,
+   "seconds": 2.0,
+   "loop": true
+  },
+  "phone": {
+   "frames": 120,
+   "seconds": 4.0,
+   "loop": true
+  },
+  "type": {
+   "frames": 48,
+   "seconds": 1.6,
+   "loop": true
+  },
+  "scan": {
+   "frames": 40,
+   "seconds": 1.3333,
+   "loop": true
+  },
+  "fold": {
+   "frames": 72,
+   "seconds": 2.4,
+   "loop": true
+  },
+  "talk": {
+   "frames": 90,
+   "seconds": 3.0,
+   "loop": true
+  },
+  "wave": {
+   "frames": 40,
+   "seconds": 1.3333,
+   "loop": true
+  },
+  "hammer": {
+   "frames": 36,
+   "seconds": 1.2,
+   "loop": true
+  },
+  "weld": {
+   "frames": 90,
+   "seconds": 3.0,
+   "loop": true
+  },
+  "slip": {
+   "frames": 42,
+   "seconds": 1.4,
+   "loop": false
+  },
+  "down": {
+   "frames": 60,
+   "seconds": 2.0,
+   "loop": true
+  },
+  "getup": {
+   "frames": 54,
+   "seconds": 1.8,
+   "loop": false
+  },
+  "sweep": {
+   "frames": 48,
+   "seconds": 1.6,
+   "loop": true
+  },
+  "thumbs": {
+   "frames": 45,
+   "seconds": 1.5,
+   "loop": true
+  }
+ },
+ "walkStride": 0.712,
+ "height": 1.38
+}

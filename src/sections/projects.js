@@ -2,13 +2,15 @@
  * Work: one flagship, a pinned stack of featured case studies, and a bento of
  * smaller builds. Placement comes from each project's `tier`.
  *
- * Video loops are attached lazily: a <video> carries only data-src and
- * preload="none" until it is the thing on screen, so nothing downloads for a
- * project the visitor never reaches. Phones and reduced motion get stills.
+ * Each project's media is a Blender still with, where one exists, a live
+ * diorama on top (src/three/): it loads only once its card comes near, runs
+ * only while its card is the active one, and phones get it on a tap. Projects
+ * without a diorama keep their lazy video loop. Reduced motion gets stills.
  */
 import { gsap, ScrollTrigger, EASE, revealOnScroll, countUp } from '../core/motion.js';
 import { projects, liveMetrics } from '../data/projects.js';
 import { esc, icons } from '../core/util.js';
+import { attach3d, sceneFor } from '../three/gate.js';
 
 const LOCK = '<span class="lock" aria-hidden="true"><i></i><i></i><i></i><i></i></span>';
 const WORDS = ['Zero', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine', 'Ten', 'Eleven', 'Twelve'];
@@ -16,18 +18,27 @@ const WORDS = ['Zero', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'E
 /** Short name for tight spots: "ConstructSafe" rather than the full title. */
 export const shortTitle = (p) => p.title.split(':')[0];
 
-/** Poster (or a typographic frame), an optional lazy loop, and lock brackets. */
+/**
+ * Poster (or a typographic frame), an optional lazy loop, and lock brackets.
+ * A diorama's poster comes from the build in three shapes; a phone gets the
+ * square one, framed for its square media box.
+ */
 export function mediaMarkup(p, { eager = false } = {}) {
+  const scene = sceneFor(p);
+  const img = p.poster && `<img src="${esc(p.poster)}" alt="" loading="${eager ? 'eager' : 'lazy'}" decoding="async" />`;
+  const square = scene && p.poster?.startsWith('/3d/') ? p.poster.replace(/poster\.webp$/, 'poster-sq.webp') : null;
   const still = p.poster
-    ? `<img src="${esc(p.poster)}" alt="" loading="${eager ? 'eager' : 'lazy'}" decoding="async" />`
+    ? square
+      ? `<picture><source media="(max-width: 599.98px)" srcset="${esc(square)}" />${img}</picture>`
+      : img
     : `<div class="media-fallback"><strong>${esc(shortTitle(p))}</strong>
          <span class="chips">${p.tags.slice(0, 3).map((t) => `<span class="chip">${esc(t)}</span>`).join('')}</span>
        </div>`;
-  const video = p.video
+  const video = p.video && !sceneFor(p)
     ? `<video data-src="${esc(p.video)}" ${p.poster ? `poster="${esc(p.poster)}"` : ''} muted loop playsinline
               preload="none" aria-hidden="true" tabindex="-1" disablepictureinpicture disableremoteplayback></video>`
     : '';
-  return `<div class="media" data-id="${esc(p.id)}">${still}${video}${LOCK}</div>`;
+  return `<div class="media" data-id="${esc(p.id)}"${scene ? ' data-scene' : ''}>${still}${video}${LOCK}</div>`;
 }
 
 export const metricMarkup = (m) =>
@@ -85,9 +96,9 @@ const detailPanel = (p, { metrics = [] } = {}) => {
 function flagshipMarkup(p) {
   return `
     <article class="flagship" data-id="${esc(p.id)}">
-      <a class="shell flag-media" href="#/project/${esc(p.id)}" tabindex="-1" aria-hidden="true">
+      <div class="shell flag-media" data-open="${esc(p.id)}" aria-hidden="true">
         <div class="core">${mediaMarkup(p, { eager: true })}</div>
-      </a>
+      </div>
       <div class="flagship-body">
         <div>
           ${metaMarkup(p, { role: true })}
@@ -180,8 +191,12 @@ export function renderProjects() {
 
   if (lede) {
     const n = WORDS[projects.length] ?? String(projects.length);
-    lede.textContent = `${n} projects. Computer vision on real cameras, and the software around it.`;
+    lede.textContent = `${n} projects. Computer vision on real cameras, AI that shows its working, and the software around it.`;
   }
+  // The hero's count reads from the same list, so it can never drift.
+  document.querySelectorAll('[data-project-count]').forEach((el) => {
+    el.textContent = String(projects.length).padStart(2, '0');
+  });
 
 }
 
@@ -220,7 +235,10 @@ function initCardDetails({ reduced }) {
     // Hover belongs to the visible card, not the article. A pinned stack card
     // is full-bleed and viewport-tall, so binding to it would mean the pointer
     // being anywhere on screen counts as hovering it.
-    const hoverArea = root.querySelector('.stack-inner') ?? root;
+    //
+    // And never over the media: that is where the diorama is played with, and
+    // Details springing open under a drag would fight it.
+    const hoverArea = root.querySelector('.card-body, .flagship-body, .more-body') ?? root;
     hoverArea.addEventListener('pointerenter', (e) => {
       if (e.pointerType !== 'mouse' || pinned) return;
       timer = setTimeout(() => set(true), 130);
@@ -256,19 +274,39 @@ export function stopMedia(media) {
   media.classList.remove('is-playing');
 }
 
-let visibilityBound = false;
 
-export function initProjects({ desktop, reduced }) {
+export function initProjects({ desktop, reduced, tier }) {
   const section = document.querySelector('#projects');
   if (!section) return;
 
   const useVideo = desktop && !reduced;
   const playing = new Set();
+  const openCase = (id) => () => {
+    location.hash = `#/project/${id}`;
+  };
+
+  // A diorama per project that has one. Each loads when its card comes near
+  // and draws only while setOn() says its card is the active one.
+  const dioramas = new Map();
+  section.querySelectorAll('.media[data-id]').forEach((media) => {
+    const p = projects.find((x) => x.id === media.dataset.id);
+    const h = p && attach3d(media, p, { context: 'card', tier, onOpen: openCase(p.id) });
+    if (h) dioramas.set(media, h);
+  });
+  // The flagship's media box opens the case study when clicked as a picture
+  // (before its diorama is live, or where there is none). Clicks on a live
+  // diorama are handled, and swallowed, by the diorama itself.
+  const listeners = new AbortController();
+  section.querySelectorAll('.flag-media[data-open]').forEach((el) => {
+    el.addEventListener('click', () => openCase(el.dataset.open)(), { signal: listeners.signal });
+  });
+
   const setOn = (media, on) => {
     if (!media) return;
     media.closest('.shell, .media')?.classList.toggle('is-locked', on);
     media.classList.toggle('is-locked', on);
-    if (!useVideo) return;
+    dioramas.get(media)?.setActive(on);
+    if (!useVideo || dioramas.has(media)) return;
     if (on) {
       playMedia(media);
       playing.add(media);
@@ -411,15 +449,26 @@ export function initProjects({ desktop, reduced }) {
 
   revealOnScroll('#work-flagship .flagship, #work-more .more-card');
 
-  // Decoding loops nobody can see is wasted battery.
-  if (useVideo && !visibilityBound) {
-    visibilityBound = true;
-    document.addEventListener('visibilitychange', () => {
-      document
-        .querySelectorAll('#projects .media.is-playing, #projects .media.is-locked')
-        .forEach((m) => (document.hidden ? stopMedia(m) : m.classList.contains('is-locked') && playMedia(m)));
-    });
+  // Decoding loops nobody can see is wasted battery. Scoped to this init with
+  // an AbortController rather than bound once globally, so a breakpoint change
+  // tears it down with everything else instead of leaving it to outlive them.
+  if (useVideo) {
+    document.addEventListener(
+      'visibilitychange',
+      () => {
+        document
+          .querySelectorAll('#projects .media.is-playing, #projects .media.is-locked')
+          .forEach((m) => (document.hidden ? stopMedia(m) : m.classList.contains('is-locked') && playMedia(m)));
+      },
+      { signal: listeners.signal }
+    );
   }
 
-  return () => playing.forEach(stopMedia);
+  return () => {
+    listeners.abort();
+    playing.forEach(stopMedia);
+    playing.clear();
+    dioramas.forEach((h) => h.destroy());
+    dioramas.clear();
+  };
 }

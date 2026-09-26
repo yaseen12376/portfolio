@@ -8,6 +8,7 @@ import copy from '@phosphor-icons/core/assets/light/copy-light.svg?raw';
 import check from '@phosphor-icons/core/assets/light/check-light.svg?raw';
 import lock from '@phosphor-icons/core/assets/light/lock-light.svg?raw';
 import download from '@phosphor-icons/core/assets/light/download-light.svg?raw';
+import cube from '@phosphor-icons/core/assets/light/cube-light.svg?raw';
 
 /**
  * Escape text for insertion into innerHTML. Every data string goes through
@@ -24,7 +25,7 @@ export function esc(value) {
 
 // Phosphor ships 256-unit SVGs with a fixed fill; normalise them so size and
 // colour come from CSS (1em, currentColor) and screen readers skip them.
-const prep = (svg) =>
+export const prep = (svg) =>
   svg
     .replace('<svg ', '<svg aria-hidden="true" focusable="false" width="1em" height="1em" ')
     .replace(/fill="#?[0-9a-zA-Z]+"/g, 'fill="currentColor"');
@@ -37,6 +38,7 @@ export const icons = {
   check: prep(check),
   lock: prep(lock),
   download: prep(download),
+  cube: prep(cube),
 };
 
 /** Brand marks for the two social links (single-path, from the brands' kits). */

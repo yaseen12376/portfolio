@@ -3,6 +3,7 @@ import { existsSync } from 'node:fs';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { projects, liveMetrics } from './src/data/projects.js';
+import { caseCopy } from './src/data/case-copy.js';
 
 const SITE = 'https://sheikahmedyaseen.com';
 
@@ -29,7 +30,8 @@ function projectPages() {
     async writeBundle(options) {
       const outDir = options.dir ?? resolve('dist');
       const template = await readFile(resolve(outDir, 'index.html'), 'utf8');
-      for (const p of projects) {
+      for (const card of projects) {
+        const p = { ...card, ...caseCopy[card.id] };
         const title = esc(`${p.title} | Sheik Ahmed Yaseen`);
         const desc = esc(p.short);
         const metrics = liveMetrics(p)
@@ -103,5 +105,14 @@ export default defineConfig({
     // The hero frames are already compressed WebP; inlining them as base64
     // would only make them bigger and unfetchable on demand.
     assetsInlineLimit: 4096,
+    // The manifest lets scripts/qa check what the entry chunk pulls in.
+    manifest: true,
+    rollupOptions: {
+      output: {
+        // three.js in a chunk of its own: only the dioramas import it, lazily,
+        // so it must never end up in the entry bundle.
+        manualChunks: (id) => (id.includes('node_modules/three/') ? 'three' : undefined),
+      },
+    },
   },
 });

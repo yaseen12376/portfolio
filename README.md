@@ -36,7 +36,8 @@ All copy lives in `src/data/`, apart from the hero, About bio and contact text i
 
 | File | Holds |
 |---|---|
-| `projects.js` | The eight case studies. `tier` places each one (flagship / featured stack / more builds). Also holds `metrics`, `role`, `team`, `limitations`, `poster`, `video` and `repo` |
+| `projects.js` | The ten projects as the home page shows them. `tier` places each one (flagship / featured stack / more builds). Also holds `metrics`, `role`, `team`, `techStack`, `scene3d`, `poster`, `video` and `repo` |
+| `case-copy.js` | Each case study's long-form copy (overview, problem, approach, what I built, results, limitations), keyed by project id. A lazy chunk, fetched when the browser is idle |
 | `experience.js` | Work, client and education rows |
 | `skills.js` | Toolkit groups. Each tool's `match` list maps to project `techStack` names, which is how the "used in" counts are computed |
 | `profile.js` | Name, contact links, location, education |

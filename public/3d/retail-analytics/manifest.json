@@ -1,0 +1,30 @@
+{
+ "id": "retail-analytics",
+ "hash": "1e7b476183cc6931",
+ "triangles": 90440,
+ "drawCalls": 87,
+ "nodes": 38,
+ "animations": 0,
+ "validator": {
+  "errors": 0,
+  "warnings": 0
+ },
+ "sizes": {
+  "env.webp": 21696,
+  "lightmap-small.webp": 440142,
+  "lightmap.webp": 888556,
+  "manifest.json": 555,
+  "poster-960.webp": 44338,
+  "poster-sq.webp": 111512,
+  "poster-wide.webp": 124884,
+  "poster.webp": 124198,
+  "scene.glb": 1284632,
+  "scene.json": 18331
+ },
+ "posters": [
+  "poster.webp",
+  "poster-960.webp",
+  "poster-sq.webp",
+  "poster-wide.webp"
+ ]
+}

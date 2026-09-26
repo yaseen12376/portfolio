@@ -1,0 +1,26 @@
+{
+  "about": "Third-party assets the Blender scenes use. All CC0 1.0 (public domain) from Poly Haven; no attribution required. scripts/fetch-assets.mjs downloads them into build/assets/ (git-ignored); the scenes bake them, and the page draws the set's photo tiles as 512 px copies normalised to their average (public/3d/_shared/tiles/).",
+  "source": "https://polyhaven.com",
+  "license": "CC0 1.0",
+  "res": "1k",
+  "textures": {
+    "herringbone_parquet": "retail: shop floor",
+    "wood_floor": "retail: fitting rooms, back office",
+    "terrazzo_tiles": "retail: entrance mat surround",
+    "white_plaster_02": "walls",
+    "painted_plaster_wall": "walls, accent",
+    "marble_01": "retail: cash wrap top",
+    "oak_veneer_01": "fixtures, tables, shelves",
+    "black_walnut_veneer_01": "dark fixtures, plinth",
+    "cotton_jersey": "retail: tees, folded stock",
+    "denim_fabric_04": "retail: denim wall",
+    "rough_linen": "retail: curtains, shirts",
+    "wool_boucle": "retail: bench, pouf",
+    "metal_plate_02": "brushed metal",
+    "smooth_concrete_floor": "stockroom, site slab",
+    "rubber_tiles": "mats",
+    "red_brick_03": "retail: the neighbouring building",
+    "asphalt_02": "streets: road",
+    "patterned_paving_02": "streets: pavement"
+  }
+}

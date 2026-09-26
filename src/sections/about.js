@@ -6,6 +6,7 @@
  */
 import { gsap, revealOnScroll, countUp } from '../core/motion.js';
 import { profile } from '../data/profile.js';
+import { getProject } from '../data/projects.js';
 import { esc, icons } from '../core/util.js';
 
 const PROOF = [
@@ -13,7 +14,7 @@ const PROOF = [
     value: '2.4×',
     label: 'faster inference after moving Retail Analytics to TensorRT, with identical counts on every test clip.',
     project: 'retail-analytics',
-    img: '/posters/retail-analytics.webp',
+    img: true,
   },
   {
     value: '6 cams',
@@ -30,7 +31,7 @@ const PROOF = [
     word: 'Top contributor',
     label: 'to the ConstructSafe detection engine: PPE, falls, fire and faces in one pipeline, in a team of seven.',
     project: 'constructsafe',
-    img: '/posters/constructsafe.webp',
+    img: true,
   },
 ];
 
@@ -52,7 +53,9 @@ export function renderAbout() {
     grid.innerHTML = PROOF.map(
       (p) => `
       <div class="proof${p.soft ? ' proof-soft' : ''}">
-        ${p.img ? `<img class="proof-img" src="${esc(p.img)}" alt="" loading="lazy" decoding="async" />` : ''}
+        ${p.img && getProject(p.project)?.poster
+          ? `<img class="proof-img" src="${esc(getProject(p.project).poster)}" alt="" loading="lazy" decoding="async" />`
+          : ''}
         ${p.value ? `<span class="proof-value">${esc(p.value)}</span>` : `<span class="proof-word">${esc(p.word)}</span>`}
         <p class="proof-label">${esc(p.label)}</p>
         <a class="proof-link" href="#/project/${esc(p.project)}">View project ${icons.arrowRight}</a>

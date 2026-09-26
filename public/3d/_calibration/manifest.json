@@ -1,0 +1,32 @@
+{
+ "id": "_calibration",
+ "hash": "e40f9847489146fc",
+ "triangles": 25984,
+ "drawCalls": 26,
+ "nodes": 14,
+ "animations": 0,
+ "validator": {
+  "errors": 0,
+  "warnings": 0
+ },
+ "sizes": {
+  "albedo-2k.webp": 413660,
+  "albedo.webp": 413660,
+  "env.webp": 18886,
+  "lightmap-1k.webp": 58710,
+  "lightmap.webp": 71018,
+  "manifest.json": 594,
+  "poster-960.webp": 16690,
+  "poster-sq.webp": 67772,
+  "poster-wide.webp": 47708,
+  "poster.webp": 46132,
+  "scene.glb": 286428,
+  "scene.json": 1853
+ },
+ "posters": [
+  "poster.webp",
+  "poster-960.webp",
+  "poster-sq.webp",
+  "poster-wide.webp"
+ ]
+}

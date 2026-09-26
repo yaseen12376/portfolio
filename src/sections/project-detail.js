@@ -11,6 +11,23 @@ import { getProject, projects, liveMetrics } from '../data/projects.js';
 import { scrollTo, stopScroll, startScroll, resizeScroll } from '../core/smooth-scroll.js';
 import { esc, icons, brandIcons } from '../core/util.js';
 import { mediaMarkup, metricMarkup, playMedia, stopMedia, shortTitle } from './projects.js';
+import { attach3d, snapshot3d } from '../three/gate.js';
+
+// The feature explorer loads with the first case study that has one, not with the page.
+let explorerModule = null;
+const loadExplorer = () => (explorerModule ??= import('./explorer.js'));
+
+// The long-form copy is its own chunk (src/data/case-copy.js): fetched when
+// the browser is idle after load, or on the first open, and merged into the
+// projects once.
+let copyLoaded = false;
+let copyModule = null;
+export const loadCaseCopy = () =>
+  (copyModule ??= import('../data/case-copy.js').then(({ caseCopy }) => {
+    for (const p of projects) Object.assign(p, caseCopy[p.id]);
+    copyLoaded = true;
+  }));
+import { detectTier } from '../core/device.js';
 
 const list = (items, cls) => `<ul class="${cls}">${items.map((i) => `<li>${esc(i)}</li>`).join('')}</ul>`;
 
@@ -55,6 +72,7 @@ function detailMarkup(p) {
       </header>
 
       <div class="shell pd-hero-media is-locked"><div class="core">${mediaMarkup(p, { eager: true })}</div></div>
+      ${p.scene3d?.chapters?.length ? '<div class="pd-explorer-mount"></div>' : ''}
 
       <div class="pd-layout">
         ${railMarkup(p)}
@@ -96,6 +114,42 @@ let isOpen = false;
 let splits = [];
 let returnFocus = null;
 
+// The case study's live diorama, if this visitor gets one. It picks up the toy
+// state its card was left in, and is torn down with the overlay.
+let caseDiorama = null;
+let explorer = null;
+const detach3d = () => {
+  explorer?.destroy();
+  explorer = null;
+  caseDiorama?.destroy();
+  caseDiorama = null;
+};
+
+/**
+ * The explorer under the hero: from the project's data, or from the live
+ * scene's own chapters (test fixtures). Resolves to null when there are none.
+ */
+async function explorerFor(el, p, slot) {
+  if (explorer) return explorer;
+  const chapters = p.scene3d?.chapters?.length
+    ? p.scene3d.chapters
+    : slot?.chapters?.list.length
+      ? slot.chapters.list.map((c) => slot.chapters.info(c))
+      : null;
+  if (!chapters) return null;
+  const { bindExplorer, explorerMarkup } = await loadExplorer();
+  if (explorer || !el.isConnected) return explorer;
+  let root = el.querySelector('.pd-explorer');
+  if (!root) {
+    const mount = el.querySelector('.pd-explorer-mount');
+    if (mount) mount.outerHTML = explorerMarkup(chapters);
+    else el.querySelector('.pd-hero-media')?.insertAdjacentHTML('afterend', explorerMarkup(chapters));
+    root = el.querySelector('.pd-explorer');
+  }
+  explorer = root ? bindExplorer(root, chapters) : null;
+  return explorer;
+}
+
 // The case study's markup is thrown away on every open and close, so anything
 // scroll-driven inside it has to be killed with it or it accumulates triggers
 // pointing at elements that no longer exist.
@@ -130,9 +184,15 @@ export function openProject(id, { push = true } = {}) {
   const p = getProject(id);
   const el = detail();
   if (!p || !el) return;
+  if (!copyLoaded) {
+    loadCaseCopy().then(() => openProject(id, { push }), (e) => console.warn('[case study]', e));
+    return;
+  }
 
   const scrollY = isOpen ? history.state?.scrollY ?? 0 : window.scrollY;
-  const sourceImg = !isOpen ? main().querySelector(`.media[data-id="${p.id}"] img`) : null;
+  const sourceMedia = !isOpen ? main().querySelector(`.media[data-id="${p.id}"]`) : null;
+  const sourceImg = sourceMedia?.querySelector('img') ?? null;
+  const resume = snapshot3d(sourceMedia);
   const flipState = sourceImg ? Flip.getState(sourceImg) : null;
   if (!isOpen) returnFocus = document.activeElement;
 
@@ -144,6 +204,7 @@ export function openProject(id, { push = true } = {}) {
 
   swapViews(isOpen ? el : main(), () => {
     el.querySelectorAll('.media').forEach(stopMedia);
+    detach3d();
     killDetailTriggers();
     el.innerHTML = detailMarkup(p);
     el.classList.remove('hidden');
@@ -160,10 +221,27 @@ export function openProject(id, { push = true } = {}) {
 
     // Shared-element morph: the card's poster becomes the detail poster.
     const target = media?.querySelector('img');
-    if (flipState && target && !reducedMotion()) {
+    const morph = !!(flipState && target && !reducedMotion());
+    if (morph) {
       Flip.fit(target, flipState, { scale: true });
       gsap.to(target, { scale: 1, x: 0, y: 0, duration: 0.8, ease: EASE.inOut, clearProps: 'transform' });
     }
+
+    // The live diorama fades in over the poster once the morph has landed, so
+    // the two never move at once.
+    explorerFor(el, p, null);
+    const attach = () => {
+      if (!isOpen || !media?.isConnected || caseDiorama) return;
+      caseDiorama = attach3d(media, p, {
+        context: 'case',
+        tier: document.documentElement.dataset.tier || detectTier(),
+        resume,
+        onLive: (slot) => explorerFor(el, p, slot).then((x) => x?.attach(slot)),
+      });
+      caseDiorama?.setActive(true);
+    };
+    if (morph) gsap.delayedCall(0.85, attach);
+    else requestAnimationFrame(attach);
 
     el.querySelectorAll('.pd-main .metric-value').forEach((m) => countUp(m, { immediate: true }));
 
@@ -227,6 +305,7 @@ export function closeProject({ restoreY = 0 } = {}) {
 
   swapViews(el, () => {
     el.querySelectorAll('.media').forEach(stopMedia);
+    detach3d();
     killDetailTriggers();
     el.classList.add('hidden');
     el.setAttribute('aria-hidden', 'true');
@@ -297,8 +376,16 @@ export function initProjectRouting() {
   });
 
   document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape' && isOpen) history.back();
+    // Escape leaves full screen first (the browser handles that), and a toy
+    // that used the key has marked it handled.
+    if (e.key !== 'Escape' || !isOpen || e.defaultPrevented || document.fullscreenElement) return;
+    history.back();
   });
+
+  const idle = window.requestIdleCallback ?? ((f) => setTimeout(f, 1200));
+  const prefetch = () => idle(() => loadCaseCopy().catch(() => {}), { timeout: 4000 });
+  if (document.readyState === 'complete') prefetch();
+  else addEventListener('load', prefetch, { once: true });
 
   // Entry points, in order: a real /project/<id>/ page (window.__openProject is
   // written into those builds), then a #/project/<id> hash link.

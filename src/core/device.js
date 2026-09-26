@@ -26,7 +26,7 @@ export function detectTier() {
   const fewCores = (navigator.hardwareConcurrency ?? 4) <= 2;
 
   if (verySlow || lowMemory || fewCores) return 'low';
-  if (modestNetwork || mq('(max-width: 899px)') || isCoarsePointer()) return 'mid';
+  if (modestNetwork || mq('(max-width: 899.98px)') || isCoarsePointer()) return 'mid';
 
   return 'high';
 }

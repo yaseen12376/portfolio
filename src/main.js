@@ -87,7 +87,10 @@ function boot() {
   mm.add(
     {
       desktop: '(min-width: 900px)',
-      mobile: '(max-width: 899px)',
+      // 899.98, not 899: on fractional-DPR displays the viewport width is
+      // fractional too, and between 899 and 900 neither query matched, so no
+      // system initialised at all. The CSS breakpoint carries the same fix.
+      mobile: '(max-width: 899.98px)',
       reduce: '(prefers-reduced-motion: reduce)',
     },
     (ctx) => {
@@ -95,7 +98,9 @@ function boot() {
       const opts = { tier, desktop, reduced: reduce };
 
       const hero = initHero({ tier, reduced: reduce });
-      initProjects(opts);
+      // Kept, not discarded: matchMedia reverts the triggers on a breakpoint
+      // change, but only this cleanup releases what the triggers were driving.
+      const cleanupProjects = initProjects(opts);
       initAbout(opts);
       initSkills(opts);
       initExperience(opts);
@@ -105,6 +110,7 @@ function boot() {
 
       return () => {
         hero?.destroy();
+        cleanupProjects?.();
         cleanupHeadings?.();
       };
     }
