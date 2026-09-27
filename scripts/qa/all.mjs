@@ -4,8 +4,10 @@
  *   npm run qa:3d            (npm run dev in another terminal first)
  *   node scripts/qa/all.mjs [--url http://localhost:3000] [--skip parity,gate]
  *
+ *   crowd     the crowd engine alone (Node): scripted encounters, measured as seen
  *   features  each chapter operates its feature through the simulation
- *   sim       the crowd's invariants: no pops outside portals, no jumps, no overlaps
+ *   sim       the crowd in each scene: no pops, jumps or overlaps; limbs, arms,
+ *             personal space, bumps and last resorts; the store keeps moving
  *   parity    the live frame against the Cycles poster it replaces
  *   framing   composition and safe areas at card, case, full-screen and phone sizes
  *   site      the real page end to end: live cards, orbit, the explorer, no leaks
@@ -21,7 +23,7 @@ import { args } from './lib.mjs';
 
 const opts = args();
 const skip = new Set(String(opts.skip ?? '').split(',').filter(Boolean));
-const SUITES = ['features', 'sim', 'parity', 'framing', 'site', 'gate', 'perf'];
+const SUITES = ['crowd', 'features', 'sim', 'parity', 'framing', 'site', 'gate', 'perf'];
 const summary = [];
 
 for (const name of SUITES) {

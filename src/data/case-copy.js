@@ -20,6 +20,7 @@ export const caseCopy = {
       'Served events and live stats through FastAPI and WebSockets to a multi-page React dashboard whose zone, line and threshold settings apply while cameras run',
       'Batched detection across cameras (2.38× throughput at six streams) and exported the model to TensorRT (2.4× faster, 0 of 7 test clips changed count)',
       'Added staff enrolment with a consent ledger, security and anomaly detection feeding a human review queue, and customer demographics with coverage figures',
+    'Added camera health checks (covered, knocked, blurred), static-object suppression and IGNORE zones for mannequins, a store plan that maps coverage and blind spots, walkout and unattended-till measures, and a 07:00 report of what needs attention',
       'Guarded it with pytest, golden-clip count regression, pinned dependencies and GitHub Actions CI',
     ],
     outcomes: [
@@ -31,6 +32,7 @@ export const caseCopy = {
     limitations: [
       'The 95% counting-accuracy target is not certified yet. It needs store footage counted by hand, which is the next milestone.',
       'Till matching gets less certain as the counter gets busy: 87% confidence with one customer present, 46% with two, 24% with four.',
+      'Batching moves 2 of 82 line crossings on the test clips, so it stays off on entrance cameras until it has been checked against the store’s own footage.',
       'Security alerts are advisory. A person reviews every flag before anything is acted on.',
     ],
   },

@@ -152,9 +152,16 @@ def frame(name, w=0.6, h=0.8, art=('#c8553d', '#e9e4da', '#3f4b3a')):
     return _join(parts, name)
 
 
-def clock(name='clock', r=0.16):
+def clock(name='clock', r=0.16, live=False):
+    """A wall clock. With `live`, its hands are separate pieces (lit live,
+    pivoting at the clock's centre about its face's normal) that the page turns
+    to the store's time: returns (clock, [hour, minute])."""
     face = geo.cyl(f'{name}_face', r, 0.03, (0, 0, 0), rot=(90, 0, 0), material=geo.pbr('clock_face', '#f2eee6', rough=0.6), verts=40, bev=0.008)
     rim = geo.tube(f'{name}_rim', [(r * math.cos(t), -0.02, r * math.sin(t)) for t in [i * math.pi / 20 for i in range(41)]], 0.012, material=steel())
+    if live:
+        hour = geo.parts_to([geo.box(f'{name}_hour_bar', (0.012, 0.006, r * 0.6), (0, -0.034, 0), material=steel(), bev=0)], f'{name}_hour', role='prop')
+        minute = geo.parts_to([geo.box(f'{name}_minute_bar', (0.008, 0.006, r * 0.85), (0, -0.036, 0), material=steel(), bev=0)], f'{name}_minute', role='prop')
+        return _join([face, rim], name), [hour, minute]
     hands = [geo.box(f'{name}_h', (0.012, 0.006, r * 0.6), (0, -0.034, 0), rot=(0, 30, 0), material=steel(), bev=0),
              geo.box(f'{name}_m', (0.008, 0.006, r * 0.85), (0, -0.036, 0), rot=(0, -110, 0), material=steel(), bev=0)]
     return _join([face, rim] + hands, name)
@@ -183,7 +190,7 @@ def fitting_room(name='fitting', w=0.8, d=0.9, h=1.95, curtain='#6b5a4c'):
     return _join(parts, name)
 
 
-def cash_wrap(name='cash_wrap', w=1.5, d=0.62, h=0.95):
+def cash_wrap(name='cash_wrap', w=1.5, d=0.62, h=0.95, live=False):
     """The till: an oak-fronted counter with a marble top, a bag shelf, a
     POS screen, a card terminal and a receipt printer. The customer side is
     its front (-Y)."""
@@ -206,7 +213,17 @@ def cash_wrap(name='cash_wrap', w=1.5, d=0.62, h=0.95):
     printer = geo.box(f'{name}_printer', (0.14, 0.16, 0.1), (0.62, 0.1, h), material=geo.pbr('printer', '#e7e5e1', rough=0.5), bev=0.012)
     bags = [geo.box(f'{name}_bag', (0.28, 0.1, 0.34), (-0.55 + i * 0.04, 0.16, 0.08), rot=(0, 0, 4 * i),
                     material=geo.pbr('bag_paper', '#c8a27a', rough=0.85), bev=0.004) for i in range(3)]
-    return _join(parts + [stand, screen, glass, term, keys, printer] + bags, name)
+    if not live:
+        return _join(parts + [stand, screen, glass, term, keys, printer] + bags, name)
+    # What changes on the page is lit live: the POS screen (it lights as items
+    # are scanned), the card reader's screen (green when a card is accepted),
+    # and a receipt that feeds out of the printer (scale Z from 0 to 1).
+    counter = _join(parts + [stand, screen, term, printer] + bags, name)
+    pos = geo.parts_to([glass], f'{name}_pos_screen', role='prop')
+    reader = geo.parts_to([keys], f'{name}_reader', role='prop')
+    paper = geo.box(f'{name}_receipt', (0.06, 0.004, 0.14), (0.62, 0.02, h + 0.06), rot=(-20, 0, 0), material=geo.pbr('receipt', '#fbfaf6', rough=0.8), bev=0)
+    receipt = geo.parts_to([paper], f'{name}_receipt', role='prop')
+    return counter, [pos, reader, receipt]
 
 
 def stanchion(name='stanchion', h=0.9):
@@ -363,6 +380,18 @@ def roller_shutter(name='shutter', w=1.6, h=2.2):
     slats = [geo.box(f'{name}_slat', (w, 0.02, 0.07), (0, -0.09, -(i + 1) * 0.075), material=grey, bev=0.006) for i in range(int(h / 0.075))]
     s = geo.parts_to(slats, f'{name}_curtain', role='dyn', passable=True)
     return housing, s
+
+
+def plate(name, lines, w=0.2, h=0.14, ink='#1f2024', paper='#f2eee6', size=0.018):
+    """A small printed notice or sign: a plate with lines of text on its
+    front (-Y), origin at its bottom centre, back at y = 0."""
+    import os
+    font = os.path.join(C.FONTS, 'geist-mono-latin-wght-normal.woff2')
+    parts = [geo.box(f'{name}_plate', (w, 0.006, h), (0, -0.003, 0), material=geo.pbr(f'plate_{paper}', paper, rough=0.7), bev=0.002)]
+    for i, line in enumerate(lines):
+        parts.append(geo.text(f'{name}_line{i}', line, size=size, depth=0.001, loc=(0, -0.0065, h - 0.03 - i * size * 1.5), rot=(90, 0, 0),
+                              material=geo.pbr(f'ink_{ink}', ink, rough=0.6), font_path=font if os.path.exists(font) else None))
+    return _join(parts, name)
 
 
 def badge_reader(name='badge_reader'):

@@ -178,7 +178,8 @@ export class HeatMap {
   /** Re-colour the texture at most `hz` times a second. */
   update(dt, hz = 6) {
     this.clock += dt;
-    if (!this.dirty || this.clock < 1 / hz) return;
+    // Hidden, it keeps counting (add) but isn't re-coloured until it's shown.
+    if (!this.mesh.visible || !this.dirty || this.clock < 1 / hz) return;
     this.clock = 0;
     this.dirty = false;
     const { w, h, v, px } = this;
@@ -203,17 +204,39 @@ export class HeatMap {
     this.tex.needsUpdate = true;
   }
 
-  /** The n hottest places, far enough apart to be different places. */
+  /**
+   * The n hottest places, far enough apart to be different places. One pass
+   * keeps the hottest few dozen cells (a full sort of the grid every call
+   * cost milliseconds a frame); only if they all crowd one spot is the whole
+   * grid sorted.
+   */
   hottest(n = 3, apart = 0.6) {
-    const idx = [...this.v.keys()].sort((a, b) => this.v[b] - this.v[a]);
-    const out = [];
-    for (const c of idx) {
-      if (this.v[c] <= 0 || out.length >= n) break;
-      const x = this.x0 + ((c % this.w) + 0.5) * this.cell;
-      const z = this.z0 + (Math.floor(c / this.w) + 0.5) * this.cell;
-      if (out.every((p) => Math.hypot(p.x - x, p.z - z) > apart)) out.push({ x, z, v: this.v[c] / this.max });
+    const v = this.v;
+    const K = Math.max(48, n * 16);
+    const top = [];
+    let floor = 0;
+    for (let c = 0; c < v.length; c++) {
+      const x = v[c];
+      if (x <= floor) continue;
+      let k = top.length;
+      while (k > 0 && v[top[k - 1]] < x) k--;
+      top.splice(k, 0, c);
+      if (top.length > K) top.pop();
+      if (top.length === K) floor = v[top[K - 1]];
     }
-    return out;
+    const pick = (idx) => {
+      const out = [];
+      for (const c of idx) {
+        if (v[c] <= 0 || out.length >= n) break;
+        const x = this.x0 + ((c % this.w) + 0.5) * this.cell;
+        const z = this.z0 + (Math.floor(c / this.w) + 0.5) * this.cell;
+        if (out.every((p) => Math.hypot(p.x - x, p.z - z) > apart)) out.push({ x, z, v: v[c] / this.max });
+      }
+      return out;
+    };
+    const out = pick(top);
+    if (out.length >= n || top.length < K) return out;
+    return pick([...v.keys()].sort((a, b) => v[b] - v[a]));
   }
 
   reset() {

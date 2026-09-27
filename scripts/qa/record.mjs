@@ -65,8 +65,15 @@ await record('2-case-explorer', { viewport: { width: 1440, height: 1000 } }, asy
   };
   await chapter('cameras', 3000);
   await act('checkout', 2500);
+  await act('cover', 7000); // raised after 30 s of store time
+  await act('fix', 2500);
   await act('floor', 2500);
-  await chapter('track', 5000);
+  await chapter('coverage', 3000);
+  await act('plan', 4000);
+  await act('grid', 3000);
+  await chapter('track', 6000);
+  await act('ignore', 3500);
+  await act('ignore', 1500);
   await chapter('line', 3000);
   // Drag one end of the counting line a little into the store.
   const box = await page.locator(hero).boundingBox();
@@ -83,20 +90,28 @@ await record('2-case-explorer', { viewport: { width: 1440, height: 1000 } }, asy
     for (let i = 1; i <= 12; i++) await page.mouse.move(end.x - i * 4, end.y + i * 2);
     await page.mouse.up();
   }
-  await pause(page, 3500);
+  await pause(page, 2500);
+  await act('linger', 12000);
+  await act('anchor', 2500);
   await chapter('zones', 5000);
   await chapter('heat', 3000);
   await act('swap', 5000);
   await chapter('parties', 4500);
   await chapter('pos', 2000);
   await act('q2', 9000);
+  await act('away', 9000);
+  await act('away', 3000);
   await chapter('staff', 2500);
   await act('consent', 3500);
   await chapter('security', 2000);
+  await act('conceal', 32000);
+  await act('evidence', 7000);
+  await act('evidence', 1000);
   await act('hours', 9000);
   await act('hours', 2500);
   await chapter('dashboard', 4000);
   await act('trt', 3000);
+  await act('report', 4000);
 });
 
 // 3. A phone: the tap, then the tour.

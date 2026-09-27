@@ -33,6 +33,9 @@ def _static(obj):
     top = src
     while top.parent is not None:
         top = top.parent
+    # A prototype parked at the origin (only its instances are real) is never in the way.
+    if src.get('proto') or top.get('proto'):
+        return False, src
     return src.get('role') not in ('dyn', 'fig', 'fx') and top.get('role') not in ('dyn', 'fig', 'fx'), src
 
 
@@ -100,7 +103,7 @@ def _thin_faces(cell):
     out = []
     dg = bpy.context.evaluated_depsgraph_get()
     for o in bpy.data.objects:
-        if o.type != 'MESH' or o.get('passable') or o.hide_render:
+        if o.type != 'MESH' or o.get('passable') or o.hide_render or o.get('proto'):
             continue
         top = o
         while top.parent is not None:

@@ -215,6 +215,11 @@ window.qa = {
     let limbLong = 0;
     let armClip = 0;
     let armAt = null;
+    let armClips = 0; // times an arm went over 4 cm into a fixture (once a second per person at most)
+    let armRails = 0; // ... into the clothes on a rail
+    const armWhere = [];
+    if (grid) grid.__railCells = null;
+    const armT = new Map();
     // Personal space when passing: each encounter's closest gap between two walkers.
     const passing = new Map();
     const passGaps = [];
@@ -226,6 +231,165 @@ window.qa = {
     const hesT = new Map();
     const bumpT = new Map();
     const stats0 = { ...(crowd?.stats ?? {}) };
+    // Spread, where the scene has districts (sim/spread.js), sampled twice a
+    // second: the densest knot of people (a party counts once, a queue not
+    // at all), which districts are in use, a district holding more groups
+    // than it should, the entrance kept clear, what customers are doing, and
+    // staff apart from each other.
+    const D = slot.controller?.districts;
+    const indoors = slot.controller?.indoors ?? (() => true);
+    const STAFF_ROLES = new Set(['staff', 'stock', 'manager', 'cashier']);
+    const sp = D && {
+      n: 0,
+      dense1: [],
+      dense15: [],
+      denseAt: null,
+      denseMax: 0,
+      lit: new Map(D.defs.filter((d) => d.feature).map((d) => [d.name, 0])),
+      doubled: new Map(),
+      doubleLong: 0,
+      doubleAt: null,
+      entrance: 0,
+      entranceRun: new Map(),
+      entranceLong: 0,
+      entranceAt: null,
+      acts: [],
+      staffNear: 0,
+      staffStill: 0,
+      staffPairs: new Map(),
+      fresh: new Map(), // visitor -> when they came in
+      still1: [],
+      knotRun: 0,
+      knots3: [],
+      visitLog: [],
+      knotLong: 0,
+      stillMax: 0,
+      stillAt: null,
+      litCount: [],
+      seen: new Map(),
+      visits: [],
+    };
+    const groupKey = (a) => (a.party ? `p${a.party}` : a.id);
+    const standing = (a) => !a.task?.go || a.vel.length() < 0.15;
+    const spreadSample = (t) => {
+      const here = agents.filter((a) => a.visible && a.fade > 0.5 && !a.fixed && a.role !== 'passer' && a.role !== 'intruder' && indoors(a.pos.x, a.pos.y));
+      sp.n++;
+      // Densest knot: around each person, the groups within 1 m (and 1.5 m).
+      const knot = here.filter((a) => !D.where(a)?.queue);
+      let m1 = 0;
+      let m15 = 0;
+      for (const a of knot) {
+        const g1 = new Set();
+        const g15 = new Set();
+        for (const b of knot) {
+          const d = Math.hypot(a.pos.x - b.pos.x, a.pos.y - b.pos.y);
+          if (d <= 1) g1.add(groupKey(b));
+          if (d <= 1.5) g15.add(groupKey(b));
+        }
+        if (g15.size > sp.denseMax) {
+          sp.denseMax = g15.size;
+          sp.denseAt = `t=${t.toFixed(1)} around ${a.role} ${a.id} at ${a.pos.x.toFixed(2)},${a.pos.y.toFixed(2)}: ${knot.filter((b) => Math.hypot(a.pos.x - b.pos.x, a.pos.y - b.pos.y) <= 1.5).map((b) => `${b.role} ${b.id} ${b.task?.go ? 'walking' : b.task?.act ?? '-'} ${b.st?.phase ?? ''}`).join(', ')}`;
+        }
+        m1 = Math.max(m1, g1.size);
+        m15 = Math.max(m15, g15.size);
+      }
+      sp.dense1.push(m1);
+      sp.dense15.push(m15);
+      // Standing knots: what piling up looks like, people standing about
+      // (someone stopped a moment to let another by is not that; stopped
+      // for long, a jam, is, below).
+      const still = knot.filter((a) => !a.task?.go);
+      let s1 = 0;
+      for (const a of still) {
+        const g = new Set(still.filter((b) => Math.hypot(a.pos.x - b.pos.x, a.pos.y - b.pos.y) <= 1).map(groupKey));
+        if (g.size > s1) s1 = g.size;
+        if (g.size >= 3 && sp.knots3.length < 40 && (sp.knots3.at(-1)?.t ?? -9) < t - 2) {
+          sp.knots3.push({ t, at: `${a.pos.x.toFixed(1)},${a.pos.y.toFixed(1)}`, who: still.filter((b) => Math.hypot(a.pos.x - b.pos.x, a.pos.y - b.pos.y) <= 1).map((b) => `${b.role}${b.party ? '(party)' : ''} ${b.task?.act ?? (b.task?.go ? 'stopped' : '-')}`).join(', ') });
+        }
+        if (g.size > sp.stillMax) {
+          sp.stillMax = g.size;
+          sp.stillAt = `t=${t.toFixed(1)} around ${a.role} ${a.id} at ${a.pos.x.toFixed(2)},${a.pos.y.toFixed(2)}: ${still.filter((b) => Math.hypot(a.pos.x - b.pos.x, a.pos.y - b.pos.y) <= 1).map((b) => `${b.role} ${b.id} ${b.task?.act ?? (b.task?.go ? 'stopped' : '-')} ${b.st?.phase ?? ''}`).join(', ')}`;
+        }
+      }
+      sp.still1.push(s1);
+      // How long a knot of four or more (standing, or stopped in a jam) lasts.
+      const stuck = knot.filter(standing);
+      let j1 = 0;
+      for (const a of stuck) j1 = Math.max(j1, new Set(stuck.filter((b) => Math.hypot(a.pos.x - b.pos.x, a.pos.y - b.pos.y) <= 1).map(groupKey)).size);
+      sp.knotRun = j1 >= 4 ? sp.knotRun + 0.5 : 0;
+      sp.knotLong = Math.max(sp.knotLong, sp.knotRun);
+      // Districts in use: someone standing there (staff folding a table count).
+      let lit = 0;
+      for (const d of D.defs) {
+        if (!d.feature) continue;
+        if (here.some((a) => standing(a) && D.of(a.pos.x, a.pos.y) === d)) {
+          sp.lit.set(d.name, sp.lit.get(d.name) + 1);
+          lit++;
+        }
+        // More customer groups standing in a district than it holds.
+        if (d.cap < Infinity && !d.queue) {
+          const g = new Set(here.filter((a) => a.role === 'shopper' && standing(a) && D.of(a.pos.x, a.pos.y) === d).map(groupKey));
+          const run = g.size > d.cap ? (sp.doubled.get(d.name) ?? 0) + 0.5 : 0;
+          sp.doubled.set(d.name, run);
+          if (run > sp.doubleLong) {
+            sp.doubleLong = run;
+            sp.doubleAt = `${d.name} t=${t.toFixed(1)} (${g.size} groups: ${here.filter((a) => a.role === 'shopper' && standing(a) && D.of(a.pos.x, a.pos.y) === d).map((a) => `${a.id}${a.party ? ' party' : ''} ${a.task?.act ?? (a.task?.go ? 'stopped' : '-')} ${a.st?.phase} claim ${a.claim}`).join(', ')})`;
+          }
+        }
+      }
+      sp.litCount.push(lit);
+      // The entrance: walked through, not stood in (bar the lingering feature).
+      const door = D.defs.find((d) => d.walkThrough);
+      if (door) {
+        for (const a of here) {
+          const inDoor = D.of(a.pos.x, a.pos.y) === door;
+          if (inDoor) sp.entrance++;
+          const still = inDoor && a.vel.length() < 0.15 && !a.loiter && a.job !== 'linger';
+          const run = still ? (sp.entranceRun.get(a) ?? 0) + 0.5 : 0;
+          sp.entranceRun.set(a, run);
+          if (run > sp.entranceLong) {
+            sp.entranceLong = run;
+            sp.entranceAt = `${a.role} ${a.id} t=${t.toFixed(1)} at ${a.pos.x.toFixed(2)},${a.pos.y.toFixed(2)} ${a.task?.go ? 'walking' : a.task?.act ?? '-'} ${a.st?.phase ?? ''}${a.waitGate ? ' (at a gate)' : ''}`;
+          }
+        }
+      }
+      // What customers are doing, and where they did it this visit.
+      sp.acts.push(new Set(here.filter((a) => a.role === 'shopper' && a.task?.act).map((a) => a.task.act)));
+      for (const a of here) {
+        // Visits begun during the run (not ones the page opened in the middle of).
+        if (a.role !== 'shopper' || !a.task?.act || !sp.fresh.has(a)) continue;
+        const d = D.of(a.pos.x, a.pos.y);
+        if (d && !d.walkThrough) (sp.seen.get(a) ?? sp.seen.set(a, new Set()).get(a)).add(d.name);
+      }
+      for (const [a, set] of sp.seen) {
+        if (!a.visible) {
+          sp.visits.push(set.size);
+          if (sp.visitLog.length < 30) sp.visitLog.push(`${a.id} in ${sp.fresh.get(a).toFixed(0)}-${t.toFixed(0)}s: ${[...set].join(' > ') || '-'}`);
+          sp.seen.delete(a);
+          sp.fresh.delete(a);
+        }
+      }
+      // Staff within 1.5 m of each other, in sight of each other (not through a wall).
+      const st = here.filter((a) => STAFF_ROLES.has(a.role));
+      let near = false;
+      let stillNear = false;
+      for (let x = 0; x < st.length; x++) {
+        for (let y = x + 1; y < st.length; y++) {
+          const a = st[x];
+          const b = st[y];
+          if (Math.hypot(a.pos.x - b.pos.x, a.pos.y - b.pos.y) < 1.5 && (!grid || grid.los(a.pos.x, a.pos.y, b.pos.x, b.pos.y))) {
+            near = true;
+            if (standing(a) && standing(b)) {
+              stillNear = true;
+              const k = `${a.role} ${a.id} & ${b.role} ${b.id}`;
+              sp.staffPairs.set(k, (sp.staffPairs.get(k) ?? 0) + 1);
+            }
+          }
+        }
+      }
+      if (near) sp.staffNear++;
+      if (stillNear) sp.staffStill++;
+    };
     const walking = (a) => a.visible && !a.fixed && a.task?.go && a.vel.length() > 0.15 && !a.fadeDir;
     const was = new Map(agents.map((a) => [a, { vis: a.visible, x: a.pos.x, z: a.pos.y }]));
     const last = new Map(agents.map((a) => [a, { x: a.pos.x, z: a.pos.y, t: 0, still: 0 }]));
@@ -235,6 +399,7 @@ window.qa = {
       slot.update(dt);
       for (const a of agents) {
         const w = was.get(a);
+        if (w.vis !== a.visible && a.visible) sp?.fresh.set(a, i * dt);
         if (w.vis !== a.visible && crowd) {
           const x = a.visible ? a.pos.x : w.x;
           const z = a.visible ? a.pos.y : w.z;
@@ -301,11 +466,43 @@ window.qa = {
               limbAt = `${a.role ?? 'agent'} ${a.id} (${a.task?.go ? 'walking' : a.task?.act ?? 'standing'}${a.party ? ' party' : ''}) & ${b.role ?? 'agent'} ${b.id} (${b.task?.go ? 'walking' : b.task?.act ?? 'standing'}${b.party ? ' party' : ''}) t=${t.toFixed(1)} at ${a.pos.x.toFixed(2)},${a.pos.y.toFixed(2)}, bodies ${(d - a.radius - b.radius).toFixed(3)} m apart, speeds ${a.vel.length().toFixed(2)}/${b.vel.length().toFixed(2)}`;
             }
           }
-          // Arms while walking (reaching into a rail or a till at work is the point of it).
-          if (grid && walking(a)) {
+          // Arms while walking past things (reaching into a rail or a till at
+          // work is the point of it, and so is stepping up to one: the last
+          // 60 cm of a walk to a spot doesn't count).
+          const end = a.path?.[a.path.length - 1];
+          const arriving = end && Math.hypot(end[0] - a.pos.x, end[1] - a.pos.y) < 0.6;
+          if (grid && walking(a) && !arriving) {
             for (const p of sph(a)) {
               if (!p.arm) continue;
               const clip = p.r - grid.clearAt(p.p.x, p.p.z);
+              if (clip > 0.04 && (armT.get(a) ?? -9) < t - 1) {
+                // Brushing the clothes on a rail (a moving piece's footprint) is
+                // what shoppers do; into a table, a counter or a wall is not.
+                const railCells = (grid.__railCells ??= new Set([...grid.stamps.values()].flat()));
+                // What the arm is in: the nearest blocked cell within its reach.
+                const ci = grid.ci(p.p.x);
+                const cj = grid.cj(p.p.z);
+                const reach = Math.ceil(p.r / grid.cell);
+                let nearest = -1;
+                let nd = Infinity;
+                for (let dj = -reach; dj <= reach; dj++) {
+                  for (let di = -reach; di <= reach; di++) {
+                    const ii = ci + di;
+                    const jj = cj + dj;
+                    if (ii < 0 || jj < 0 || ii >= grid.w || jj >= grid.h || !grid.raw[jj * grid.w + ii]) continue;
+                    const dd = di * di + dj * dj;
+                    if (dd < nd) {
+                      nd = dd;
+                      nearest = jj * grid.w + ii;
+                    }
+                  }
+                }
+                if (!railCells.has(nearest)) {
+                  armClips++;
+                  armWhere.push(`${(Math.round(p.p.x * 4) / 4).toFixed(2)},${(Math.round(p.p.z * 4) / 4).toFixed(2)} h${p.p.y.toFixed(1)} ${a.role} ${a.id} ${a.clip} t=${t.toFixed(1)} tuck ${(a.tuck ?? 0).toFixed(2)} v ${a.vel.length().toFixed(2)} room ${(grid.clearAt(a.pos.x, a.pos.y) - a.radius).toFixed(2)}`);
+                } else armRails++;
+                armT.set(a, t);
+              }
               if (clip > armClip) {
                 armClip = clip;
                 armAt = `${a.role ?? 'agent'} ${a.id} t=${t.toFixed(1)} at ${p.p.x.toFixed(2)},${p.p.z.toFixed(2)} (${p.p.y.toFixed(2)} m up)`;
@@ -315,6 +512,7 @@ window.qa = {
         }
         for (const key of limbRun.keys()) if (!touching.has(key)) limbRun.delete(key);
       }
+      if (sp && i % 15 === 0) spreadSample(i * dt);
       for (let k = 0; k < agents.length; k++) {
         const a = agents[k];
         if (!a.visible) continue; // someone who has left the scene
@@ -382,6 +580,9 @@ window.qa = {
       limbLong: +limbLong.toFixed(2),
       limbAt,
       armClip: +armClip.toFixed(3),
+      armClipsPerMin: +((armClips / secs) * 60).toFixed(2),
+      armRailsPerMin: +((armRails / secs) * 60).toFixed(2),
+      armWhere,
       armAt,
       passes: passGaps.length,
       passGap5: passGaps.length ? +passGaps.sort((x, y) => x - y)[Math.floor(passGaps.length * 0.05)].toFixed(3) : null,
@@ -404,6 +605,50 @@ window.qa = {
       partySpread: partyFrames ? +((partyFar / partyFrames) * 100).toFixed(1) : 0,
       partySpreadLong: +farLong.toFixed(1),
       followerAt,
+      spread: sp && (() => {
+        const q = (arr, f) => (arr.length ? [...arr].sort((x, y) => x - y)[Math.min(arr.length - 1, Math.floor(arr.length * f))] : 0);
+        const mean = (arr) => (arr.length ? arr.reduce((x, y) => x + y, 0) / arr.length : 0);
+        // Distinct customer activities in every 10 s window (20 samples).
+        const windows = [];
+        for (let k = 0; k + 20 <= sp.acts.length; k += 20) windows.push(new Set(sp.acts.slice(k, k + 20).flatMap((x) => [...x])).size);
+        return {
+          dense1p95: q(sp.dense1, 0.95),
+          dense1mean: +mean(sp.dense1).toFixed(2),
+          dense15p95: q(sp.dense15, 0.95),
+          dense15mean: +mean(sp.dense15).toFixed(2),
+          denseMax: sp.denseMax,
+          denseAt: sp.denseAt,
+          lit: Object.fromEntries([...sp.lit].map(([k, v]) => [k, +((v / sp.n) * 100).toFixed(0)])),
+          doubleLong: sp.doubleLong,
+          doubleAt: sp.doubleAt,
+          entranceMean: +(sp.entrance / sp.n).toFixed(2),
+          entranceLong: sp.entranceLong,
+          entranceAt: sp.entranceAt,
+          activitiesMin: windows.length ? Math.min(...windows) : 0,
+          // All but the odd one out: the second-fewest of the run's windows.
+          activitiesLow: windows.length > 1 ? [...windows].sort((x, y) => x - y)[1] : windows[0] ?? 0,
+          activityWindows: windows.join(' '),
+          litSeries: sp.litCount.filter((_, k) => k % 10 === 0).join(''),
+          activitiesMean: +mean(windows).toFixed(1),
+          // Visits over, and those a minute or more along (a run's end cuts
+          // the long ones short: counting only the finished would favour short visits).
+          ...(() => {
+            const v = [...sp.visits, ...[...sp.seen].filter(([a]) => sp.fresh.has(a) && secs - sp.fresh.get(a) >= 60).map(([, set]) => set.size)];
+            return { visits: v.length, districtsPerVisit: +mean(v).toFixed(2) };
+          })(),
+          stillP95: q(sp.still1, 0.95),
+          stillMax: sp.stillMax,
+          knotLong: sp.knotLong,
+          knots3: sp.knots3,
+          visitLog: sp.visitLog,
+          stillAt: sp.stillAt,
+          litMean: +mean(sp.litCount).toFixed(2),
+          litP10: q(sp.litCount, 0.1),
+          staffNear: +((sp.staffNear / sp.n) * 100).toFixed(1),
+          staffStill: +((sp.staffStill / sp.n) * 100).toFixed(1),
+          staffPairs: [...sp.staffPairs].sort((x, y) => y[1] - x[1]).slice(0, 4).map(([k, v]) => `${k} ${((v / sp.n) * 100).toFixed(0)}%`),
+        };
+      })(),
     };
   },
 };

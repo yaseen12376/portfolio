@@ -15,6 +15,7 @@
     "assets:3d": "node scripts/fetch-assets.mjs",
     "build:3d": "node scripts/build-3d.mjs",
     "qa:3d": "node scripts/qa/all.mjs",
+    "qa:crowd": "node scripts/qa/crowd.mjs",
     "qa:features": "node scripts/qa/features.mjs",
     "qa:sim": "node scripts/qa/sim.mjs",
     "qa:parity": "node scripts/qa/parity.mjs",

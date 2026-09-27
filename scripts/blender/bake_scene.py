@@ -470,6 +470,7 @@ def occluder_boxes(objs):
 
 def stage_light(S, out, samples, size):
     sc, data, key = assemble(S, figures=False)
+    check_protos()
     data['bounds'] = scene_bounds()
     data['hull'] = scene_hull()
     # The walkable floor, before joining and culling remove what the rays need.
@@ -478,7 +479,8 @@ def stage_light(S, out, samples, size):
     data['footprints'] = NAV.footprints()
     if data.get('spots'):
         # Static fixtures only here; moving ones (rails) are checked on the page.
-        data['nav_unreachable'] = NAV.check_reach(data['nav'], data['spots'], 0.2, S.META.get('nav_start'), NAV.dyn_polys())
+        starts = {f'cast_{i}_{c.get("role", "")}': {'at': c['at']} for i, c in enumerate(data.get('cast', [])) if 'at' in c and c.get('role') != 'cashier'}
+        data['nav_unreachable'] = NAV.check_reach(data['nav'], {**data['spots'], **starts}, 0.24, S.META.get('nav_start'), NAV.dyn_polys())
         data['spots_too_close'] = NAV.check_spacing(data['spots'])
         print('NAV spots too close:', data['spots_too_close'] or 'none')
     bake_setup(sc, samples)
@@ -538,12 +540,21 @@ def stage_light(S, out, samples, size):
     bpy.ops.wm.save_as_mainfile(filepath=os.path.join(out, 'set.blend'))
 
 
+def check_protos():
+    """A prototype left in the scene (built at the origin, instanced, but
+    never retired) is a stray copy in the middle of the island: fail loudly."""
+    left = [o.name for o in bpy.data.objects if o.name.endswith('_proto') and not o.get('proto')]
+    if left:
+        raise SystemExit(f'prototypes left in the scene (geo.retire them): {left}')
+
+
 def stage_nav(S, out):
     """Only the floor plan and the scene's plain data (spots, zones, lines,
     portals, cast), re-derived from the scene script into build.json and
     scene.json without baking light again: for layout tweaks that don't move
     anything the light bake sees, and for fixes to how the floor is read."""
     sc, data, key = assemble(S, figures=False)
+    check_protos()
     pl = S.META['plinth']
     b = json.load(open(os.path.join(out, 'build.json')))
     b['nav'] = NAV.build(data['plinth'], pl['w'], pl['d'], pl.get('radius', 0.16))
@@ -552,7 +563,8 @@ def stage_nav(S, out):
         if k in data:
             b[k] = data[k]
     if b.get('spots'):
-        b['nav_unreachable'] = NAV.check_reach(b['nav'], b['spots'], 0.2, S.META.get('nav_start'), NAV.dyn_polys())
+        starts = {f'cast_{i}_{c.get("role", "")}': {'at': c['at']} for i, c in enumerate(b.get('cast', [])) if 'at' in c and c.get('role') != 'cashier'}
+        b['nav_unreachable'] = NAV.check_reach(b['nav'], {**b['spots'], **starts}, 0.24, S.META.get('nav_start'), NAV.dyn_polys())
         b['spots_too_close'] = NAV.check_spacing(b['spots'])
         print('NAV spots too close:', b['spots_too_close'] or 'none')
     C.write_json(os.path.join(out, 'build.json'), b)

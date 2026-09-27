@@ -60,14 +60,15 @@ export class Director {
 
   /**
    * The best person for a job: `pool` filtered by `ok`, nearest to `to`
-   * (three.js x, z) first. Null if nobody fits.
+   * (three.js x, z) first, or, when `to` is a function, lowest `to(a)` (a
+   * scene's own reckoning: say, whoever moving thins a crowd). Null if nobody fits.
    */
   cast(pool, ok, to = null) {
     let best = null;
     let bd = Infinity;
     for (const a of pool) {
       if (!a.visible || a.fadeDir || !ok(a)) continue;
-      const d = to ? Math.hypot(a.pos.x - to.x, a.pos.y - to.z) : 0;
+      const d = typeof to === 'function' ? to(a) : to ? Math.hypot(a.pos.x - to.x, a.pos.y - to.z) : 0;
       if (d < bd) {
         bd = d;
         best = a;

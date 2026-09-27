@@ -16,6 +16,7 @@
  *    poster shows it.
  */
 import {
+  AnimationClip,
   AnimationMixer,
   CanvasTexture,
   Color,
@@ -58,6 +59,15 @@ export async function loadPeople(base = '/3d/_shared/') {
     const meta = await fetchJSON(`${base}people.json`);
     const gltf = await new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).loadAsync(`${base}people.glb?v=${meta.hash ?? '0'}`);
     const clips = new Map(gltf.animations.map((c) => [c.name, c]));
+    // Arms held in, hands together in front (the queueing pose's arms
+    // alone, the narrowest of the clips: 20 cm to the side where the walk
+    // swings 25): blended over any clip when someone squeezes past a fixture
+    // or a person, so the swing doesn't clip.
+    const held = clips.get('queue');
+    if (held) {
+      const arms = held.tracks.filter((t) => /^(upperarm|forearm|hand)[LR]\./.test(t.name));
+      if (arms.length) clips.set('arms_in', new AnimationClip('arms_in', held.duration, arms));
+    }
     // The rigid pieces (hair, hats, what people carry), by name.
     const pieces = new Map();
     gltf.scene.traverse((o) => {
@@ -231,6 +241,15 @@ export function makeFigure(people, entry, paths) {
   };
   let current = action(entry.clip);
   current.play();
+  // Arms in: weighted over the clip (0, not at all, while there's room).
+  const armsIn = people.clips.has('arms_in') ? mixer.clipAction(people.clips.get('arms_in')) : null;
+  let tuckK = 0;
+  let tuckWant = 0;
+  if (armsIn) {
+    armsIn.setLoop(LoopRepeat, Infinity);
+    armsIn.setEffectiveWeight(0);
+    armsIn.play();
+  }
   // Start exactly at the poster's pose.
   current.time = (entry.phase ?? 0) * current.getClip().duration;
 
@@ -293,10 +312,21 @@ export function makeFigure(people, entry, paths) {
     twist(yaw) {
       twistWant = Math.max(-0.6, Math.min(0.6, yaw));
     },
+    /** Arms held in, 0 (swinging freely) to 1 (hands together in front, most of the way), eased toward. */
+    tuck(k) {
+      tuckWant = Math.max(0, Math.min(1, k));
+    },
     update(dt) {
       // Undo last frame's additions before the clip poses the bones again.
       if (head && lookYaw - twistYaw) head.quaternion.multiply(undoQ.setFromAxisAngle(up, -(lookYaw - twistYaw)));
       if (chest && twistYaw) chest.quaternion.multiply(undoQ.setFromAxisAngle(up, -twistYaw));
+      if (armsIn) {
+        tuckK += (tuckWant - tuckK) * (1 - Math.exp(-dt * 8));
+        if (tuckK < 1e-3) tuckK = 0;
+        // Blended with the clip by weight, w / (1 + w) of the way to the held
+        // arms: three quarters at half a tuck, all but a little at a full one.
+        armsIn.setEffectiveWeight(12 * tuckK * tuckK);
+      }
       mixer.update(dt);
       lookYaw += (lookWant - lookYaw) * (1 - Math.exp(-dt * 5));
       twistYaw += (twistWant - twistYaw) * (1 - Math.exp(-dt * 6));

@@ -51,6 +51,8 @@ export class Chapters {
   }
 
   emit(type, data) {
+    // (What the buttons were last drawn from, so a change can be spotted.)
+    if (type === 'actions') this.actionSig = data.map((x) => `${x.id}:${x.label}:${x.pressed ?? ''}`).join('|');
     for (const fn of this.listeners) fn(type, data);
   }
 
@@ -122,6 +124,11 @@ export class Chapters {
     if (this.readClock > 0.25 && this.listeners.size) {
       this.readClock = 0;
       this.emit('readouts', this.current?.readouts?.() ?? []);
+      // Buttons that come and go with what happens (an evidence clip once
+      // one is recorded, a review once an alert waits): redrawn when they change.
+      const actions = this.current?.actions?.() ?? [];
+      const sig = actions.map((x) => `${x.id}:${x.label}:${x.pressed ?? ''}`).join('|');
+      if (sig !== this.actionSig) this.emit('actions', actions);
     }
   }
 

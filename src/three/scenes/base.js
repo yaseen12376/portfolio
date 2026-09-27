@@ -16,7 +16,7 @@ import { footprint, NavGrid } from '../sim/grid.js';
  * The least a figure's centre keeps from a wall or fixture: the grid is
  * dilated by this. (Routes keep more where there's room: see grid.path.)
  */
-export const FIGURE_RADIUS = 0.2;
+export const FIGURE_RADIUS = 0.24;
 
 /**
  * A figure's half-width, arms included, for keeping people apart: the

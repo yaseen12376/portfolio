@@ -1,10 +1,12 @@
 /**
  * Full-resolution screenshots of the dioramas on the real page, for review:
  *
- *   node scripts/qa/shots.mjs [--cal] [--width 1440] [--height 900] [--project retail-analytics]
+ *   node scripts/qa/shots.mjs [--cal] [--width 1440] [--height 900] [--project retail-analytics] [--operate]
  *
  * Writes build/qa/shots/: the project's card as the tour shows it, then its
  * case study with every chapter selected in turn (diorama and explorer).
+ * With --operate, each chapter's feature is operated first (a camera covered,
+ * a camera planned, someone lingering in the doorway...), so the shot shows it.
  */
 import { resolve } from 'node:path';
 
@@ -14,7 +16,17 @@ const opts = args();
 const W = Number(opts.width ?? 1440);
 const H = Number(opts.height ?? 900);
 const id = opts.project ?? 'retail-analytics';
-const out = await ensureOut('shots', `${id}-${W}`);
+const out = await ensureOut('shots', `${id}-${W}${opts.operate ? '-operated' : ''}`);
+// What to press in each chapter (and how long to let it play) with --operate.
+const OPERATE = {
+  cameras: [['checkout', 800], ['cover', 6500]],
+  coverage: [['plan', 2500], ['grid', 800]],
+  track: [[null, 5000]],
+  line: [['linger', 9000]],
+  pos: [['away', 9000]],
+  security: [['conceal', 34000], ['evidence', 2500]],
+  dashboard: [['report', 2500]],
+};
 const { browser, context } = await launch();
 const page = await context.newPage();
 await page.setViewportSize({ width: W, height: H });
@@ -46,6 +58,12 @@ if (!tabs.length) await page.locator('#project-detail .pd-hero-media').screensho
 for (const [i, ch] of tabs.entries()) {
   await page.click(`#project-detail .pd-chapter[data-chapter="${ch}"]`);
   await page.waitForTimeout(2600); // the camera move, and some life
+  if (opts.operate) {
+    for (const [act, ms] of OPERATE[ch] ?? []) {
+      if (act) await page.click(`#project-detail .pd-act[data-act="${act}"]`).catch(() => console.log(`  no ${act} in ${ch}`));
+      await page.waitForTimeout(ms);
+    }
+  }
   const a = await page.locator('#project-detail .pd-hero-media').boundingBox();
   const b = await page.locator('#project-detail .pd-explorer').boundingBox();
   await page.screenshot({

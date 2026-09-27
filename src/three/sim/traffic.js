@@ -14,7 +14,7 @@
  * (request()), and lets it go once past (release()).
  */
 
-export const SINGLE = 1.05; // m: narrower than this, two people can't pass (two bodies plus room at the walls)
+export const SINGLE = 1.1; // m: narrower than this, two people can't pass (two bodies, a gap, and 0.24 m to each side)
 const PAD = 0.35; // m of room claimed either side of the narrow part
 const STEP = 0.15; // m between width samples along a route
 const PATIENCE = 3; // s: a waiter who has waited this long goes before newcomers

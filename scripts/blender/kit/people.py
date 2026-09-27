@@ -664,6 +664,11 @@ def build_attachments(col):
                       lambda v: region_value('accent'), 'chest', col))
     # A clipboard in the left hand.
     hl = _hand_c('L')
+    # A shirt on its hanger, held by the hook in the left hand: taken from a
+    # rail to a fitting room (the accent colour is the shirt's).
+    hanger = geo_box('hanger', (0.012, 0.26, 0.01), (hl.x, hl.y, hl.z - 0.06))
+    cloth = geo_box('garment_cloth', (0.022, 0.26, 0.36), (hl.x, hl.y, hl.z - 0.25))
+    out.append(_rigid('garment', [hanger, cloth], lambda v: region_value('accent'), 'hand.L', col))
     out.append(_rigid('clipboard', [geo_box('board', (0.01, 0.16, 0.22), (hl.x, hl.y - 0.04, hl.z - 0.18))],
                       lambda v: region_value('accent'), 'hand.L', col))
     # Hammer: handle along the hand, head across it.
@@ -918,6 +923,25 @@ def _phone(P, ph):
     P['hand.R'].rotation_euler.x = 0.25 + 0.06 * _s(ph * 6)
     P['upperarm.L'].rotation_euler.z = 0.1
     P['forearm.L'].rotation_euler.x = 0.2
+
+
+@clip('conceal', 96)
+def _conceal(P, ph):
+    # What the security module's concealment rule looks for: stopped, bent a
+    # little over, a hand going to the hip pocket, a glance round now and then.
+    _breathe(P, ph)
+    tuck = 0.5 + 0.5 * _s(ph)
+    P['spine'].rotation_euler.x = 0.22
+    P['chest'].rotation_euler.x = 0.08
+    P['head'].rotation_euler.x = 0.12
+    P['head'].rotation_euler.y = 0.5 * _s(ph * 0.5)
+    P['upperarm.R'].rotation_euler.x = -0.22
+    P['upperarm.R'].rotation_euler.z = 0.06
+    P['forearm.R'].rotation_euler.x = 0.7 + 0.35 * tuck
+    P['hand.R'].rotation_euler.z = 0.35
+    P['upperarm.L'].rotation_euler.x = 0.35
+    P['upperarm.L'].rotation_euler.z = 0.1
+    P['forearm.L'].rotation_euler.x = 0.65
 
 
 @clip('type', 48)

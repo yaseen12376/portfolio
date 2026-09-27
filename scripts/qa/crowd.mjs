@@ -15,10 +15,13 @@
  *   - fallbacks: the crowd's last resorts (sidesteps, asking someone to make
  *     way, wedged pairs); in a good crowd they almost never fire
  *   - arrival times, and the cost of one crowd update
+ * and, for the districts (sim/spread.js), that people choosing where to go
+ * next spread out over a floor rather than piling into one corner.
  */
 import { Crowd, Agent } from '../../src/three/sim/agents.js';
 import { tune } from '../../src/three/sim/avoid.js';
 import { NavGrid } from '../../src/three/sim/grid.js';
+import { Districts } from '../../src/three/sim/spread.js';
 
 // TUNE='toi=3,side=1' tries other avoidance weights.
 for (const kv of (process.env.TUNE ?? '').split(',').filter(Boolean)) {
@@ -28,11 +31,12 @@ for (const kv of (process.env.TUNE ?? '').split(',').filter(Boolean)) {
 
 const argv = process.argv.slice(2);
 const verbose = argv.includes('--verbose');
-const only = argv.filter((a) => !a.startsWith('--'));
+// Case names; flags and their values (all.mjs passes --url) are not cases.
+const only = argv.filter((a, i) => !a.startsWith('--') && !(argv[i - 1] ?? '').match(/^--(url|seeds|secs)$/));
 
 /** 0.265 m: the figure's half-width at the shoulders and arms (kit/people.py). */
 const BODY = 0.265;
-const WALL = 0.2; // the grid's dilation: the least a figure's centre keeps from a wall
+const WALL = 0.24; // the grid's dilation: the least a figure's centre keeps from a wall (scenes/base.js FIGURE_RADIUS)
 const CELL = 0.05;
 
 /** A w x h metre floor with rectangles [x0, z0, x1, z1] blocked. */
@@ -327,6 +331,75 @@ const cases = {
     check('12 people, 120 s: "excuse me" at most 3 a minute', (m.stats.makeWay ?? 0) <= 6, `${m.stats.makeWay} people asked to make way`);
     check('12 people: one crowd update', m.update <= 0.5, `${f2(m.update)} ms median`);
     return m;
+  },
+  spread() {
+    // The same room, six districts round its fixtures (two places each; one
+    // district takes two groups, the rest one), eight people going from place
+    // to place. Where each goes next is chosen by the districts (or, to
+    // compare, at random): nobody should end up sharing a place's district
+    // beyond its cap for long, nor standing in a knot.
+    const grid = floor(9, 8, [[2, 2, 3.2, 2.6], [5.8, 2, 7, 2.6], [2, 5.4, 3.2, 6], [5.8, 5.4, 7, 6], [4.2, 3.6, 4.8, 4.4]]);
+    const st = (key, x, z) => ({ key, x, z, clip: 'browse' });
+    const defs = [
+      { name: 'nw', stations: [st('nw1', 2.6, 1.6), st('nw2', 1.6, 2.3)], cap: 1, feature: true },
+      { name: 'ne', stations: [st('ne1', 6.4, 1.6), st('ne2', 7.4, 2.3)], cap: 1, feature: true },
+      { name: 'sw', stations: [st('sw1', 2.6, 6.4), st('sw2', 1.6, 5.7)], cap: 1, feature: true },
+      { name: 'se', stations: [st('se1', 6.4, 6.4), st('se2', 7.4, 5.7)], cap: 1, feature: true },
+      { name: 'mid', stations: [st('m1', 4.5, 3.2), st('m2', 4.5, 4.8)], cap: 2, feature: true },
+      { name: 'w', stations: [st('w1', 0.8, 4), st('w2', 1.4, 4.9)], cap: 1, feature: true },
+    ];
+    const trial = (smart) => {
+      let seed = +(process.env.SEED ?? 11);
+      const rand = () => ((seed = (seed * 16807) % 2147483647) - 1) / 2147483646;
+      const D = new Districts(defs);
+      const all = defs.flatMap((d) => d.stations);
+      let crowd = null;
+      const shopper = (a) => {
+        let at = null;
+        return () => {
+          if (at) {
+            const s = at;
+            at = null;
+            return { act: 'browse', secs: 6 + rand() * 6, claim: s.key };
+          }
+          const free = (q) => crowd.free(q.key, a);
+          const s = smart ? D.pick(a, crowd.agents, { rand, free, visited: a.seen }) : all.filter(free)[Math.floor(rand() * all.filter(free).length)];
+          if (!s) return { wait: 1 };
+          if (smart) {
+            a.seen.add(s.district);
+            if (a.seen.size >= 4) a.seen.clear();
+          }
+          at = s;
+          return go(s.x, s.z, { claim: s.key });
+        };
+      };
+      const people = [];
+      for (let k = 0; k < 8; k++) people.push({ at: [0.8 + (k % 4) * 2.3, 0.8 + Math.floor(k / 4) * 3.2], speed: 0.58 + rand() * 0.2, script: null, tags: { seen: new Set() } });
+      let over = 0;
+      let samples = 0;
+      const knots = [];
+      const m = run({
+        grid, secs: 120, people: people.map((p) => ({ ...p, script: (a) => (a.__s ??= shopper(a))() })),
+        during: (t, agents, c) => {
+          crowd = c;
+          if (Math.round(t * 30) % 15) return;
+          D.tick(0.5, agents);
+          samples++;
+          if (D.defs.some((d) => d.groups > d.cap && agents.filter((a) => !a.task?.go && D.of(a.pos.x, a.pos.y) === d).length > d.cap)) over++;
+          const still = agents.filter((a) => !a.task?.go);
+          knots.push(Math.max(0, ...still.map((a) => still.filter((b) => a.pos.distanceTo(b.pos) <= 1).length)));
+        },
+      });
+      knots.sort((x, y) => x - y);
+      return { m, over: (over / samples) * 100, knot95: knots[Math.floor(knots.length * 0.95)] };
+    };
+    const smart = trial(true);
+    const random = trial(false);
+    check('spread: nobody over a district’s cap for long', smart.over <= 5, `${f2(smart.over)}% of the time (choosing at random: ${f2(random.over)}%)`);
+    check('spread: nobody standing in a knot', smart.knot95 <= 2, `95% of the time at most ${smart.knot95} within a metre (at random: ${random.knot95})`);
+    check('spread: better than choosing at random', smart.over < random.over, `${f2(smart.over)}% vs ${f2(random.over)}%`);
+    check('spread: nobody overlaps', smart.m.overlapSecs === 0, `closest ${f2(smart.m.gap)} m`);
+    return smart.m;
   },
 };
 

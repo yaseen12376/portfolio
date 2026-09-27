@@ -52,6 +52,7 @@
   "phone": "hand.R",
   "card": "hand.R",
   "box": "chest",
+  "garment": "hand.L",
   "clipboard": "hand.L",
   "hammer": "hand.R",
   "broom": "hand.R",
@@ -101,6 +102,11 @@
   "phone": {
    "frames": 120,
    "seconds": 4.0,
+   "loop": true
+  },
+  "conceal": {
+   "frames": 96,
+   "seconds": 3.2,
    "loop": true
   },
   "type": {

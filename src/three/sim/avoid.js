@@ -33,6 +33,8 @@ export const tune = {
   hard: 0.35, // s: closer than this to actual contact is almost ruled out
   room: 1.2, // coming within someone's personal space
   back: 2.0, // walking backwards
+  edge: 0.8, // passing close enough to a fixture that an arm would brush it
+  edgeRoom: 0.3, // m from a fixture's edge to a walker's centre that keeps arms clear
 };
 
 // Candidate headings, relative to the preferred direction: dense ahead, sparse behind.
@@ -79,8 +81,9 @@ export function ttc(px, pz, wx, wz, R) {
  *   moving at (vx, vz) hits an obstacle (Infinity within maxT)
  * @param {number} vmax    the walker's top speed now
  * @param {number[]} out   receives [vx, vz]
+ * @param {(x: number, z: number) => number} [roomAt]  metres from (x, z) to the nearest fixture
  */
-export function chooseVelocity(a, px, pz, near, wallTime, vmax, out) {
+export function chooseVelocity(a, px, pz, near, wallTime, vmax, out, roomAt = null) {
   const ax = a.pos.x;
   const az = a.pos.y;
   const cvx = a.vel.x;
@@ -120,7 +123,10 @@ export function chooseVelocity(a, px, pz, near, wallTime, vmax, out) {
     n++;
   }
 
-  const { horizon: HORIZON, wallHorizon: WALL_HORIZON, des: W_DES, cur: W_CUR, side: W_SIDE, toi: W_TOI, wall: W_WALL, hard: HARD, room: W_ROOM, back: W_BACK } = tune;
+  const { horizon: HORIZON, wallHorizon: WALL_HORIZON, des: W_DES, cur: W_CUR, side: W_SIDE, toi: W_TOI, wall: W_WALL, hard: HARD, room: W_ROOM, back: W_BACK, edge: W_EDGE, edgeRoom: EDGE } = tune;
+  // Where the walker's arms are about to be (0.35 s on): how much closer to a
+  // fixture than arm's length that is, now and there. Only getting closer counts.
+  const edgeNow = roomAt ? Math.max(0, EDGE - roomAt(ax, az)) : 0;
   const sq = Math.sqrt;
   // Every term is a penalty (none below zero), so a candidate already costing
   // more than the best so far is dropped as soon as that's certain.
@@ -198,6 +204,10 @@ export function chooseVelocity(a, px, pz, near, wallTime, vmax, out) {
     pen += W_TOI / (0.1 + tmin / HORIZON) - W_TOI / 1.1;
     if (hard < HARD) pen += 12 * (1 - hard / HARD);
     if (pen >= limit) return pen;
+    if (roomAt && sp > 1e-3) {
+      const e = Math.max(0, EDGE - roomAt(ax + vx * 0.35, az + vz * 0.35)) - edgeNow;
+      if (e > 0) pen += (W_EDGE * e) / 0.1;
+    }
     if (sp > 1e-3) {
       const tw = wallTime(vx, vz, WALL_HORIZON);
       // The very next step is into something: nearly ruled out (the move

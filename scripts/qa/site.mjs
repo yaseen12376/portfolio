@@ -120,6 +120,22 @@ check('orbit drag turns the camera', !!turned && Math.abs(turned.yaw) > 0.15, tu
 check('orbit springs back within 1.5 s', !!home && Math.abs(home.yaw) < 0.02 && Math.abs(home.pitch) < 0.02, home ? `yaw ${home.yaw.toFixed(3)}` : '');
 
 // ---------------------------------------------------------------- 3-5. case study, leaks
+// The live card builds some overlays, and compiles their programs, the
+// first time its tour shows them (the heatmap, trails): let it go round
+// its tour once on its own before the count is taken, so they aren't
+// mistaken for a leak later. (Left to tour, the count settles and holds.)
+await scrollTo(flag);
+await page.evaluate(async () => {
+  const s = [...window.__three.slots].find((x) => x.opts.context === 'card' && x.live);
+  const ch = s?.chapters;
+  if (!ch?.tour?.length) return;
+  const seen = new Set();
+  for (let k = 0; k < 150 && seen.size < ch.tour.length; k++) {
+    seen.add(ch.current?.id);
+    await new Promise((r) => setTimeout(r, 500));
+  }
+  await new Promise((r) => setTimeout(r, 4000)); // the last one's, too
+});
 const baseline = await page.evaluate(() => ({
   ...window.__three.info(),
   triggers: window.__portfolio.ScrollTrigger.getAll().length,
@@ -239,7 +255,7 @@ const after = await page.evaluate(() => ({
   triggers: window.__portfolio.ScrollTrigger.getAll().length,
 }));
 for (const k of ['geometries', 'textures', 'programs', 'slots', 'triggers']) {
-  check(`no leak after ${CYCLES} open/close: ${k}`, after[k] <= baseline[k], `${baseline[k]} -> ${after[k]}`);
+  check(`no leak after ${CYCLES} open/close: ${k}`, after[k] <= baseline[k], `${baseline[k]} -> ${after[k]}${warm[k] != null ? ` (after the first ${warm[k]})` : ''}`);
 }
 
 check('no console errors', errors.length === 0, errors.slice(0, 5).join(' | '));

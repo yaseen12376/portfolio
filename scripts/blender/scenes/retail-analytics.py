@@ -156,6 +156,10 @@ def build(col):
     shutter.scale = (1, 1, 0.03)  # rolled up; the page lowers it at closing
     geo.box('blade_post', (0.04, 0.04, 2.35), (FRONT_X + 0.1, DOOR[0] - 0.3, 0), col=col, material=steel, bev=0.004)
     geo.box('blade_arm', (0.7, 0.03, 0.03), (FRONT_X + 0.42, DOOR[0] - 0.3, 2.22), col=col, material=steel, bev=0.004)
+    # Signage the law asks for where cameras record: on the blade sign's post, at eye level.
+    cs = R.plate('cctv_sign', ['CCTV', 'in operation'], w=0.16, h=0.1, ink='#f2eee6', paper='#1f2024', size=0.02)
+    geo.place(cs, (FRONT_X + 0.12, DOOR[0] - 0.3, 1.12), (0, 0, 90))
+    C.move_to(cs, col)
     blade = R.sign('fascia', 'ATELIER', w=0.62, h=0.24)
     geo.place(blade, (FRONT_X + 0.44, DOOR[0] - 0.3, 1.9))
     C.move_to(blade, col)
@@ -191,6 +195,7 @@ def build(col):
     C.move_to(shrub, col)
     geo.instance(shrub, 'shrub_0', (4.72, 0.55, 0.45), (0, 0, 40), (0.8, 0.8, 0.8), col=col)
     geo.instance(shrub, 'shrub_1', (4.75, -3.3, 0.035), (0, 0, 10), (0.85, 0.85, 0.85), col=col)
+    geo.retire(shrub)
 
     # The next building: brick, with a passage through it (the arcade) where
     # the street carries on out of sight.
@@ -210,12 +215,13 @@ def build(col):
             material=geo.pbr('arcade_sign', '#1f2024', emit='#f3d7a6', emit_strength=0.5), bev=0.006)
 
     # ------------------------------------------------------------ the checkout
-    till = R.cash_wrap('cash_wrap', w=2.0, d=0.65)
-    geo.place(till, (TILL[0], TILL[1], 0), (0, 0, 90))  # customer side faces +X
-    C.move_to(till, col)
+    till, till_live = R.cash_wrap('cash_wrap', w=2.0, d=0.65, live=True)
+    for o in [till] + till_live:
+        geo.place(o, (TILL[0], TILL[1], 0), (0, 0, 90))  # customer side faces +X
+        C.move_to(o, col)
     st = R.stanchion('stanchion_proto')
     C.move_to(st, col)
-    posts = [(-3.5, ROPE_Y), (-2.7, ROPE_Y), (-1.9, ROPE_Y), (-1.1, ROPE_Y)]
+    posts = [(-3.5, ROPE_Y), (-2.7, ROPE_Y), (-1.9, ROPE_Y)]
     for i, (x, y) in enumerate(posts):
         geo.instance(st, f'stanchion_{i}', (x, y, 0), col=col)
     geo.retire(st)
@@ -236,6 +242,15 @@ def build(col):
         placed(cur, (x - 0.5, BACK_Y - 0.04 - 1.1 + 0.05, 0), 0, col)
         cur.scale = (0.26, 1, 1)  # gathered open; the page draws it shut
         booths.append(x)
+        by = BACK_Y - 0.04 - 0.55
+        # Over the way in, a small lamp the page turns red while the booth is taken.
+        geo.box(f'booth_{i}_lamp', (0.12, 0.02, 0.05), (x, by - 0.55 - 0.012, 1.995), col=col,
+                material=geo.pbr(f'booth_lamp_{i}', '#0f1a14', emit='#35d07f', emit_strength=4), bev=0.004, role='prop')
+        # What was tried on and left behind: a shirt on the booth's hook, shown
+        # when a shopper leaves it there, gone when the staff collect it.
+        left = R.shirt(f'booth_{i}_left', ['#a35d4f', '#6f7f94', '#c9b79c'][i])
+        geo.place(left, (x + 0.45, by + 0.25, 1.73), (0, 0, 90))
+        C.move_to(left, col)
     geo.box('fit_mirror', (0.02, 0.6, 1.6), (LEFT_X + 0.05, 0.7, 0.3), col=col, material=geo.pbr('mirror_w', '#a8b6bd', rough=0.06, metal=1.0), bev=0.003)
     geo.box('fit_mirror_frame', (0.03, 0.66, 1.66), (LEFT_X + 0.04, 0.7, 0.27), col=col, material=R.walnut('frame'), bev=0.006)
     # Against the side wall between the mirror and the first booth, clear of every booth's way in.
@@ -256,16 +271,27 @@ def build(col):
                 maker = R.folded_jeans if r != 4 else R.folded_tee
                 o = maker(f'stock_{c}_{r}_{k}', color, (cx + rnd.range(-0.01, 0.01), dy + 0.01, z + 0.004 + k * 0.044), rnd.range(-3, 3))
                 C.move_to(o, col)
+                # The waist-high row is what shoppers take from: its top two
+                # pairs are lit live (plain denim colour), so the page can take
+                # them away and the stock clerk put them back.
+                if r == 2 and k >= 2:
+                    o.data.materials.clear()
+                    o.data.materials.append(geo.pbr(f'denim_live_{color}', color, rough=0.95))
+                    geo.tag(o, 'prop')
+                    o.name = f'denim_take_{c}_{k - 2}'
     fr = R.frame('print_0', 0.55, 0.72, ('#c8553d', '#e9e4da', '#3f4b3a'))
     geo.place(fr, (-5.4 + 0.05, -0.35, 1.3), (0, 0, 90))
     C.move_to(fr, col)
-    ck = R.clock('clock')
-    geo.place(ck, (LEFT_X + 0.05, 2.0 - 0.9, 2.05), (0, 0, 90))
-    C.move_to(ck, col)
+    ck, hands = R.clock('clock', live=True)
+    for o in [ck] + hands:
+        geo.place(o, (LEFT_X + 0.05, 2.0 - 0.9, 2.05), (0, 0, 90))
+        C.move_to(o, col)
 
     # ------------------------------------------------------------ the floor
-    # Far enough apart that someone browsing either table's end leaves room to pass between them.
-    tables = {'table_1': (-0.75, -1.3, 5), 'table_2': (1.9, -1.35, -4)}
+    # The south row: an avenue 1.35 m wide runs from the door between the
+    # tables and the rails, and the gap between the tables leads to the window
+    # and the end of the queue.
+    tables = {'table_1': (-0.75, -1.6, 5), 'table_2': (1.9, -1.6, -4)}
     for name, (tx, ty, rot) in tables.items():
         tbl = R.display_table(name, w=1.2, d=0.7)
         geo.place(tbl, (tx, ty, 0), (0, 0, rot))
@@ -286,11 +312,14 @@ def build(col):
         m = R.mannequin(f'mannequin_{i}', pose=i, top=colors[0], bottom=colors[1])
         geo.place(m, (2.7, y, 0.1), (0, 0, rot))
         C.move_to(m, col)
-    # Two rails people can move (dyn), their shirts riding with them.
+    # Two rails people can move (dyn), their shirts riding with them. The
+    # first few metres inside the door are kept clear (a shop's
+    # "decompression zone"): nothing to browse in the way in or out, so the
+    # second rail stands on the open floor to the west, by the till.
     rails = {}
     for name, (x, y, rot, colors) in {
         'rail_a': (-1.4, 0.35, 0, ['#e9e4da', '#6f7f94', '#c9b79c', '#a35d4f', '#3f4b3a', '#e9e4da', '#d8b4a0', '#6f7f94']),
-        'rail_b': (0.9, -0.2, 0, ['#3f4b3a', '#d8b4a0', '#e9e4da', '#8a8f7a', '#a35d4f', '#c9b79c', '#2c3548', '#e9e4da']),
+        'rail_b': (-3.3, -0.45, 0, ['#3f4b3a', '#d8b4a0', '#e9e4da', '#8a8f7a', '#a35d4f', '#c9b79c', '#2c3548', '#e9e4da']),
     }.items():
         r = R.rail(name, w=1.15, h=1.34)
         geo.place(r, (x, y, 0), (0, 0, rot))
@@ -317,7 +346,7 @@ def build(col):
     cap = R.walnut('cap')
     ox0, ox1 = OFFICE_X
     # The office: a glass front with a door, a partition to the stock room.
-    frame, panes = R.glass_wall('office_front', ox1 - ox0, h=PART_H + 0.3, door=(-(ox1 - ox0) / 2 + 0.05, -(ox1 - ox0) / 2 + 0.55), panes=4)
+    frame, panes = R.glass_wall('office_front', ox1 - ox0, h=PART_H + 0.3, door=(-(ox1 - ox0) / 2 + 0.05, -(ox1 - ox0) / 2 + 0.75), panes=4)
     geo.place(frame, ((ox0 + ox1) / 2, PART_Y, 0))
     C.move_to(frame, col)
     for g in panes:
@@ -344,10 +373,15 @@ def build(col):
     geo.box('part_cap_b', (FRONT_X - sd1, 0.1, 0.03), ((sd1 + FRONT_X) / 2, PART_Y, PART_H), col=col, material=cap, bev=0.006)
     # On the partition beside the door, not over the doorway (it has no header:
     # a sign there would hang at head height).
-    geo.box('staff_sign', (0.34, 0.012, 0.1), (sd1 + 0.28, PART_Y - 0.047, 1.12), col=col,
+    geo.box('staff_sign', (0.34, 0.012, 0.1), (sd1 + 0.46, PART_Y - 0.047, 1.2), col=col,
             material=geo.pbr('staff_sign', '#1f2024', emit='#f5d9a8', emit_strength=0.4), bev=0.004)
+    # The staff's consent notice, on the stock room side of the office wall
+    # (the Employees page ships one: recognition only with consent, withdraw any time).
+    nt = R.plate('consent_notice', ['STAFF RECOGNITION', 'by consent only.', 'Withdraw at any', 'time: ask the', 'manager.'], w=0.22, h=0.17, size=0.016)
+    geo.place(nt, (ox1 + 0.045, 1.42, 1.02), (0, 0, 90))
+    C.move_to(nt, col)
     br = R.badge_reader('badge_reader')
-    geo.place(br, (sd0 - 0.18, PART_Y - 0.055, 1.05))
+    geo.place(br, (sd0 - 0.14, PART_Y - 0.055, 1.05))  # beside the door, away from the shop's own doorway
     C.move_to(br, col)
     lk = R.lockers('lockers', n=3, w=0.36, d=0.45, h=1.5)
     geo.place(lk, (ox1 + 0.25, 2.2, 0), (0, 0, -90))  # doors face +X, into the room
@@ -373,7 +407,8 @@ def build(col):
         'checkout': ((LEFT_X + 0.1, -2.5, WALL_H - 0.1), (-3.7, -1.5, 0.5)),
         'floor': ((dw_x + 1.25, BACK_Y - 0.1, WALL_H - 0.08), (0.0, -1.2, 0.3)),
         'stockroom': ((FRONT_X - 0.12, BACK_Y - 0.12, 2.2), (2.2, 1.6, 0.3)),
-        'staff_only': ((sd1 + 0.12, PART_Y - 0.06, PART_H - 0.06), ((sd0 + sd1) / 2 - 0.3, PART_Y - 1.0, 0.4)),
+        # On the partition east of the staff door, watching the door and the badge reader beside it.
+        'staff_only': ((sd1 + 0.14, PART_Y - 0.06, PART_H - 0.06), (sd0 - 0.1, PART_Y - 0.9, 0.4)),
         'perimeter': ((FRONT_X + 0.12, -1.45, WALL_H - 0.2), (4.4, -3.2, 0.3)),
     }
     dome = props.dome_camera('dome_proto')
@@ -413,7 +448,7 @@ def build(col):
         'queue_3': {'at': (-1.65, QUEUE_Y), 'face': face_to((0, 0), (-1, 0))},
         # The floor.
         'table_front': {'at': (tables['table_1'][0], tables['table_1'][1] - 0.62), 'face': face_to((0, 0), (0, 1))},
-        'table_side': {'at': (tables['table_1'][0] + 0.85, tables['table_1'][1]), 'face': face_to((0, 0), (-1, 0))},
+        'table_side': {'at': (tables['table_1'][0] - 0.85, tables['table_1'][1]), 'face': face_to((0, 0), (1, 0))},
         'fold': {'at': (tables['table_1'][0], tables['table_1'][1] + 0.62), 'face': face_to((0, 0), (0, -1))},
         'table_2': {'at': (tables['table_2'][0], tables['table_2'][1] + 0.62), 'face': face_to((0, 0), (0, -1))},
         'table_2_side': {'at': (tables['table_2'][0] - 0.85, tables['table_2'][1]), 'face': face_to((0, 0), (1, 0))},
@@ -428,8 +463,9 @@ def build(col):
         'fit_wait': {'at': (-3.2, 1.2), 'face': face_to((0, 0), (-0.3, 1))},
         'mirror': {'at': (LEFT_X + 0.62, 0.7), 'face': face_to((0, 0), (-1, 0))},
         # Back of house.
-        'badge': {'at': (sd0 - 0.18, PART_Y - 0.4), 'face': face_to((0, 0), (0, 1))},
-        'stock_door': {'at': ((sd0 + sd1) / 2 + 0.1, PART_Y - 0.5)},
+        # Staff badge standing at the door's west side, turned to the reader.
+        'badge': {'at': (sd0 + 0.12, PART_Y - 0.42), 'face': face_to((sd0 + 0.12, PART_Y - 0.42), (sd0 - 0.14, PART_Y))},
+        'stock_door': {'at': ((sd0 + sd1) / 2 + 0.1, PART_Y - 0.55), 'lane': True},
         'stock_shelf': {'at': (FRONT_X - 0.72, 1.75), 'face': face_to((0, 0), (1, 0))},
         'lockers': {'at': (ox1 + 0.85, 2.4), 'face': face_to((0, 0), (-1, 0))},
         'office': {'at': ((ox0 + ox1) / 2 + 0.25, 1.62), 'face': face_to((0, 0), (-0.3, 1))},
@@ -474,21 +510,21 @@ def build(col):
         {'body': 'body_a', 'hair': 'long', 'role': 'shopper', 'carry': ['bag'], 'outfit': {'top': '#c9b79c', 'bottom': '#3a3530', 'skin': C.MAT['skin_a'], 'hair': '#5a3a22', 'accent': '#c8553d'},
          'clip': 'queue', 'at': spots['queue_0']['at'], 'face': spots['queue_0']['face'], 'phase': 0.5},
         {'body': 'body_c', 'hair': 'ponytail', 'role': 'shopper', 'outfit': {'top': '#e9e4da', 'bottom': '#4c5d78', 'skin': C.MAT['skin_b'], 'hair': '#231a14'},
-         'clip': 'browse', 'at': spots['rail_a_front']['at'], 'face': face_to(spots['rail_a_front']['at'], rails['rail_a'][:2]), 'phase': 0.3},
+         'clip': 'browse', 'at': spots['rail_b_back']['at'], 'face': face_to(spots['rail_b_back']['at'], rails['rail_b'][:2]), 'phase': 0.3},
         {'body': 'body_a', 'hair': 'quiff', 'role': 'shopper', 'wear': ['glasses'], 'outfit': {'top': '#7a1f2b', 'bottom': '#1f2126', 'skin': C.MAT['skin_a'], 'hair': '#2a2320'},
          'clip': 'walk', 'at': (FRONT_X - 0.9, door_mid + 0.3), 'face': face_to((0, 0), (-1, 0)), 'phase': 0.0},
         {'body': 'body_b', 'hair': 'short', 'role': 'shopper', 'party': 1, 'outfit': {'top': '#6f7f94', 'bottom': '#2d3340', 'skin': C.MAT['skin_b'], 'hair': '#241c16'},
-         'clip': 'idle', 'at': (1.55, -2.5), 'face': face_to((1.55, -2.5), (2.7, -2.85)), 'phase': 0.1},
+         'clip': 'idle', 'at': (-0.75, -2.35), 'face': face_to((-0.75, -2.35), (-0.75, -1.6)), 'phase': 0.1},
         {'body': 'body_c', 'hair': 'bob', 'role': 'shopper', 'party': 1, 'carry': ['bag'], 'outfit': {'top': '#d8b4a0', 'bottom': '#3a3530', 'skin': C.MAT['skin_b'], 'hair': '#3b2a20', 'accent': '#e9e4da'},
-         'clip': 'point', 'at': (2.1, -2.15), 'face': face_to((2.1, -2.15), (2.7, -2.85)), 'phase': 0.2},
+         'clip': 'point', 'at': (-0.05, -2.6), 'face': face_to((-0.05, -2.6), (-0.75, -1.6)), 'phase': 0.2},
         {'body': 'body_c', 'hair': 'quiff', 'role': 'shopper', 'party': 1, 'scale': 0.82, 'outfit': {'top': '#f59e0b', 'bottom': '#2d3340', 'skin': C.MAT['skin_b'], 'hair': '#241c16'},
-         'clip': 'phone', 'carry': ['phone'], 'at': (1.0, -2.2), 'face': face_to((0, 0), (0.3, -1)), 'phase': 0.3},
+         'clip': 'phone', 'carry': ['phone'], 'at': (-0.55, -3.0), 'face': face_to((-0.55, -3.0), (-0.75, -1.6)), 'phase': 0.3},
         {'body': 'body_a', 'hair': 'bob', 'role': 'shopper', 'scale': 0.97, 'outfit': {'top': '#8a5a44', 'bottom': '#23262d', 'skin': C.MAT['skin_c'], 'hair': '#141111'},
          'clip': 'tryon', 'at': spots['fit_1']['at'], 'face': spots['fit_1']['face'], 'phase': 0.4},
         {'body': 'body_c', 'hair': 'long', 'role': 'shopper', 'outfit': {'top': '#3f4b3a', 'bottom': '#c9b79c', 'skin': C.MAT['skin_a'], 'hair': '#1a1512'},
          'clip': 'browse', 'at': spots['denim']['at'], 'face': spots['denim']['face'], 'phase': 0.6},
         {'body': 'body_b', 'hair': 'crop', 'role': 'shopper', 'outfit': {'top': '#4c5d78', 'bottom': '#2b2d33', 'skin': C.MAT['skin_b'], 'hair': '#141111'},
-         'clip': 'browse', 'at': spots['table_2']['at'], 'face': spots['table_2']['face'], 'phase': 0.2},
+         'clip': 'point', 'at': spots['mannequins']['at'], 'face': spots['mannequins']['face'], 'phase': 0.2},
         {'body': 'body_a', 'hair': 'ponytail', 'role': 'passer', 'carry': ['bag'], 'outfit': {'top': '#b89452', 'bottom': '#3a3530', 'skin': C.MAT['skin_c'], 'hair': '#231a14'},
          'clip': 'walk', 'at': (4.2, -0.2), 'face': face_to((0, 0), (0, -1)), 'phase': 0.5},
         {'body': 'body_b', 'hair': 'short', 'role': 'passer', 'outfit': {'top': '#5e6b5c', 'bottom': '#23262d', 'skin': C.MAT['skin_a'], 'hair': '#3b2a20'},

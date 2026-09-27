@@ -57,6 +57,7 @@ const TURN = 7; // heading catch-up rate, 1/s
 const ACCEL = 7; // velocity catch-up rate, 1/s
 const FADE = 0.6; // seconds to fade in or out at a portal
 const NUDGE = 0.012; // the most the overlap resolver moves anyone per pass, m
+const TUCK = 0.2; // arms start coming in when a fixture is this close to their reach, m
 const CONTACT = 0.06; // closer than touching plus this, a walker stops pressing into someone standing
 // Arms swing a few centimetres past the shoulders: two bodies never come
 // closer than this, so hands don't pass through each other.
@@ -134,6 +135,11 @@ export class Agent {
     return this.fixed || !!(this.task && !this.task.go);
   }
 
+  /** Standing still, on purpose or not (a walker held up for a while): routes go round. */
+  get still() {
+    return this.anchored || (this.stillT ?? 0) > 0.5;
+  }
+
   /** Where the figure is heading next (for overlays and the CCTV views). */
   get goal() {
     return this.task?.go ?? null;
@@ -154,8 +160,13 @@ export class Crowd {
     this.portals = portals;
     this.traffic = new Traffic();
     // The crowd's last resorts, counted: in a good crowd they almost never fire.
-    this.stats = { sidestep: 0, makeWay: 0, wedged: 0, stuck: 0, gaveUp: 0 };
+    this.stats = { sidestep: 0, stepBack: 0, makeWay: 0, wedged: 0, stuck: 0, gaveUp: 0 };
     this.log = null; // set to [] to record each last resort (QA)
+    // Things worth a look in passing (a rail, a table, the window display):
+    // [x, z] points the scene sets; walkers turn their heads to one as they go by.
+    this.interest = [];
+    // Places to walk through but never stop in (a shop's entrance): [[x, z], ...] polygons.
+    this.noWait = [];
     // Route costs from the crowd, rebuilt per plan (a stamp marks them fresh).
     const n = grid.n;
     this.fx = new Float32Array(n);
@@ -164,6 +175,7 @@ export class Crowd {
     this.fgen = new Uint32Array(n);
     this.gen = 0;
     this.v2 = [0, 0];
+    this.roomAt = (x, z) => grid.clearAt(x, z);
   }
 
   portal(name) {
@@ -319,17 +331,19 @@ export class Crowd {
     const out = { has: (c) => hard[c] === run, add: (c) => (hard[c] = run) };
     for (const poly of a.keepOut ?? []) for (const c of (poly.cells ??= g.cellsIn(poly))) out.add(c);
     for (const b of this.agents) {
-      if (b === a || !b.visible || (standing && !b.anchored)) continue;
-      // A group moves as one: members never wall each other in (routing only;
-      // for placing someone, everybody counts).
-      if (routing && a.party && b.party === a.party) continue;
+      if (b === a || !b.visible || (standing && !b.still)) continue;
+      // A group moves as one: members walking together never wall each other
+      // in (routing only; for placing someone, everybody counts). One of them
+      // standing still is in the way like anyone else.
+      if (routing && a.party && b.party === a.party && !b.still) continue;
       const R = a.radius + b.extent;
       const r = Math.ceil(R / g.cell);
+      const rr = (R / g.cell) * (R / g.cell);
       const i0 = g.ci(b.pos.x);
       const j0 = g.cj(b.pos.y);
       for (let dj = -r; dj <= r; dj++) {
         for (let di = -r; di <= r; di++) {
-          if (Math.hypot(di, dj) * g.cell > R) continue;
+          if (di * di + dj * dj > rr) continue;
           if (g.inside(i0 + di, j0 + dj)) out.add((j0 + dj) * g.w + i0 + di);
         }
       }
@@ -368,19 +382,23 @@ export class Crowd {
     for (const b of this.agents) {
       if (b === a || !b.visible || (a.party && b.party === a.party)) continue;
       if (offLine(b.pos.x, b.pos.y) > 2.5) continue;
-      if (b.anchored) {
+      if (b.still) {
         const R0 = a.radius + b.extent;
         const R1 = R0 + BERTH;
         const r = Math.ceil(R1 / g.cell);
         const i0 = g.ci(b.pos.x);
         const j0 = g.cj(b.pos.y);
+        const R1sq = R1 * R1;
         for (let dj = -r; dj <= r; dj++) {
           for (let di = -r; di <= r; di++) {
             const i = i0 + di;
             const j = j0 + dj;
             if (!g.inside(i, j)) continue;
-            const d = Math.hypot(g.cx(i) - b.pos.x, g.cz(j) - b.pos.y);
-            if (d > R1) continue;
+            const ex = g.cx(i) - b.pos.x;
+            const ez = g.cz(j) - b.pos.y;
+            const d2 = ex * ex + ez * ez;
+            if (d2 > R1sq) continue;
+            const d = Math.sqrt(d2);
             const c = j * g.w + i;
             touch(c);
             fb[c] = Math.max(fb[c], BERTH_W * Math.min(1, (R1 - d) / BERTH));
@@ -392,14 +410,15 @@ export class Crowd {
         let x = b.pos.x;
         let z = b.pos.y;
         let left = FLOW_AHEAD;
-        const r = Math.ceil((a.radius + b.radius) * 0.6 / g.cell);
+        // A band a body wide along their route, sampled every 30 cm.
+        const r = Math.ceil((a.radius + b.radius) * 0.45 / g.cell);
         for (let k = b.wp; k < b.path.length && left > 0; k++) {
           const [tx, tz] = b.path[k];
           const seg = Math.hypot(tx - x, tz - z);
           if (seg < 1e-3) continue;
           const ux = (tx - x) / seg;
           const uz = (tz - z) / seg;
-          for (let s = 0; s < Math.min(seg, left); s += 0.15) {
+          for (let s = 0; s < Math.min(seg, left); s += 0.3) {
             const i0 = g.ci(x + ux * s);
             const j0 = g.cj(z + uz * s);
             for (let dj = -r; dj <= r; dj++) {
@@ -407,8 +426,8 @@ export class Crowd {
                 if (di * di + dj * dj > r * r || !g.inside(i0 + di, j0 + dj)) continue;
                 const c = (j0 + dj) * g.w + i0 + di;
                 touch(c);
-                fx[c] += ux * 0.35;
-                fz[c] += uz * 0.35;
+                fx[c] += ux * 0.6;
+                fz[c] += uz * 0.6;
                 any = true;
               }
             }
@@ -500,7 +519,7 @@ export class Crowd {
         for (const side of [0.5, 0.4, 0.3, 0.15]) {
           const x = at[0] + dz * side;
           const z = at[1] - dx * side;
-          if (this.grid.free(x, z) && this.allowed(a, x, z) && this.grid.los(at[0], at[1], x, z)) {
+          if (this.grid.free(x, z) && this.allowed(a, x, z) && this.canWait(x, z) && this.grid.los(at[0], at[1], x, z)) {
             spot = [x, z];
             break;
           }
@@ -540,9 +559,59 @@ export class Crowd {
     return rel > 1.4 ? 1 : 0;
   }
 
+  /** Who is right in front of `a`, in the way of where it wants to go (or null). */
+  blocker(a) {
+    const [px, pz] = a.pref ?? a.lastPref ?? [0, 0];
+    const pl = Math.hypot(px, pz);
+    if (pl < 1e-3) return null;
+    const ux = px / pl;
+    const uz = pz / pl;
+    let who = null;
+    let wd = Infinity;
+    for (const b of this.agents) {
+      if (b === a || !b.visible) continue;
+      const ox = b.pos.x - a.pos.x;
+      const oz = b.pos.y - a.pos.y;
+      const along = ox * ux + oz * uz;
+      if (along > 0 && along < 1.0 && Math.abs(ox * uz - oz * ux) < a.radius + b.extent + 0.15 && along < wd) {
+        wd = along;
+        who = b;
+      }
+    }
+    return who;
+  }
+
+  /** Why `a` isn't getting anywhere (for the QA log): who or what is in the way of where it wants to go. */
+  cause(a) {
+    const [px, pz] = a.pref ?? a.lastPref ?? [0, 0];
+    const pl = Math.hypot(px, pz);
+    if (pl < 1e-3) return a.turnTo != null ? 'turning' : 'no wish';
+    const ux = px / pl;
+    const uz = pz / pl;
+    let who = null;
+    let wd = Infinity;
+    for (const b of this.agents) {
+      if (b === a || !b.visible) continue;
+      const ox = b.pos.x - a.pos.x;
+      const oz = b.pos.y - a.pos.y;
+      const along = ox * ux + oz * uz;
+      const side = Math.abs(ox * uz - oz * ux);
+      if (along > 0 && along < 1.0 && side < a.radius + b.extent + 0.15 && along < wd) {
+        wd = along;
+        who = b;
+      }
+    }
+    const g = this.grid;
+    let wall = false;
+    for (let s = 0.05; s <= 0.4; s += 0.05) if (!g.free(a.pos.x + ux * s, a.pos.y + uz * s)) wall = true;
+    const edge = g.clearAt(a.pos.x + ux * 0.2, a.pos.y + uz * 0.2) < 0.3;
+    if (who) return `${who.task?.go ? (who.vel.length() > 0.1 ? 'walker' : 'stopped walker') : 'standing'} ${who.role ?? ''} ${who.id}${who.party && who.party === a.party ? ' (own party)' : ''}`;
+    return wall ? 'wall ahead' : edge ? 'fixture edge' : 'nothing ahead';
+  }
+
   note(type, a, b = null) {
     const who = (x) => `${x.role ?? 'agent'} ${x.id} (${x.task?.go ? 'walking' : x.task?.act ?? (x.task?.wait != null ? 'waiting' : '-')}${x.st?.phase ? ` ${x.st.phase}` : ''}) at ${x.pos.x.toFixed(2)},${x.pos.y.toFixed(2)}`;
-    this.log?.push({ t: +this.time.toFixed(1), type, a: who(a), b: b ? who(b) : null, x: a.pos.x, z: a.pos.y, goal: a.task?.go ?? null });
+    this.log?.push({ t: +this.time.toFixed(1), type, a: who(a), b: b ? who(b) : null, x: a.pos.x, z: a.pos.y, goal: a.task?.go ?? null, cause: this.log ? this.cause(a) : null });
   }
 
   /** Who `a` should look out for right now, as avoid.js wants them. */
@@ -601,6 +670,7 @@ export class Crowd {
       let pz = 0;
       let reach = Infinity; // how far the walker may look for walls (to its next waypoint)
       a.lookYaw = null;
+      a.lastPref = a.pref;
       a.pref = null; // where they wanted to go this frame (set below when walking)
 
       // Leaving: once inside the portal, fade out there (and stop).
@@ -636,6 +706,16 @@ export class Crowd {
           this.next(a);
           continue;
         }
+        // Stepped back to let others by: a moment's pause before going on.
+        if (a.pauseT > 0) {
+          a.pauseT -= dt;
+          a.vel.multiplyScalar(Math.exp(-8 * dt));
+          a.stuck.t = 0;
+          a.stuck.remain = Infinity;
+          const bl = this.blocker(a);
+          if (bl) a.lookAtWho = bl;
+          continue;
+        }
         // Keep the route fresh: others move, stop and start (with nobody
         // within a few metres, the route stays good and planning waits).
         a.replanIn = (a.replanIn ?? REPLAN * (0.4 + (a.id % 7) / 10)) - dt;
@@ -649,6 +729,7 @@ export class Crowd {
           a.detour.t -= dt;
           const [dx0, dz0] = a.detour.to;
           if (a.detour.t <= 0 || Math.hypot(dx0 - a.pos.x, dz0 - a.pos.y) < 0.06) {
+            a.pauseT = a.detour.wait ?? 0;
             a.detour = null;
             a.path = null;
             continue;
@@ -656,9 +737,10 @@ export class Crowd {
           target = a.detour.to;
         } else {
           // Advance past waypoints already reached, a little early: turning
-          // toward the next one 30 cm before a corner rounds it into an arc
-          // (routes keep room at corners), once it's in plain sight.
-          while (a.wp < last && Math.hypot(target[0] - a.pos.x, target[1] - a.pos.y) < 0.3 && g.los(a.pos.x, a.pos.y, a.path[a.wp + 1][0], a.path[a.wp + 1][1])) {
+          // toward the next one 30 cm before a corner rounds it into an arc,
+          // once it's in plain sight with an arm's length to spare (no closer
+          // to anything than the corner itself was).
+          while (a.wp < last && Math.hypot(target[0] - a.pos.x, target[1] - a.pos.y) < 0.3 && g.los(a.pos.x, a.pos.y, a.path[a.wp + 1][0], a.path[a.wp + 1][1], null, Math.min(0.28, g.clearAt(target[0], target[1]) - 0.01))) {
             a.wp++;
             target = a.path[a.wp];
           }
@@ -749,6 +831,22 @@ export class Crowd {
             a.stuck.tries++;
             this.stats.stuck++;
             this.note('stuck', a);
+            // A stand-off: held up by someone who is held up by us. The higher
+            // id steps aside straight away (anyone else would wait for ever).
+            const other = this.blocker(a);
+            if (other && !other.anchored && other.task?.go && this.blocker(other) === a && a.id > other.id && !a.detour && this.sidestep(a, true)) {
+              a.stuck.t = 0;
+              a.stuck.remain = Infinity;
+              continue;
+            }
+            // Several held up by each other in a ring (nobody face to face):
+            // whoever outranks the one in front steps back a pace and waits,
+            // which opens the ring for the rest.
+            if (a.stuck.tries >= 2 && other && !other.anchored && a.id > other.id && !a.detour && this.stepBack(a, other)) {
+              a.stuck.t = 0;
+              a.stuck.remain = Infinity;
+              continue;
+            }
             if (a.stuck.tries % 2 === 0 && !a.detour && this.sidestep(a, a.stuck.tries >= 4)) {
               a.stuck.t = 0;
               a.stuck.remain = Infinity;
@@ -802,7 +900,11 @@ export class Crowd {
             }
             return Infinity;
           };
-          chooseVelocity(a, px, pz, near, wall, vmax, this.v2);
+          // Stepping up to a rail or table to browse is the point of the walk:
+          // arms near a fixture only matter on the way.
+          const end = a.path?.[a.path.length - 1];
+          const arriving = end && Math.hypot(end[0] - a.pos.x, end[1] - a.pos.y) < 0.6;
+          chooseVelocity(a, px, pz, near, wall, vmax, this.v2, arriving ? null : this.roomAt);
           vx = this.v2[0];
           vz = this.v2[1];
           this.lookOut(a, near);
@@ -862,8 +964,23 @@ export class Crowd {
         if (vn < 0) a.vel.addScaledVector(d, -vn);
 
       }
+      // Arms in, squeezing past: a fixture within a hand's breadth of the
+      // arms' reach, or someone close enough to turn the shoulders for (not
+      // with a carton held in both hands: that walk keeps them where they are).
+      a.tuck = 0;
+      if (t.go && a.vel.lengthSq() > 0.01 && a.walkClip !== 'carry') {
+        // Here, and a quarter-metre on (the arm swings forward round a corner).
+        const v = a.vel.length();
+        const room = Math.min(this.grid.clearAt(a.pos.x, a.pos.y), this.grid.clearAt(a.pos.x + (a.vel.x / v) * 0.25, a.pos.y + (a.vel.y / v) * 0.25)) - a.radius;
+        if (room < TUCK) a.tuck = Math.min(1, (TUCK - room) / TUCK);
+        if (a.twist) a.tuck = Math.max(a.tuck, Math.min(1, Math.abs(a.twist) * 2));
+        // Between someone and a fixture, turning the shoulders to the one
+        // swings the far arm into the other: less of a turn, the closer it is.
+        if (a.twist && room < 0.1) a.twist *= Math.max(0, room / 0.1);
+      }
 
       this.move(a, dt);
+      a.stillT = a.vel.lengthSq() < 0.0025 ? (a.stillT ?? 0) + dt : 0;
     }
 
     this.resolve(dt);
@@ -903,7 +1020,25 @@ export class Crowd {
       }
     }
     if (threat && (!a.glance || a.glance.who !== threat)) a.glance = { who: threat, t: this.time };
-    if (a.glance && !a.glance.done) a.lookAtWho = a.glance.who;
+    if (a.glance && !a.glance.done) {
+      a.lookAtWho = a.glance.who;
+      return;
+    }
+    // Nobody to watch out for: a look at something on display as they pass it
+    // (within a metre, off to one side), once each, for a second or so.
+    if (a.lookAt && this.time - a.lookAt.t < 1.2) return;
+    a.lookAt = null;
+    for (const [x, z] of this.interest) {
+      const d = Math.hypot(x - a.pos.x, z - a.pos.y);
+      if (d > 1.1 || d < 0.3) continue;
+      const rel = Math.abs(angleTo(a.heading, Math.atan2(x - a.pos.x, z - a.pos.y)));
+      const key = `${x},${z}`;
+      if (rel > 0.6 && rel < 1.6 && a.lookedAt !== key) {
+        a.lookAt = { x, z, t: this.time };
+        a.lookedAt = key;
+        break;
+      }
+    }
   }
 
   /** Integrate, sliding along blocked cells rather than entering them. */
@@ -983,6 +1118,32 @@ export class Crowd {
     return false;
   }
 
+  /** `a` steps back from `b` (about half a metre, away from them) and pauses there. */
+  stepBack(a, b) {
+    const g = this.grid;
+    const ux = a.pos.x - b.pos.x;
+    const uz = a.pos.y - b.pos.y;
+    const l = Math.hypot(ux, uz) || 1;
+    for (const r of [0.55, 0.4, 0.7]) {
+      for (const turn of [0, 0.5, -0.5, 1, -1]) {
+        const c = Math.cos(turn);
+        const sn = Math.sin(turn);
+        const dx = (ux * c - uz * sn) / l;
+        const dz = (ux * sn + uz * c) / l;
+        const x = a.pos.x + dx * r;
+        const z = a.pos.y + dz * r;
+        if (g.free(x, z) && this.allowed(a, x, z) && this.canWait(x, z) && g.los(a.pos.x, a.pos.y, x, z) && this.clearOfAll(a, x, z)) {
+          a.detour = { to: [x, z], t: 1.6, wait: 1.2 + (a.id % 3) * 0.3 };
+          a.path = null;
+          this.stats.stepBack++;
+          this.note('stepBack', a, b);
+          return true;
+        }
+      }
+    }
+    return false;
+  }
+
   /**
    * `b`, standing, steps aside for `a`: to the nearest free spot clear of the
    * next few metres of `a`'s route (a step to the side in the open; in a
@@ -1031,7 +1192,7 @@ export class Crowd {
         const dz = Math.sin(ang);
         const x = b.pos.x + dx * r;
         const z = b.pos.y + dz * r;
-        if (!g.free(x, z) || !this.allowed(b, x, z) || !this.clearOfAll(b, x, z) || offRoute(x, z) < need) continue;
+        if (!g.free(x, z) || !this.allowed(b, x, z) || !this.canWait(x, z) || !this.clearOfAll(b, x, z) || offRoute(x, z) < need) continue;
         const away = (dx * ux + dz * uz) / l; // 1 = straight away from a, -1 = into a
         if (away < -0.3) continue;
         found.push({ x, z, r, sc: r - away * 0.1 });
@@ -1060,6 +1221,11 @@ export class Crowd {
   /** May `a` stand at (x, z)? (Not in a place it keeps out of.) */
   allowed(a, x, z) {
     return !a.keepOut || !a.keepOut.some((poly) => inPoly(x, z, poly));
+  }
+
+  /** Somewhere to stop and wait, step aside or back to: not in a walk-through place (`noWait`, set by the scene). */
+  canWait(x, z) {
+    return !this.noWait.some((poly) => inPoly(x, z, poly));
   }
 
   clearOfAll(mover, x, z) {
@@ -1171,8 +1337,10 @@ export class Crowd {
     if (a.leader === a) {
       let far = 0;
       for (const b of this.agents) if (b !== a && b.visible && b.leader === a) far = Math.max(far, Math.hypot(b.pos.x - a.pos.x, b.pos.y - a.pos.y));
-      // A follower's place is about 0.8 m back (behind and to one side).
-      return far > 1.5 ? 0.6 : far > 1.15 ? 0.85 : 1;
+      // A follower's place is about 0.8 m back (behind and to one side), or
+      // further in single file: the scene says how far (partyGap).
+      const gap = a.partyGap ?? 1.5;
+      return far > gap ? 0.6 : far > gap - 0.35 ? 0.85 : 1;
     }
     const d = Math.hypot(a.leader.pos.x - a.pos.x, a.leader.pos.y - a.pos.y);
     return d > 1.1 ? 1.3 : 1;
@@ -1200,12 +1368,14 @@ export class Crowd {
       const who = a.lookAtWho;
       a.lookAtWho = null;
       if (who?.visible) yaw = angleTo(a.heading, Math.atan2(who.pos.x - a.pos.x, who.pos.y - a.pos.y));
+      else if (speed >= 0.1 && a.lookAt) yaw = angleTo(a.heading, Math.atan2(a.lookAt.x - a.pos.x, a.lookAt.z - a.pos.y));
       else if (speed >= 0.1 && a.path && t.go) {
         const k = Math.min(a.wp + 1, a.path.length - 1);
         const [x, z] = a.path[k];
         if (Math.hypot(x - a.pos.x, z - a.pos.y) > 0.2) yaw = 0.5 * angleTo(a.heading, Math.atan2(x - a.pos.x, z - a.pos.y));
       } else if (speed < 0.1) {
         let bd = 1.5;
+        let seen = false;
         for (const b of this.agents) {
           if (b === a || !b.visible) continue;
           const dd = Math.hypot(b.pos.x - a.pos.x, b.pos.y - a.pos.y);
@@ -1213,12 +1383,24 @@ export class Crowd {
           if (dd < bd && Math.abs(rel) < 1.3) {
             bd = dd;
             yaw = rel;
+            seen = true;
           }
+        }
+        // Waiting about with no one to face (in the queue, by the window, at
+        // a rail between items): now and then a glance round, then back.
+        if (!seen && (!t.act || /^(idle|queue|phone)$/.test(t.act))) {
+          a.idleT = (a.idleT ?? 1 + (a.id % 5) * 0.7) - dt;
+          if (a.idleT <= 0) {
+            a.idleYaw = a.idleYaw ? 0 : (((a.id * 7 + Math.floor(this.time)) % 5) - 2) * 0.28;
+            a.idleT = a.idleYaw ? 0.9 + (a.id % 3) * 0.3 : 2.5 + (a.id % 4) * 0.8;
+          }
+          yaw = a.idleYaw ?? 0;
         }
       }
       f.look(yaw);
     }
     f.twist?.(a.twist ?? 0);
+    f.tuck?.(a.tuck ?? 0);
 
     let clip = t.act ?? 'idle';
     // Someone carrying a carton walks with it held: their own walk clip.
