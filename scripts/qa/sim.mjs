@@ -35,8 +35,8 @@
  *   - many things at once, all over: on average three and a half or more
  *     districts in use at any moment (about as many as seven customers and
  *     the staff can fill, spread out), two or more 90% of the time; every
- *     feature district in use at least a fifth of the time, the till and
- *     the booths 30%
+ *     feature district in use at least a fifth of the time, the ones the
+ *     scene marks key (a store's till and booths) 30%
  *   - no district holds more groups than it should for longer than 8 s
  *   - the entrance is walked through: under one person in it on average,
  *     nobody standing in it for more than 3 s (bar the lingering feature)
@@ -80,7 +80,8 @@ for (const id of ids) {
       out.push(window.qa.simulate(60, 1 / 30, { during: (t) => (Math.abs(t - 1) < 0.02 || Math.abs(t - 40) < 0.02) && ch.act('hours') }));
     }
     const store = window.qa.slot.controller.store;
-    out[0].flow = store ? { entries: store.entries, sales: store.sales } : null;
+    // A shop's flow (visitors and sales), where the scene keeps one.
+    out[0].flow = typeof store?.entries === 'number' && typeof store?.sales === 'number' ? { entries: store.entries, sales: store.sales } : null;
     return out;
   }, SECS)));
   }
@@ -117,7 +118,7 @@ for (const id of ids) {
     check(`${id}: nobody piles up`, max('stillP95') <= 2 && max('knotLong') <= 3 && max('dense1p95') <= 3,
       `standing within 1 m of anyone, 95% of the time: ${max('stillP95')}; a knot of four lasted at most ${max('knotLong')} s (most ever ${max('stillMax')}${max('knotLong') > 3 ? ` · ${sp.find((r) => r.stillMax === max('stillMax'))?.stillAt}` : ''}); walkers too: ${max('dense1p95')}`);
     const lit = Object.keys(sp[0].lit);
-    const low = lit.filter((k) => sp.some((r) => r.lit[k] < (['till', 'fitting'].includes(k) ? 30 : 20)));
+    const low = lit.filter((k) => sp.some((r) => r.lit[k] < ((r.key ?? []).includes(k) ? 30 : 20)));
     check(`${id}: many things at once, all over the store`, min('litMean') >= 3.5 && min('litP10') >= 2 && low.length === 0,
       `districts in use at once: ${min('litMean')} on average, ${min('litP10')} or more 90% of the time · ${lit.map((k) => `${k} ${Math.min(...sp.map((r) => r.lit[k]))}%`).join(', ')}`);
     check(`${id}: no district holds too many`, max('doubleLong') <= 8, `longest ${max('doubleLong')} s${max('doubleLong') > 8 ? ` · ${sp.find((r) => r.doubleLong === max('doubleLong'))?.doubleAt}` : ''}`);

@@ -15,9 +15,10 @@ const MONO = '"Geist Mono Variable", ui-monospace, monospace';
 
 /**
  * The screen box (NDC) of an upright figure standing at (x, z), facing `yaw`,
- * `height` tall: the projected corners of its oriented bounds.
+ * `height` tall, its feet at `base` (a scaffold's lift): the projected
+ * corners of its oriented bounds.
  */
-export function projectBox(camera, x, z, yaw, height, halfW = 0.24, halfD = 0.17) {
+export function projectBox(camera, x, z, yaw, height, halfW = 0.24, halfD = 0.17, base = 0) {
   const c = Math.cos(yaw);
   const s = Math.sin(yaw);
   let x0 = Infinity;
@@ -27,7 +28,7 @@ export function projectBox(camera, x, z, yaw, height, halfW = 0.24, halfD = 0.17
   let front = false;
   let depth = 0;
   for (const [dx, dz] of [[-halfW, -halfD], [halfW, -halfD], [halfW, halfD], [-halfW, halfD]]) {
-    for (const y of [0, height]) {
+    for (const y of [base, base + height]) {
       v.set(x + dx * c + dz * s, y, z - dx * s + dz * c).project(camera);
       if (v.z < 1) front = true;
       depth += v.z;
@@ -53,13 +54,16 @@ export function confidence(id, time) {
  * @param {number} h  canvas height, device pixels
  * @param {import('three').Camera} camera
  * @param {{ x: number, z: number, yaw: number, height: number, color: string,
- *   tag: string, dashed?: boolean, alpha?: number }[]} items
+ *   tag: string, dashed?: boolean, alpha?: number, base?: number, halfW?: number,
+ *   halfD?: number, thin?: boolean }[]} items
+ *   base: feet height; halfW/halfD: the bounds' half size (a person lying
+ *   down, a hard hat); thin: a lighter line and no tag (a part of someone)
  * @param {{ px?: number }} [o]  px: device pixels per CSS pixel (line and type size)
  */
 export function drawDetections(g, w, h, camera, items, { px = 1 } = {}) {
   const boxes = [];
   for (const it of items) {
-    const b = projectBox(camera, it.x, it.z, it.yaw, it.height);
+    const b = projectBox(camera, it.x, it.z, it.yaw, it.height, it.halfW, it.halfD, it.base ?? 0);
     if (!b.front || b.x1 < -1 || b.x0 > 1 || b.y1 < -1 || b.y0 > 1) continue;
     boxes.push({ it, b });
   }
@@ -81,7 +85,7 @@ export function drawDetections(g, w, h, camera, items, { px = 1 } = {}) {
     const bh = ((b.y1 - b.y0) / 2) * h;
     g.globalAlpha = (it.alpha ?? 1) * (it.dashed ? 0.8 : 1);
     g.setLineDash(it.dashed ? [5 * px, 4 * px] : []);
-    g.lineWidth = lw;
+    g.lineWidth = it.thin ? Math.max(1, lw * 0.7) : lw;
     g.strokeStyle = it.color;
     g.beginPath();
     if (g.roundRect) g.roundRect(x, y, bw, bh, r);
@@ -92,6 +96,7 @@ export function drawDetections(g, w, h, camera, items, { px = 1 } = {}) {
       g.fillStyle = it.color;
       g.fill();
     }
+    if (it.thin || !it.tag) continue;
     // The tag, above the box (inside it at the top edge); skipped where it
     // would cover a nearer person's tag.
     const tw = Math.ceil(g.measureText(it.tag).width) + pad * 2;

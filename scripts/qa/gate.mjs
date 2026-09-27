@@ -30,7 +30,8 @@ const check = (name, ok, detail = '') => {
 const is3d = (u) => {
   const path = new URL(u).pathname;
   if (/\/src\/three\/gate\.js$|\/poster[^/]*\.webp$/.test(path)) return false;
-  return /\/3d\/|[/.]three[./@-]|\/src\/three\/|\/assets\/(three|slot|base|floor|retail|_calibration)-/.test(path);
+  // (Built, each scene's controller is a chunk named after it, with the shared kit's.)
+  return /\/3d\/|[/.]three[./@-]|\/src\/three\/|\/assets\/(three|slot|base|floor|kit|util|cctv|staff|spread|director|retail|constructsafe|finmind|kps-cleano|courier|attendance|indoor-tracking|observex|adraf|airdraw|_calibration)[-.]/.test(path);
 };
 
 const { browser } = await launch();

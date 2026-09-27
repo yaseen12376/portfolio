@@ -1,0 +1,30 @@
+{
+ "id": "constructsafe",
+ "hash": "d2d571afafa5c935",
+ "triangles": 71160,
+ "drawCalls": 57,
+ "nodes": 14,
+ "animations": 0,
+ "validator": {
+  "errors": 0,
+  "warnings": 0
+ },
+ "sizes": {
+  "env.webp": 22846,
+  "lightmap-small.webp": 462772,
+  "lightmap.webp": 942522,
+  "manifest.json": 552,
+  "poster-960.webp": 36156,
+  "poster-sq.webp": 111108,
+  "poster-wide.webp": 103484,
+  "poster.webp": 102078,
+  "scene.glb": 1105244,
+  "scene.json": 17836
+ },
+ "posters": [
+  "poster.webp",
+  "poster-960.webp",
+  "poster-sq.webp",
+  "poster-wide.webp"
+ ]
+}

@@ -86,6 +86,19 @@ for (const w of [1024, 1440, 1920]) {
   await judge(page, `card ${w}`, flag);
 
   if (w === 1440) {
+    // Every other project with a diorama, as its card.
+    const others = await page.$$eval('#main-content .media[data-scene]', (ms) => ms.filter((m) => !m.closest('.flagship')).map((m) => m.dataset.id));
+    for (const pid of others) {
+      const sel = `#main-content .media[data-id="${pid}"]`;
+      await page.evaluate((q) => window.__portfolio.lenis.scrollTo(document.querySelector(q), { immediate: true, force: true, offset: -120 }), sel);
+      const live = await page.waitForFunction((q) => document.querySelector(q)?.dataset['3d'] === 'live', sel, { timeout: 30000 }).then(() => true).catch(() => false);
+      check(`card ${pid} 1440: goes live`, live);
+      if (!live) continue;
+      await page.waitForTimeout(1800);
+      await judge(page, `card ${pid} 1440`, sel);
+    }
+    await page.evaluate((q) => window.__portfolio.lenis.scrollTo(document.querySelector(q), { immediate: true, force: true, offset: -120 }), flag);
+    await page.waitForTimeout(800);
     await page.locator(flag).click({ position: { x: 16, y: 16 } });
     const hero = '#project-detail .pd-hero-media .media';
     await page.waitForFunction((s) => document.querySelector(s)?.dataset['3d'] === 'live', hero, { timeout: 30000 });

@@ -91,4 +91,71 @@ export class Director {
     this.crowd.next(a);
     return a;
   }
+
+  /** `a` is on the director's errand `job` for `secs`: never cast for another meanwhile. */
+  hire(a, job, secs) {
+    if (a) {
+      a.job = job;
+      a.jobUntil = this.time + secs;
+    }
+    return a;
+  }
+
+  /** Is `a` still on errand `job`? */
+  onJob(a, job) {
+    return a.job === job && a.jobUntil > this.time;
+  }
+
+  /** On any errand of the director's? */
+  busy(a) {
+    return a.jobUntil > this.time;
+  }
+
+  /** The first of `tests` anyone in `pool` passes: the best-suited, falling back to less so. */
+  castFirst(pool, tests, to) {
+    for (const ok of tests) {
+      const p = this.cast(pool, ok, to);
+      if (p) return p;
+    }
+    return null;
+  }
+
+  /**
+   * Break up any pile, checked every second: a district holding more groups
+   * than it should for 6 s, or four or more groups within a metre of someone
+   * for 4 s: whoever of the `movable` has stood there longest moves on
+   * (`moveOn`, to their next stop, somewhere quiet).
+   * @param {{ districts: import('./spread.js').Districts, people: () => object[], here: () => object[],
+   *           movable: (a) => boolean, moveOn: (a) => object, when?: () => boolean }} o
+   *   here: the people who count towards a knot (on the floor, not in a queue).
+   */
+  breakUpPiles({ districts, people, here, movable, moveOn, when = () => true }) {
+    let knotT = 0;
+    const key = (o) => (o.party ? `p${o.party}` : o.id);
+    this.flow('spread', {
+      every: 1,
+      when,
+      run: () => {
+        const over = districts.worst(6);
+        if (over) {
+          const p = people().filter((q) => movable(q) && districts.of(q.pos.x, q.pos.y) === over).sort((x, y) => y.timer - x.timer)[0];
+          if (p) {
+            over.over = 0;
+            return moveOn(p);
+          }
+        }
+        const on = here();
+        const knot = on.find((q) => new Set(on.filter((o) => Math.hypot(o.pos.x - q.pos.x, o.pos.y - q.pos.y) <= 1).map(key)).size >= 4);
+        knotT = knot ? knotT + 1 : 0;
+        if (knotT >= 4) {
+          const p = on.filter((q) => movable(q) && Math.hypot(q.pos.x - knot.pos.x, q.pos.y - knot.pos.y) <= 1.2).sort((x, y) => y.timer - x.timer)[0];
+          if (p) {
+            knotT = 0;
+            return moveOn(p);
+          }
+        }
+        return null;
+      },
+    });
+  }
 }

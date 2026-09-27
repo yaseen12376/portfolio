@@ -63,64 +63,39 @@ await record('2-case-explorer', { viewport: { width: 1440, height: 1000 } }, asy
     await page.click(`#project-detail .pd-act[data-act="${a}"]`).catch(() => {});
     await pause(page, ms);
   };
-  await chapter('cameras', 3000);
-  await act('checkout', 2500);
-  await act('cover', 7000); // raised after 30 s of store time
-  await act('fix', 2500);
-  await act('floor', 2500);
-  await chapter('coverage', 3000);
-  await act('plan', 4000);
-  await act('grid', 3000);
-  await chapter('track', 6000);
-  await act('ignore', 3500);
-  await act('ignore', 1500);
-  await chapter('line', 3000);
-  // Drag one end of the counting line a little into the store.
-  const box = await page.locator(hero).boundingBox();
-  const end = await page.evaluate((s) => {
-    const slot = [...window.__three.slots].find((x) => x.opts.context === 'case');
-    const h = slot.controller.pickables().find((o) => o.userData.handle?.kind === 'line');
-    const v = h.position.clone().project(slot.camera);
-    const r = document.querySelector(s).getBoundingClientRect();
-    return { x: r.left + ((v.x + 1) / 2) * r.width, y: r.top + ((1 - v.y) / 2) * r.height };
-  }, hero);
-  if (end && box) {
-    await page.mouse.move(end.x, end.y);
-    await page.mouse.down();
-    for (let i = 1; i <= 12; i++) await page.mouse.move(end.x - i * 4, end.y + i * 2);
-    await page.mouse.up();
+  // The scene's own walkthrough (its controller's `demo.record`).
+  const steps = (await page.evaluate(() => [...window.__three.slots].find((x) => x.opts.context === 'case')?.controller?.demo?.record)) ?? [];
+  for (const [what, arg, ms] of steps) {
+    if (what === 'chapter') await chapter(arg, ms);
+    else if (what === 'act') await act(arg, ms);
+    else if (what === 'drag') {
+      // A handle, by its kind, dragged by [dx, dy] px in small steps.
+      const end = await page.evaluate(({ s, kind }) => {
+        const slot = [...window.__three.slots].find((x) => x.opts.context === 'case');
+        const h = slot.controller.pickables().find((o) => o.userData.handle?.kind === kind);
+        if (!h) return null;
+        const v = h.position.clone().project(slot.camera);
+        const r = document.querySelector(s).getBoundingClientRect();
+        return { x: r.left + ((v.x + 1) / 2) * r.width, y: r.top + ((1 - v.y) / 2) * r.height };
+      }, { s: hero, kind: arg.kind });
+      if (end) {
+        await page.mouse.move(end.x, end.y);
+        await page.mouse.down();
+        for (let i = 1; i <= 12; i++) await page.mouse.move(end.x + (arg.by[0] * i) / 12, end.y + (arg.by[1] * i) / 12);
+        await page.mouse.up();
+      }
+      await pause(page, ms);
+    }
   }
-  await pause(page, 2500);
-  await act('linger', 12000);
-  await act('anchor', 2500);
-  await chapter('zones', 5000);
-  await chapter('heat', 3000);
-  await act('swap', 5000);
-  await chapter('parties', 4500);
-  await chapter('pos', 2000);
-  await act('q2', 9000);
-  await act('away', 9000);
-  await act('away', 3000);
-  await chapter('staff', 2500);
-  await act('consent', 3500);
-  await chapter('security', 2000);
-  await act('conceal', 32000);
-  await act('evidence', 7000);
-  await act('evidence', 1000);
-  await act('hours', 9000);
-  await act('hours', 2500);
-  await chapter('dashboard', 4000);
-  await act('trt', 3000);
-  await act('report', 4000);
 });
 
 // 3. A phone: the tap, then the tour.
 await record('3-phone', { viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true }, async (page) => {
   await page.goto(opts.url);
   await page.waitForFunction(() => window.__portfolio, null, { timeout: 15000 });
-  await page.$eval('.flagship .media', (m) => m.scrollIntoView({ block: 'center', behavior: 'smooth' }));
+  await page.$eval(card, (m) => m.scrollIntoView({ block: 'center', behavior: 'smooth' }));
   await pause(page, 2500);
-  await page.tap('.flagship .media-3d-play');
+  await page.tap(`${card} .media-3d-play`);
   await pause(page, 16000);
 });
 

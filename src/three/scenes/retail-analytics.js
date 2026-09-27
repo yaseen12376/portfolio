@@ -11,7 +11,7 @@
  * Numbers that are properties of the product (till-match confidence, the
  * TensorRT speed-up, throughput) are the measured ones from its docs.
  */
-import { Box3, CylinderGeometry, Mesh, MeshBasicMaterial, PerspectiveCamera, PlaneGeometry, Ray, Vector3 } from 'three';
+import { Box3, CylinderGeometry, Mesh, MeshBasicMaterial, PerspectiveCamera, PlaneGeometry, Vector3 } from 'three';
 
 import { Coverage } from '../overlays/coverage.js';
 import { Dashboard } from '../overlays/dashboard.js';
@@ -24,6 +24,9 @@ import { Director } from '../sim/director.js';
 import { Districts } from '../sim/spread.js';
 import { footprint, inPoly } from '../sim/grid.js';
 import { base } from './base.js';
+import { CameraHealth, Evidence, INK, countInView, drawCctv, drawFrustums, inkOf, occlusion, siteCameras } from './kit/cctv.js';
+import { jobBoard } from './kit/staff.js';
+import { act, asideFrom, clockFeed, cross, floorPointOn, go, mmss, near, placeNamer, rng, spotsOf } from './kit/util.js';
 import { livingSet } from './retail-living.js';
 
 // ---------------------------------------------------------------- measured facts (docs)
@@ -74,14 +77,6 @@ const OUTFITS = [
 const SKINS = ['#e2b79a', '#b98463', '#7d543b', '#d9a98b'];
 const HAIRS = ['#221c19', '#3b2a20', '#5a3a22', '#141111', '#6b4a2e'];
 
-function rng(seed) {
-  let s = seed >>> 0;
-  return () => (s = (s * 1664525 + 1013904223) >>> 0) / 4294967296;
-}
-
-const cross = (ax, az, bx, bz) => ax * bz - az * bx;
-const mmss = (s) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
-
 export async function create(ctx) {
   const { stage, labels, context, slot } = ctx;
   const data = stage.data;
@@ -91,10 +86,7 @@ export async function create(ctx) {
   const card = context !== 'case';
 
   // ---------------------------------------------------------------- places
-  const spot = (name) => {
-    const s = data.spots?.[name];
-    return s ? { x: s.at[0], z: s.at[2], face: ((s.face ?? 0) * Math.PI) / 180 } : null;
-  };
+  const spot = spotsOf(data);
   const rails = ['rail_a', 'rail_b'].map((n) => stage.byName.get(n)).filter(Boolean);
   const hasTable2 = !!data.spots?.table_2;
   const drags = new Map(rails.map((r) => [r, b.draggable(r.name, { onChange: (st) => st === 'placed' && ctx.emit('rail', 'moved') })]));
@@ -125,33 +117,13 @@ export async function create(ctx) {
   // boxes where detection is the story, soft floor rings where a place is.
   const rings = new Rings(scene);
   let detections = [];
-  // The boxes' colours, as the dashboard draws them.
-  const INK = { turq: '#2ee6b4', grey: '#b4b4bd', amber: '#fbbf24', red: '#fb6f8a', violet: '#a78bfa' };
-  const inkOf = (c) => (c === GLOW.turq ? INK.turq : c === GLOW.amber ? INK.amber : c === GLOW.red ? INK.red : c === GLOW.violet ? INK.violet : INK.grey);
-  // Hidden from the main view (behind racking, in a booth): the tracker keeps
-  // the ID, the box goes dashed. Tested a few times a second against the
-  // set's tall pieces (Blender exports their boxes), not every triangle.
-  // Only pieces wide enough to hide someone (walls, racking, booths), not posts.
-  const occluders = (data.occluders ?? []).filter(([lo, hi]) => Math.max(hi[0] - lo[0], hi[2] - lo[2]) >= 0.5).map(([lo, hi]) => new Box3(new Vector3(...lo), new Vector3(...hi)));
+  // Hidden from the main view (behind racking, in a booth with its curtain
+  // drawn): the tracker keeps the ID, the box goes dashed. Tested a few
+  // times a second (kit/cctv.js).
+  const occluded = occlusion(data, { extra: (a) => curtained(a) });
+  const occluders = occluded.boxes;
   const hiddenNow = new Map();
   let occClock = 0;
-  const ray = new Ray();
-  const hit = new Vector3();
-  function occluded(a, camera) {
-    if (curtained(a)) return true;
-    if (!occluders.length) return false;
-    const s = a.fig.root.scale.x;
-    let hidden = true;
-    for (const y of [0.9 * s, 1.4 * s]) {
-      const p = new Vector3(a.pos.x, y, a.pos.y);
-      ray.origin.copy(camera.position);
-      ray.direction.subVectors(p, camera.position);
-      const far = ray.direction.length();
-      ray.direction.normalize();
-      if (!occluders.some((box) => box.containsPoint(p) === false && ray.intersectBox(box, hit) && hit.distanceTo(camera.position) < far - 0.05)) hidden = false;
-    }
-    return hidden;
-  }
 
   // The back-office monitor shows the live dashboard.
   // Drawn on a plane of its own, the size of the screen Blender modelled and
@@ -181,75 +153,21 @@ export async function create(ctx) {
   const living = livingSet({ stage, scene, rand: rng(4242) });
 
   // The store's own cameras, for the camera chapter's picture-in-picture.
-  const WALL_MOUNTED = new Set(['perimeter', 'staff_only']);
-  const cams = Object.fromEntries(
-    Object.entries(data.cameras ?? {}).map(([role, c]) => {
-      const cam = new PerspectiveCamera(c.fov ?? 70, 16 / 9, 0.05, 30);
-      // The picture comes from the lens, not the mount: a dome's lens sits
-      // inside its shell, a wall camera's at the end of its 33 cm body
-      // (scripts/blender/scenes/retail-analytics.py puts both kinds up).
-      const wall = (c.mount ?? (WALL_MOUNTED.has(role) ? 'wall' : 'dome')) === 'wall';
-      const f = new Vector3(...c.look).sub(new Vector3(...c.pos)).normalize();
-      cam.position.set(...c.pos).addScaledVector(f, wall ? 0.36 : 0.12);
-      cam.lookAt(new Vector3(...c.look));
-      cam.updateMatrixWorld();
-      return [role, { cam, pos: new Vector3(...c.pos), look: new Vector3(...c.look) }];
-    })
-  );
+  const cams = siteCameras(data, { wall: ['perimeter', 'staff_only'] });
 
   // ---------------------------------------------------------------- camera health
   // Each camera's fault, as camera_health.py sees it: covered (the picture
   // goes flat), knocked (the scene no longer matches its layout), blurred.
-  const health = Object.fromEntries(Object.keys(cams).map((r) => [r, { fault: null, t: 0, raised: false, clear: 0 }]));
-  const camRest = Object.fromEntries(Object.entries(cams).map(([r, c]) => [r, c.cam.quaternion.clone()]));
+  const camHealth = new CameraHealth({
+    cams, stage, raise: HEALTH_RAISE, clear: HEALTH_CLEAR,
+    event: (t) => event(t),
+    onRaise: (role, kind) => store.faults.push({ role, kind, at: time() }),
+  });
+  const health = camHealth.state;
   const camMesh = (r) => stage.byName.get(`cam_${r}`);
-  const meshRest = Object.fromEntries(Object.keys(cams).map((r) => [r, camMesh(r)?.quaternion.clone()]));
-  const FAULT = { occluded: 'covered', moved: 'knocked', defocused: 'blurred' };
-  function setFault(role, kind) {
-    const h = health[role];
-    if (!h) return;
-    h.fault = kind;
-    h.t = 0;
-    h.clear = 0;
-    const cam = cams[role].cam;
-    cam.quaternion.copy(camRest[role]);
-    const m = camMesh(role);
-    if (m && meshRest[role]) m.quaternion.copy(meshRest[role]);
-    if (kind === 'moved') {
-      // Knocked: turned off its aim, as a bump with a ladder would.
-      cam.rotateY(0.5);
-      cam.rotateX(-0.15);
-      m?.rotateY(0.5);
-    }
-    cam.updateMatrixWorld();
-    event(kind ? `camera ${role.replace('_', ' ')} ${FAULT[kind]}` : `camera ${role.replace('_', ' ')} put right`);
-  }
-  function healthTick(dtStore) {
-    for (const [role, h] of Object.entries(health)) {
-      if (h.fault) {
-        h.t += dtStore;
-        if (!h.raised && h.t >= HEALTH_RAISE) {
-          h.raised = true;
-          store.faults.push({ role, kind: h.fault, at: time() });
-          event(`camera_health · ${role.replace('_', ' ')} · ${h.fault} · its counts marked suspect`);
-        }
-      } else if (h.raised) {
-        h.clear += dtStore;
-        if (h.clear >= HEALTH_CLEAR) {
-          h.raised = false;
-          event(`camera_health · ${role.replace('_', ' ')} · clear`);
-        }
-      }
-    }
-  }
-  const healthText = (role) => {
-    const h = health[role];
-    if (!h) return 'ok';
-    if (h.fault && h.raised) return `${h.fault} · raised`;
-    if (h.fault) return `${h.fault}? ${Math.floor(h.t)} of ${HEALTH_RAISE} s`;
-    if (h.raised) return `clearing · ${Math.floor(h.clear)} of ${HEALTH_CLEAR} s`;
-    return 'ok';
-  };
+  const setFault = (role, kind) => camHealth.set(role, kind);
+  const healthTick = (dtStore) => camHealth.tick(dtStore);
+  const healthText = (role) => camHealth.text(role);
 
   // ---------------------------------------------------------------- mannequins
   // The window's dress forms look like people to a detector: each gets a
@@ -290,32 +208,12 @@ export async function create(ctx) {
   // ---------------------------------------------------------------- evidence clips
   // The camera that saw an alert, 6 frames a second, 5 s before and 8 s
   // after, replayed in the picture-in-picture for the reviewer.
-  const clip = { cam: null, frames: [], recording: false, until: 0, play: null, flagAt: 0 };
-  const clipCanvas = () => {
-    const c = document.createElement('canvas');
-    c.width = 256;
-    c.height = 144;
-    return c;
-  };
-  let clipClock = 0;
-  function recordClip(dt) {
-    if (!clip.recording || !clip.cam || !slot.engine) return;
-    clipClock += dt;
-    if (clipClock < 1 / CLIP_FPS) return;
-    clipClock = 0;
-    const c = clip.frames.length >= (CLIP_BEFORE + CLIP_AFTER) * CLIP_FPS ? clip.frames.shift().c : clipCanvas();
-    const g = c.getContext('2d');
-    clip.cam.aspect = 16 / 9;
-    clip.cam.updateProjectionMatrix();
-    slot.engine.drawView(scene, clip.cam, g, c.width, c.height, { blur: false, cctv: 1, vignette: 0.55, sat: 1 });
+  const clip = new Evidence({
+    before: CLIP_BEFORE, after: CLIP_AFTER, fps: CLIP_FPS,
     // The flagged person's box, as the product draws it on the clip.
-    const who = clip.who;
-    if (who?.visible) drawDetections(g, c.width, c.height, clip.cam, [{ x: who.pos.x, z: who.pos.y, yaw: who.heading, height: 1.52, color: INK.red, tag: 'concealment?', alpha: 1 }], { px: c.width / 520 });
-    clip.frames.push({ c, t: director.time });
-    // Keep only the 5 s before the flag until it happens; then 8 s after.
-    if (!clip.flagAt) while (clip.frames.length > CLIP_BEFORE * CLIP_FPS) clip.frames.shift();
-    if (clip.flagAt && director.time > clip.flagAt + CLIP_AFTER) clip.recording = false;
-  }
+    draw: (g, w, h, cam, who) => who?.visible && drawDetections(g, w, h, cam, [{ x: who.pos.x, z: who.pos.y, yaw: who.heading, height: 1.52, color: INK.red, tag: 'concealment?', alpha: 1 }], { px: w / 520 }),
+  });
+  const recordClip = (dt) => clip.record(dt, director.time, slot, scene);
 
   // ---------------------------------------------------------------- store state
   const store = {
@@ -341,14 +239,7 @@ export async function create(ctx) {
     nextArrival: 0, // director time before which nobody new comes in (one at a time)
     nextExit: 0, // ... nobody else heads out
   };
-  const time = () => {
-    const t = store.clock;
-    return `${String(Math.floor(t / 3600) % 24).padStart(2, '0')}:${String(Math.floor(t / 60) % 60).padStart(2, '0')}`;
-  };
-  const event = (text) => {
-    store.feed.push(`${time()}  ${text}`);
-    if (store.feed.length > 30) store.feed.shift();
-  };
+  const { time, event } = clockFeed(store);
 
   // ---------------------------------------------------------------- people
   // A pick target for clicking a person: the skinned mesh is costly to raycast.
@@ -498,9 +389,6 @@ export async function create(ctx) {
   }
 
   // ---------------------------------------------------------------- routines
-  const go = (s, extra = {}) => ({ go: [s.x, s.z], ...extra });
-  const act = (clip, secs, face, extra = {}) => ({ act: clip, secs, face, ...extra });
-  const near = (a, s, d = 0.4) => Math.hypot(a.pos.x - s.x, a.pos.y - s.z) < d;
   const QUEUE = ['pay', 'queue_0', 'queue_1', 'queue_2', 'queue_3'].filter((q) => data.spots?.[q]);
   const FIT = ['fit_0', 'fit_1', 'fit_2'].filter((q) => data.spots?.[q]);
 
@@ -544,8 +432,8 @@ export async function create(ctx) {
   // floor shows many different things going on at once.
   const S = (k, clip = 'browse', extra = {}) => (spot(k) ? { ...spot(k), key: k, clip, ...extra } : null);
   const districts = new Districts([
-    { name: 'till', stations: () => QUEUE.map((k) => S(k, 'queue')), browse: false, feature: true, queue: true },
-    { name: 'fitting', stations: () => [...FIT.map((k) => S(k, 'tryon', { browse: false })), S('mirror', 'idle', { then: ['thumbs', 'point'] })], cap: 2, feature: true },
+    { name: 'till', stations: () => QUEUE.map((k) => S(k, 'queue')), browse: false, feature: true, key: true, queue: true },
+    { name: 'fitting', stations: () => [...FIT.map((k) => S(k, 'tryon', { browse: false })), S('mirror', 'idle', { then: ['thumbs', 'point'] })], cap: 2, feature: true, key: true },
     { name: 'denim', stations: () => ['denim', 'denim_2', 'denim_3'].map((k) => S(k, 'browse', { then: ['fold', 'point'] })), cap: 2, feature: true, party: true },
     ...rails.map((r) => ({ name: r.name, stations: () => railSpots(r).map((q) => ({ ...q, clip: 'browse', then: ['idle', 'point'] })), cap: 1, feature: true })),
     { name: 'tables', stations: () => [S('table_front', 'browse', { then: ['fold', 'idle'] }), S('table_side', 'browse', { then: ['fold', 'idle'] }), S('fold', 'fold', { browse: false })], cap: 1, feature: true, party: true },
@@ -579,20 +467,7 @@ export async function create(ctx) {
    * Somewhere to wait a moment out of everyone's way: open floor 1.5 to 2.5 m
    * off, not in the entrance, clear of every station and of other people.
    */
-  const aside = (a) => {
-    const all = [...districts.keyOf.values()].map(({ s: q }) => q);
-    for (let k = 0; k < 24; k++) {
-      const t = rand() * Math.PI * 2;
-      const r = 1.5 + rand();
-      const x = a.pos.x + Math.sin(t) * r;
-      const z = a.pos.y + Math.cos(t) * r;
-      if (!b.grid.free(x, z) || districts.of(x, z)?.walkThrough || !inPoly(x, z, INDOORS)) continue;
-      if (all.some((q) => Math.hypot(q.x - x, q.z - z) < 1.1)) continue;
-      if (people.some((p) => p !== a && p.visible && Math.hypot(p.pos.x - x, p.pos.y - z) < 1)) continue;
-      return { x, z };
-    }
-    return null;
-  };
+  const aside = (a) => asideFrom(a, { rand, grid: b.grid, districts, people, within: INDOORS });
 
   // The heatmap opens on "today so far": visits like the store's own, walked
   // along the real floor plan (in, one to three stations, the till for about
@@ -976,29 +851,8 @@ export async function create(ctx) {
   // one is: where no other member of staff is and the fewest customers
   // are, leaning to each person's own end of the floor, never the same job
   // twice running. So at any moment the staff are spread over the store.
-  const FLOOR_ROLES = ['staff', 'stock', 'manager'];
-  const staffIn = (d, a) => (d ? people.filter((p) => p !== a && p.visible && FLOOR_ROLES.includes(p.role) && districts.where(p) === d).length : 0);
-  /** Anyone (staff or customer) standing, or about to, within 1.1 m of `at`. */
-  const standingBy = (at, a) =>
-    people.some((p) => {
-      if (p === a || !p.visible || p.role === 'passer' || (p.task?.go && !p.claim)) return false;
-      const [x, z] = districts.aim(p);
-      return Math.hypot(x - at.x, z - at.z) < 1.1;
-    });
-  /** Customers standing (or about to) within 1.1 m of `at`: a job there would close the aisle between them. */
-  const customerBy = (at, a) =>
-    people.some((p) => {
-      if (p === a || !p.visible || p.role !== 'shopper' || (p.task?.go && !p.claim)) return false;
-      const [x, z] = districts.aim(p);
-      return Math.hypot(x - at.x, z - at.z) < 1.1;
-    });
-  /** Other staff at, or on their way to, somewhere within 1.8 m of `at`. */
-  const staffNear = (at, a) =>
-    people.filter((p) => {
-      if (p === a || !p.visible || !FLOOR_ROLES.includes(p.role)) return false;
-      const [x, z] = districts.aim(p);
-      return Math.hypot(x - at.x, z - at.z) < 1.8;
-    }).length;
+  const board = jobBoard({ people, districts, rand, staff: ['staff', 'stock', 'manager'], customer: 'shopper' });
+  const { staffIn, standingBy, customerBy, staffNear } = board;
   /** Anyone coming or going through the entrance just now (the stock-room door and badge reader are beside it). */
   const entranceBusy = () => people.some((p) => p.visible && !isStaffRole(p.role) && p.role !== 'passer' && districts.of(p.pos.x, p.pos.y)?.walkThrough);
   /** A shopper who has been browsing a while, and could do with a word (not one already being helped). */
@@ -1095,25 +949,8 @@ export async function create(ctx) {
       } };
     },
   };
-  /** The next job for `a` from `jobs`, where no other staff are and customers fewest; `home` jobs cost less. */
-  function staffJob(a, jobs, home) {
-    let best = null;
-    for (const name of jobs) {
-      const j = STAFF_JOB[name](a);
-      if (!j) continue;
-      // Not facing someone across an aisle (a word with a shopper is the one job beside someone).
-      if (name !== 'help' && standingBy(j.at, a)) continue;
-      // A part of the floor nobody has used for a while is where a job shows best.
-      const quiet = j.d?.feature ? Math.min(3, j.d.idle / 4) : 0;
-      const cost = 3 * staffIn(j.d, a) + 2.5 * staffNear(j.at, a) + 2 * (j.d?.groups ?? 0) + (name !== 'help' && customerBy(j.at, a) ? 4 : 0) - quiet + (home.includes(name) ? 0 : 1.2) + (name === a.st.lastJob ? 5 : 0) +
-        0.15 * Math.hypot(j.at.x - a.pos.x, j.at.z - a.pos.y) + rand() * 1.2 + (j.cost ?? 0);
-      if (!best || cost < best.cost) best = { name, j, cost };
-    }
-    if (!best || best.cost > 50) return null;
-    a.st.lastJob = best.name;
-    a.st.jobs = (a.st.jobs ?? 0) + 1;
-    return best.j.run();
-  }
+  /** The next job for `a` from `jobs` (kit/staff.js); `home` jobs cost less. */
+  const staffJob = (a, jobs, home) => board.next(a, jobs, home, STAFF_JOB);
 
   function floorStaff(a) {
     const st = a.st;
@@ -1298,15 +1135,9 @@ export async function create(ctx) {
   const director = new Director({ crowd: b.crowd, rand });
   const doorSpot = spot('door_in') ?? { x: 0, z: 0 };
   // Someone on a director's errand is left to finish it: never cast twice.
-  const onJob = (a, job) => a.job === job && a.jobUntil > director.time;
-  const browsing = (a) => a.role === 'shopper' && !a.party && a.st.phase === 'browse' && !(a.jobUntil > director.time);
-  const hire = (a, job, secs) => {
-    if (a) {
-      a.job = job;
-      a.jobUntil = director.time + secs;
-    }
-    return a;
-  };
+  const onJob = (a, job) => director.onJob(a, job);
+  const browsing = (a) => a.role === 'shopper' && !a.party && a.st.phase === 'browse' && !director.busy(a);
+  const hire = (a, job, secs) => director.hire(a, job, secs);
   const doorBusy = () =>
     people.some((p) => p.visible && !isStaffRole(p.role) && p.role !== 'passer' && ['street', 'enter', 'exiting'].includes(p.st.phase) && Math.hypot(p.pos.x - doorSpot.x, p.pos.y - doorSpot.z) < 6);
   /** How crowded it is where `p` is: the groups in their district and the people within a metre. */
@@ -1328,13 +1159,7 @@ export async function create(ctx) {
   /** Somewhere seen already this visit (people open the page mid-visit: count them as one). */
   const seenAtLeast = (n) => (p) => browsing(p) && (p.st.seen?.size ?? 1) >= n;
   /** The first of `tests` anyone passes: the best-suited, falling back to anyone free. */
-  const castFirst = (tests, to) => {
-    for (const ok of tests) {
-      const p = director.cast(people, ok, to);
-      if (p) return p;
-    }
-    return null;
-  };
+  const castFirst = (tests, to) => director.castFirst(people, tests, to);
   // To the till: someone who has browsed two places, or failing that one.
   const castToTill = () => hire(director.redirect(castFirst([seenAtLeast(2), seenAtLeast(1)], fromCrowd(spot('queue_0'))), (p) => {
     p.st.phase = 'checkout';
@@ -1351,33 +1176,13 @@ export async function create(ctx) {
   // Break up any pile: a district holding more groups than it should for
   // 6 s, or four or more people within a metre of someone for 4 s: whoever
   // has stood there longest moves on to their next stop (somewhere quiet).
-  const movable = (p) => p.visible && p.role === 'shopper' && (!p.party || p.leader === p) && p.st?.phase === 'browse' && !(p.jobUntil > director.time) && p.task?.act && p.clip !== 'tryon';
-  const moveOn = (p) => director.redirect(p, (q) => q.st.seen?.add(districts.of(q.pos.x, q.pos.y)?.name));
-  let knotT = 0;
-  director.flow('spread', {
-    every: 1,
+  director.breakUpPiles({
+    districts,
+    people: () => people,
+    here: () => people.filter((q) => q.visible && q.role !== 'passer' && !q.fixed && inPoly(q.pos.x, q.pos.y, INDOORS) && !districts.where(q)?.queue),
+    movable: (p) => p.visible && p.role === 'shopper' && (!p.party || p.leader === p) && p.st?.phase === 'browse' && !director.busy(p) && p.task?.act && p.clip !== 'tryon',
+    moveOn: (p) => director.redirect(p, (q) => q.st.seen?.add(districts.of(q.pos.x, q.pos.y)?.name)),
     when: () => !store.afterHours,
-    run: () => {
-      const over = districts.worst(6);
-      if (over) {
-        const p = people.filter((q) => movable(q) && districts.of(q.pos.x, q.pos.y) === over).sort((x, y) => y.timer - x.timer)[0];
-        if (p) {
-          over.over = 0;
-          return moveOn(p);
-        }
-      }
-      const here = people.filter((q) => q.visible && q.role !== 'passer' && !q.fixed && inPoly(q.pos.x, q.pos.y, INDOORS) && !districts.where(q)?.queue);
-      const knot = here.find((q) => new Set(here.filter((o) => Math.hypot(o.pos.x - q.pos.x, o.pos.y - q.pos.y) <= 1).map((o) => (o.party ? `p${o.party}` : o.id))).size >= 4);
-      knotT = knot ? knotT + 1 : 0;
-      if (knotT >= 4) {
-        const p = here.filter((q) => movable(q) && Math.hypot(q.pos.x - knot.pos.x, q.pos.y - knot.pos.y) <= 1.2).sort((x, y) => y.timer - x.timer)[0];
-        if (p) {
-          knotT = 0;
-          return moveOn(p);
-        }
-      }
-      return null;
-    },
   });
   director.beat('line', () => (doorBusy() ? null : sendToDoor()));
   director.beat('track', () => (fittingBusy() ? null : sendToFit()));
@@ -1797,22 +1602,7 @@ export async function create(ctx) {
     }
   }
 
-  function drawCameras() {
-    for (const [role, c] of Object.entries(cams)) {
-      const col = hexGlow(ROLE_COLOR[role], role === selectedCam ? 1.6 : 0.9);
-      const f = c.look.clone().sub(c.pos).normalize();
-      const right = new Vector3().crossVectors(f, new Vector3(0, 1, 0)).normalize();
-      const up = new Vector3().crossVectors(right, f).normalize();
-      const L = role === selectedCam ? 1.3 : 0.7;
-      const spread = Math.tan(((data.cameras[role].fov ?? 70) * Math.PI) / 360);
-      const corners = [[-1, -1], [1, -1], [1, 1], [-1, 1]].map(([sx, sy]) =>
-        c.pos.clone().addScaledVector(f, L).addScaledVector(right, sx * spread * L).addScaledVector(up, (sy * spread * L * 9) / 16)
-      );
-      for (const q of corners) b.lines.seg(c.pos.x, c.pos.y, c.pos.z, q.x, q.y, q.z, col);
-      b.lines.poly(corners.map((q) => [q.x, q.y, q.z]), col, true);
-      labels.set(`cam_${role}`, { text: role.replace('_', ' '), tone: role === selectedCam ? 'plain' : 'grey', at: [c.pos.x, c.pos.y + 0.18, c.pos.z] });
-    }
-  }
+  const drawCameras = () => drawFrustums(b.lines, labels, cams, { selected: selectedCam, color: (r) => ROLE_COLOR[r] });
 
   function drawMatch(dt) {
     const m = store.lastMatch;
@@ -1844,19 +1634,6 @@ export async function create(ctx) {
   function pip2d(g, w, h) {
     const cam = cams[selectedCam]?.cam;
     if (!cam) return;
-    const hl = health[selectedCam];
-    // What the fault does to the picture: covered, it goes flat; blurred, it
-    // goes soft (and the detector finds nobody in either).
-    if (hl?.fault === 'occluded') {
-      g.fillStyle = '#121214';
-      g.fillRect(0, 0, w, h);
-    } else if (hl?.fault === 'defocused') {
-      g.filter = `blur(${Math.max(3, w / 90)}px)`;
-      g.drawImage(g.canvas, 0, 0);
-      g.filter = 'none';
-    }
-    const blind = hl?.fault === 'occluded' || hl?.fault === 'defocused';
-    const v = new Vector3();
     const items = [];
     for (const a of people.concat(intruder)) {
       if (!a.visible) continue;
@@ -1866,57 +1643,15 @@ export async function create(ctx) {
       const tag = a === intruder ? `person ${confidence(a.id, store.clock / 6).toFixed(2)} · unknown` : isStaff ? `staff · ${a.staffId}` : `person ${confidence(a.id, store.clock / 6).toFixed(2)} · ID ${a.track}`;
       items.push({ x: a.pos.x, z: a.pos.y, yaw: a.heading, height: 1.52 * s, color, tag, alpha: a.fade });
     }
-    if (!blind) drawDetections(g, w, h, cam, items, { px: w / 520 });
-    g.lineWidth = Math.max(1.5, w / 400);
     // What this role draws on its picture: the counting line, the till zone.
-    const poly = (pts, color) => {
-      g.strokeStyle = color;
-      g.beginPath();
-      pts.forEach(([x, z], i) => {
-        v.set(x, 0.01, z).project(cam);
-        const px = ((v.x + 1) / 2) * w;
-        const py = ((1 - v.y) / 2) * h;
-        if (i) g.lineTo(px, py);
-        else g.moveTo(px, py);
-      });
-      g.stroke();
-    };
-    if (selectedCam === 'entrance') poly([line.a, line.b], '#06d6a0');
-    if (selectedCam === 'checkout' && zones.till) poly([...zones.till.points, zones.till.points[0]], '#8b5cf6');
-    g.fillStyle = 'rgba(5,5,6,0.6)';
-    g.fillRect(0, 0, w, Math.round(w / 26));
-    g.font = `500 ${Math.round(w / 48)}px "Geist Mono Variable", monospace`;
-    g.textBaseline = 'alphabetic';
-    g.fillStyle = '#e4e4e7';
-    g.fillText(`${selectedCam.replace('_', ' ').toUpperCase()}  ${time()}`, 8, Math.round(w / 38));
-    if (hl?.fault || hl?.raised) {
-      const band = Math.round(w / 22);
-      g.fillStyle = hl.raised && hl.fault ? 'rgba(251,191,36,0.92)' : 'rgba(5,5,6,0.7)';
-      g.fillRect(0, h - band, w, band);
-      g.fillStyle = hl.raised && hl.fault ? '#1a1406' : '#e4e4e7';
-      g.fillText(hl.raised && hl.fault ? `camera_health: ${hl.fault} · counts from this camera marked suspect` : `camera_health: ${healthText(selectedCam)}`, 8, h - band * 0.3);
-    }
+    const floorLines = [];
+    if (selectedCam === 'entrance') floorLines.push({ pts: [line.a, line.b], color: '#06d6a0' });
+    if (selectedCam === 'checkout' && zones.till) floorLines.push({ pts: [...zones.till.points, zones.till.points[0]], color: '#8b5cf6' });
+    drawCctv(g, w, h, { cam, health: health[selectedCam], healthText: healthText(selectedCam), items, floorLines, header: `${selectedCam.replace('_', ' ').toUpperCase()}  ${time()}` });
   }
 
   /** The evidence clip, frame by frame, with its time bar. */
-  function clipPip(g, w, h) {
-    const n = clip.frames.length;
-    g.fillStyle = '#0b0b0e';
-    g.fillRect(0, 0, w, h);
-    if (!n) return;
-    clip.play = (clip.play ?? 0) + 1;
-    const f = clip.frames[clip.play % n];
-    g.drawImage(f.c, 0, 0, w, h);
-    const band = Math.round(w / 22);
-    g.fillStyle = 'rgba(5,5,6,0.72)';
-    g.fillRect(0, h - band, w, band);
-    g.fillStyle = '#fb6f8a';
-    g.fillRect(0, h - 3, (w * ((clip.play % n) + 1)) / n, 3);
-    g.fillStyle = '#e4e4e7';
-    g.font = `500 ${Math.round(w / 48)}px "Geist Mono Variable", monospace`;
-    const rel = f.t - clip.flagAt;
-    g.fillText(`EVIDENCE CLIP · ${CLIP_BEFORE} s before, ${CLIP_AFTER} s after · ${CLIP_FPS} fps · ${rel < 0 ? '' : '+'}${rel.toFixed(1)} s`, 8, h - band * 0.3);
-  }
+  const clipPip = (g, w, h) => clip.drawPip(g, w, h);
 
   /** The 07:00 report, as the store's inbox gets it. */
   const report = document.createElement('canvas');
@@ -2001,7 +1736,7 @@ export async function create(ctx) {
     planMarker.position.set(plan.x, 2.3, plan.z);
     planHandle.visible = planMarker.visible = plan.on && show.coverage;
   }
-  const workingCams = () => Object.entries(cams).filter(([r]) => !['occluded', 'defocused'].includes(health[r].fault)).map(([, c]) => c.cam);
+  const workingCams = () => camHealth.working();
   function measureCoverage() {
     placePlan();
     return coverage.measure(workingCams(), plan.on ? plan.cam : null);
@@ -2044,7 +1779,7 @@ export async function create(ctx) {
       readouts: () => [
         { label: 'Cameras', value: STREAMS },
         { label: 'Selected', value: selectedCam.replace('_', ' '), tone: 'violet' },
-        { label: 'People in view', value: ['occluded', 'defocused'].includes(health[selectedCam]?.fault) ? 'none (no picture)' : countInView(selectedCam) },
+        { label: 'People in view', value: ['occluded', 'defocused'].includes(health[selectedCam]?.fault) ? 'none (no picture)' : inView(selectedCam) },
         { label: 'Camera health', value: healthText(selectedCam), tone: health[selectedCam]?.raised ? 'amber' : health[selectedCam]?.fault ? 'grey' : 'turq' },
       ],
       actions: () => {
@@ -2058,7 +1793,7 @@ export async function create(ctx) {
         this.act('checkout');
         run(0.2);
         const v = ctx.slot.controller.pip();
-        const sees = countInView('checkout');
+        const sees = inView('checkout');
         this.act('cover');
         run(HEALTH_RAISE / 6 - 1);
         const early = !health.checkout.raised;
@@ -2584,12 +2319,7 @@ export async function create(ctx) {
   for (const c of chapters) if (SHOTS[c.id]) c.shot = SHOTS[c.id];
   const ledger = staff().map((p) => ({ at: '08:55', who: p.staffId, purpose: 'recognition', state: 'granted' }));
 
-  function countInView(role) {
-    const cam = cams[role]?.cam;
-    if (!cam) return 0;
-    const v = new Vector3();
-    return people.filter((a) => a.visible && (v.set(a.pos.x, 0.8, a.pos.y).project(cam), v.z < 1 && Math.abs(v.x) < 1 && Math.abs(v.y) < 1)).length;
-  }
+  const inView = (role) => countInView(cams[role]?.cam, people);
 
   // What a store manager would call each place (the spots' keys are the
   // scene's own names for them).
@@ -2598,18 +2328,7 @@ export async function create(ctx) {
     mirror: 'the mirror', fit: 'fitting rooms', pay: 'the till', queue: 'the till queue', cashier: 'the till',
     terminal: 'the till', door: 'the door', in: 'the door', out: 'the door', street: 'outside', stock: 'the stockroom', office: 'the stockroom',
   };
-  function nearestPlace(x, z) {
-    let best = 'the floor';
-    let bd = 0.9;
-    for (const [name, s] of Object.entries(data.spots ?? {})) {
-      const d = Math.hypot(s.at[0] - x, s.at[2] - z);
-      if (d < bd) {
-        bd = d;
-        best = PLACE[name.split('_')[0]] ?? name.replace(/_\d$/, '').replace(/_/g, ' ');
-      }
-    }
-    return best;
-  }
+  const nearestPlace = placeNamer(data, PLACE);
 
   function moveRailSomewhere() {
     for (const r of rails) {
@@ -2700,11 +2419,7 @@ export async function create(ctx) {
       const v = new Vector3(at.x, 1, at.z).project(c.cam);
       return [r, v.z < 1 && Math.abs(v.x) < 0.95 && Math.abs(v.y) < 0.95 ? 1 - Math.hypot(v.x, v.y) : -1];
     }).sort((x, y) => y[1] - x[1])[0];
-    clip.cam = cams[best?.[0] ?? 'floor']?.cam ?? null;
-    clip.frames = [];
-    clip.flagAt = 0;
-    clip.recording = true;
-    clip.who = p;
+    clip.start(cams[best?.[0] ?? 'floor']?.cam ?? null, p);
     hire(director.redirect(p, (q) => {
       q.st.tasks.push(
         { go: [at.x, at.z] },
@@ -2745,14 +2460,7 @@ export async function create(ctx) {
   }
 
   // ---------------------------------------------------------------- frame
-  const floorPt = (ray) => {
-    const p = b.floorPoint(ray);
-    if (!p) return null;
-    const A = b.area(0.05);
-    p.x = Math.min(A.x1, Math.max(A.x0, p.x));
-    p.z = Math.min(A.z1, Math.max(A.z0, p.z));
-    return p;
-  };
+  const floorPt = (ray) => floorPointOn(b, ray);
 
   setShow({ trails: true });
 
@@ -2762,6 +2470,38 @@ export async function create(ctx) {
     grid: b.grid,
     crowd: b.crowd,
     districts,
+    roles: { customer: 'shopper', staff: ['staff', 'stock', 'manager', 'cashier'] },
+    /**
+     * How to show each chapter off, for review material (scripts/qa/shots.mjs
+     * and record.mjs): `shots` per chapter, what to press and how long to let
+     * it play before the picture; `record`, the case study's walkthrough.
+     * A step is [what, arg, ms]: what is 'chapter', 'act' or 'drag' (a
+     * handle, by its kind, dragged by [dx, dy] px).
+     */
+    demo: {
+      shots: {
+        cameras: [['checkout', 800], ['cover', 6500]],
+        coverage: [['plan', 2500], ['grid', 800]],
+        track: [[null, 5000]],
+        line: [['linger', 9000]],
+        pos: [['away', 9000]],
+        security: [['conceal', 34000], ['evidence', 2500]],
+        dashboard: [['report', 2500]],
+      },
+      record: [
+        ['chapter', 'cameras', 3000], ['act', 'checkout', 2500], ['act', 'cover', 7000], ['act', 'fix', 2500], ['act', 'floor', 2500],
+        ['chapter', 'coverage', 3000], ['act', 'plan', 4000], ['act', 'grid', 3000],
+        ['chapter', 'track', 6000], ['act', 'ignore', 3500], ['act', 'ignore', 1500],
+        ['chapter', 'line', 3000], ['drag', { kind: 'line', by: [-48, 24] }, 2500], ['act', 'linger', 12000], ['act', 'anchor', 2500],
+        ['chapter', 'zones', 5000],
+        ['chapter', 'heat', 3000], ['act', 'swap', 5000],
+        ['chapter', 'parties', 4500],
+        ['chapter', 'pos', 2000], ['act', 'q2', 9000], ['act', 'away', 9000], ['act', 'away', 3000],
+        ['chapter', 'staff', 2500], ['act', 'consent', 3500],
+        ['chapter', 'security', 2000], ['act', 'conceal', 32000], ['act', 'evidence', 7000], ['act', 'evidence', 1000], ['act', 'hours', 9000], ['act', 'hours', 2500],
+        ['chapter', 'dashboard', 4000], ['act', 'trt', 3000], ['act', 'report', 4000],
+      ],
+    },
     /** Is (x, z) inside the shop (not the street, the alley or the pavement)? */
     indoors: (x, z) => inPoly(x, z, INDOORS),
     store,
@@ -3002,11 +2742,3 @@ export async function create(ctx) {
   };
 }
 
-function hexGlow(hex, k) {
-  const c = parseInt(hex.slice(1), 16);
-  const lin = (v) => {
-    const s = v / 255;
-    return s <= 0.04045 ? s / 12.92 : ((s + 0.055) / 1.055) ** 2.4;
-  };
-  return [lin((c >> 16) & 255) * k, lin((c >> 8) & 255) * k, lin(c & 255) * k];
-}

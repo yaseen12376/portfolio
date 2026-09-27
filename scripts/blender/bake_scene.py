@@ -75,6 +75,9 @@ def assemble(S, *, figures: bool):
                               hair=m.get('hair'), attach=[*m.get('wear', []), *m.get('carry', [])])
             if m.get('scale'):
                 rig.scale = (m['scale'],) * 3
+            if m.get('lift'):
+                # Standing on a scaffold's lift (or any raised floor), not the ground.
+                rig.location.z += m['lift']
     bpy.context.view_layer.update()
     return sc, data, key
 
@@ -479,7 +482,7 @@ def stage_light(S, out, samples, size):
     data['footprints'] = NAV.footprints()
     if data.get('spots'):
         # Static fixtures only here; moving ones (rails) are checked on the page.
-        starts = {f'cast_{i}_{c.get("role", "")}': {'at': c['at']} for i, c in enumerate(data.get('cast', [])) if 'at' in c and c.get('role') != 'cashier'}
+        starts = {f'cast_{i}_{c.get("role", "")}': {'at': c['at']} for i, c in enumerate(data.get('cast', [])) if 'at' in c and c.get('role') != 'cashier' and not c.get('fixed') and not c.get('lift')}
         data['nav_unreachable'] = NAV.check_reach(data['nav'], {**data['spots'], **starts}, 0.24, S.META.get('nav_start'), NAV.dyn_polys())
         data['spots_too_close'] = NAV.check_spacing(data['spots'])
         print('NAV spots too close:', data['spots_too_close'] or 'none')
@@ -563,7 +566,7 @@ def stage_nav(S, out):
         if k in data:
             b[k] = data[k]
     if b.get('spots'):
-        starts = {f'cast_{i}_{c.get("role", "")}': {'at': c['at']} for i, c in enumerate(b.get('cast', [])) if 'at' in c and c.get('role') != 'cashier'}
+        starts = {f'cast_{i}_{c.get("role", "")}': {'at': c['at']} for i, c in enumerate(b.get('cast', [])) if 'at' in c and c.get('role') != 'cashier' and not c.get('fixed') and not c.get('lift')}
         b['nav_unreachable'] = NAV.check_reach(b['nav'], {**b['spots'], **starts}, 0.24, S.META.get('nav_start'), NAV.dyn_polys())
         b['spots_too_close'] = NAV.check_spacing(b['spots'])
         print('NAV spots too close:', b['spots_too_close'] or 'none')

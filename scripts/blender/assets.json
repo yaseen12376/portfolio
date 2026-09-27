@@ -21,6 +21,11 @@
     "rubber_tiles": "mats",
     "red_brick_03": "retail: the neighbouring building",
     "asphalt_02": "streets: road",
-    "patterned_paving_02": "streets: pavement"
+    "patterned_paving_02": "streets: pavement",
+    "gravelly_sand": "site: the ground",
+    "plywood": "site: formwork, hoarding, pallets",
+    "corrugated_iron": "site: the cabins, the hoarding",
+    "rusty_metal_02": "site: rebar, steel, the skip",
+    "concrete_wall_008": "site: the building frame"
   }
 }

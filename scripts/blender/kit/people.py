@@ -647,6 +647,18 @@ def build_attachments(col):
         lenses.append(bpy.context.active_object)
     lenses.append(geo_box('bridge', (0.04, 0.008, 0.008), (0, -0.19, HEAD_C[2] + 0.024)))
     out.append(_rigid('glasses', lenses, lambda v: region_value('lens'), 'head', col))
+    # A dust mask over the nose and mouth (region white), its strap round the
+    # back of the head: one of the three things a site's PPE check requires.
+    cup = geo_lathe([(0.0, 0.05), (0.04, 0.046), (0.068, 0.028), (0.082, 0.0), (0.0, 0.0)], segments=24)
+    cup.scale = (1.0, 0.8, 1.0)  # wider than it is tall, once turned to face out
+    C.apply_transform(cup)
+    cup.rotation_euler = (math.pi / 2, 0, 0)  # the lathe's axis (+Z) turned to face out (-Y)
+    cup.location = (0, -0.168, HEAD_C[2] - 0.058)
+    C.apply_transform(cup, loc=True)
+    bpy.ops.mesh.primitive_torus_add(major_radius=0.172, minor_radius=0.004, major_segments=32, minor_segments=5,
+                                     location=(0, HEAD_C[1] + 0.005, HEAD_C[2] - 0.035))
+    strap = bpy.context.active_object
+    out.append(_rigid('mask', [cup, strap], lambda v: region_value('white'), 'head', col))
     h = _hand_c('R')
     # A shopping bag hanging from the right hand.
     body = geo_box('bag', (0.07, 0.2, 0.22), (h.x - 0.02, h.y, h.z - 0.3))

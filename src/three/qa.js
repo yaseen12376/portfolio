@@ -238,7 +238,10 @@ window.qa = {
     // staff apart from each other.
     const D = slot.controller?.districts;
     const indoors = slot.controller?.indoors ?? (() => true);
-    const STAFF_ROLES = new Set(['staff', 'stock', 'manager', 'cashier']);
+    // Who is who: the scene says (roles: { customer, staff }); a store's by default.
+    const ROLES = slot.controller?.roles ?? { customer: 'shopper', staff: ['staff', 'stock', 'manager', 'cashier'] };
+    const CUSTOMER = ROLES.customer;
+    const STAFF_ROLES = new Set(ROLES.staff);
     const sp = D && {
       n: 0,
       dense1: [],
@@ -328,12 +331,12 @@ window.qa = {
         }
         // More customer groups standing in a district than it holds.
         if (d.cap < Infinity && !d.queue) {
-          const g = new Set(here.filter((a) => a.role === 'shopper' && standing(a) && D.of(a.pos.x, a.pos.y) === d).map(groupKey));
+          const g = new Set(here.filter((a) => a.role === CUSTOMER && standing(a) && D.of(a.pos.x, a.pos.y) === d).map(groupKey));
           const run = g.size > d.cap ? (sp.doubled.get(d.name) ?? 0) + 0.5 : 0;
           sp.doubled.set(d.name, run);
           if (run > sp.doubleLong) {
             sp.doubleLong = run;
-            sp.doubleAt = `${d.name} t=${t.toFixed(1)} (${g.size} groups: ${here.filter((a) => a.role === 'shopper' && standing(a) && D.of(a.pos.x, a.pos.y) === d).map((a) => `${a.id}${a.party ? ' party' : ''} ${a.task?.act ?? (a.task?.go ? 'stopped' : '-')} ${a.st?.phase} claim ${a.claim}`).join(', ')})`;
+            sp.doubleAt = `${d.name} t=${t.toFixed(1)} (${g.size} groups: ${here.filter((a) => a.role === CUSTOMER && standing(a) && D.of(a.pos.x, a.pos.y) === d).map((a) => `${a.id}${a.party ? ' party' : ''} ${a.task?.act ?? (a.task?.go ? 'stopped' : '-')} ${a.st?.phase} claim ${a.claim}`).join(', ')})`;
           }
         }
       }
@@ -354,10 +357,10 @@ window.qa = {
         }
       }
       // What customers are doing, and where they did it this visit.
-      sp.acts.push(new Set(here.filter((a) => a.role === 'shopper' && a.task?.act).map((a) => a.task.act)));
+      sp.acts.push(new Set(here.filter((a) => a.role === CUSTOMER && a.task?.act).map((a) => a.task.act)));
       for (const a of here) {
         // Visits begun during the run (not ones the page opened in the middle of).
-        if (a.role !== 'shopper' || !a.task?.act || !sp.fresh.has(a)) continue;
+        if (a.role !== CUSTOMER || !a.task?.act || !sp.fresh.has(a)) continue;
         const d = D.of(a.pos.x, a.pos.y);
         if (d && !d.walkThrough) (sp.seen.get(a) ?? sp.seen.set(a, new Set()).get(a)).add(d.name);
       }
@@ -619,6 +622,8 @@ window.qa = {
           denseMax: sp.denseMax,
           denseAt: sp.denseAt,
           lit: Object.fromEntries([...sp.lit].map(([k, v]) => [k, +((v / sp.n) * 100).toFixed(0)])),
+          // The districts a scene most needs in use (the till, a fitting room...).
+          key: D.defs.filter((d) => d.feature && d.key).map((d) => d.name),
           doubleLong: sp.doubleLong,
           doubleAt: sp.doubleAt,
           entranceMean: +(sp.entrance / sp.n).toFixed(2),

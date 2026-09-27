@@ -48,6 +48,7 @@
   "hat": "head",
   "cap": "head",
   "glasses": "head",
+  "mask": "head",
   "bag": "hand.R",
   "phone": "hand.R",
   "card": "hand.R",

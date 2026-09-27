@@ -33,8 +33,9 @@ def _static(obj):
     top = src
     while top.parent is not None:
         top = top.parent
-    # A prototype parked at the origin (only its instances are real) is never in the way.
-    if src.get('proto') or top.get('proto'):
+    # A prototype parked at the origin (only its instances are real) is never in
+    # the way; nor is a piece people walk on or over (a rebar mat on its chairs).
+    if src.get('proto') or top.get('proto') or src.get('passable') or top.get('passable'):
         return False, src
     return src.get('role') not in ('dyn', 'fig', 'fx') and top.get('role') not in ('dyn', 'fig', 'fx'), src
 

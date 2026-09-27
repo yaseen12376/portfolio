@@ -17,16 +17,10 @@ const W = Number(opts.width ?? 1440);
 const H = Number(opts.height ?? 900);
 const id = opts.project ?? 'retail-analytics';
 const out = await ensureOut('shots', `${id}-${W}${opts.operate ? '-operated' : ''}`);
-// What to press in each chapter (and how long to let it play) with --operate.
-const OPERATE = {
-  cameras: [['checkout', 800], ['cover', 6500]],
-  coverage: [['plan', 2500], ['grid', 800]],
-  track: [[null, 5000]],
-  line: [['linger', 9000]],
-  pos: [['away', 9000]],
-  security: [['conceal', 34000], ['evidence', 2500]],
-  dashboard: [['report', 2500]],
-};
+// What to press in each chapter (and how long to let it play) with
+// --operate: the scene's own demo (its controller's `demo.shots`), read once
+// the case study is open.
+let OPERATE = {};
 const { browser, context } = await launch();
 const page = await context.newPage();
 await page.setViewportSize({ width: W, height: H });
@@ -53,6 +47,7 @@ await page.setViewportSize({ width: W, height: Math.max(H, 1500) });
 await page.evaluate(() => window.__portfolio.lenis.scrollTo(document.querySelector('#project-detail .pd-hero-media'), { immediate: true, force: true, offset: -24 }));
 await page.waitForTimeout(1500);
 
+OPERATE = (await page.evaluate(() => [...window.__three.slots].find((s) => s.opts.context === 'case')?.controller?.demo?.shots)) ?? {};
 const tabs = await page.$$eval('#project-detail .pd-chapter', (ts) => ts.map((t) => t.dataset.chapter));
 if (!tabs.length) await page.locator('#project-detail .pd-hero-media').screenshot({ path: resolve(out, '02-case.png') });
 for (const [i, ch] of tabs.entries()) {
