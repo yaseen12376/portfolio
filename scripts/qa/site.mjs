@@ -6,18 +6,18 @@
  *  1. every card with a diorama reaches data-3d="live" as it scrolls in, and
  *     its canvas is not blank
  *  2. an orbit drag on the flagship turns the camera and springs back home
- *  3. a click on the flagship's backdrop opens the case study at the chapter
- *     the card was showing; its diorama goes live and drives the feature
+ *  3. for every diorama, a click on its card's backdrop opens the case study
+ *     at the chapter the card was showing; its diorama goes live and drives the feature
  *     explorer: every chapter moves the scene and shows live readouts, the
  *     arrow keys walk the tablist, Reset brings the camera home, controls are
  *     44 px and named, and nothing is laid over the diorama itself
  *  4. Escape closes it and the case slot is released
- *  5. open/close N times: GPU geometries, textures and programs, engine slots
- *     and ScrollTriggers return to where they started
+ *  5. open/close each N times: GPU geometries, textures and programs, engine
+ *     slots and ScrollTriggers return to where they started
  * with zero console errors throughout. --cal shows the calibration scene in
  * every slot (before the real scenes exist).
  */
-import { args, gpuName, launch, watchConsole } from './lib.mjs';
+import { SOFTWARE_GL, args, gpuName, launch, watchConsole } from './lib.mjs';
 
 const opts = args();
 const CYCLES = Number(opts.cycles ?? 5);
@@ -114,7 +114,12 @@ await page.waitForTimeout(250);
 const turned = await cam();
 await page.mouse.up();
 await page.mouse.move(box.x + box.w / 2, box.y + box.h + 200); // off the card: no parallax
-await page.waitForTimeout(1500);
+// 1.5 s of the scene's own time (a frame's step is capped, so on a slow
+// software renderer that is longer than 1.5 s on the clock).
+const since = await page.evaluate(() => [...window.__three.slots].find((x) => x.opts.context === 'card' && x.live && x.inView)?.time ?? 0);
+await page
+  .waitForFunction((t0) => ([...window.__three.slots].find((x) => x.opts.context === 'card' && x.live && x.inView)?.time ?? 0) - t0 >= 1.5, since, { timeout: SOFTWARE_GL ? 120000 : 20000 })
+  .catch(() => {});
 const home = await cam();
 check('orbit drag turns the camera', !!turned && Math.abs(turned.yaw) > 0.15, turned ? `yaw ${turned.yaw.toFixed(2)}` : 'no slot');
 check('orbit springs back within 1.5 s', !!home && Math.abs(home.yaw) < 0.02 && Math.abs(home.pitch) < 0.02, home ? `yaw ${home.yaw.toFixed(3)}` : '');
@@ -124,44 +129,50 @@ check('orbit springs back within 1.5 s', !!home && Math.abs(home.yaw) < 0.02 && 
 // first time its tour shows them (the heatmap, trails): let it go round
 // its tour once on its own before the count is taken, so they aren't
 // mistaken for a leak later. (Left to tour, the count settles and holds.)
-await scrollTo(flag);
-await page.evaluate(async () => {
-  const s = [...window.__three.slots].find((x) => x.opts.context === 'card' && x.live);
-  const ch = s?.chapters;
-  if (!ch?.tour?.length) return;
-  const seen = new Set();
-  for (let k = 0; k < 150 && seen.size < ch.tour.length; k++) {
-    seen.add(ch.current?.id);
-    await new Promise((r) => setTimeout(r, 500));
-  }
-  await new Promise((r) => setTimeout(r, 4000)); // the last one's, too
-});
-const baseline = await page.evaluate(() => ({
-  ...window.__three.info(),
-  triggers: window.__portfolio.ScrollTrigger.getAll().length,
-}));
+const cardOf = (id) => `#main-content .media[data-id="${id}"]`;
+async function tourOnce(sel) {
+  await scrollTo(sel);
+  await page.waitForFunction((s) => document.querySelector(s)?.dataset['3d'] === 'live', sel, { timeout: 12000 }).catch(() => {});
+  await page.evaluate(async (q) => {
+    const media = document.querySelector(q);
+    const s = [...window.__three.slots].find((x) => x.media === media && x.opts.context === 'card');
+    const ch = s?.chapters;
+    if (!ch?.tour?.length) return;
+    const seen = new Set();
+    for (let k = 0; k < 150 && seen.size < ch.tour.length; k++) {
+      seen.add(ch.current?.id);
+      await new Promise((r) => setTimeout(r, 500));
+    }
+    await new Promise((r) => setTimeout(r, 4000)); // the last one's, too
+  }, sel);
+}
+for (const id of withScene) await tourOnce(cardOf(id));
 
-async function openAndClose(i) {
-  await scrollTo(flag);
-  const b = await page.$eval(flag, (e) => {
+async function openAndClose(i, id) {
+  const card = cardOf(id);
+  await scrollTo(card);
+  await page.waitForFunction((s) => document.querySelector(s)?.dataset['3d'] === 'live', card, { timeout: 12000 }).catch(() => {});
+  const b = await page.$eval(card, (e) => {
     const r = e.getBoundingClientRect();
     return { x: r.left, y: r.top };
   });
-  const tourAt = await page.evaluate(() => [...window.__three.slots].find((x) => x.opts.context === 'card' && x.live && x.inView)?.chapters?.current?.id);
+  const tourAt = await page.evaluate((q) => [...window.__three.slots].find((x) => x.media === document.querySelector(q) && x.opts.context === 'card')?.chapters?.current?.id, card);
   await page.mouse.click(b.x + 20, b.y + 20);
+  // (A pinned stack card that isn't the current one doesn't open on a click: go by its address.)
+  if (!(await page.evaluate(() => location.hash.startsWith('#/project/')))) await page.evaluate((pid) => (location.hash = `#/project/${pid}`), id);
   const sel = '#project-detail .pd-hero-media .media';
   const live = await page
     .waitForFunction((s) => document.querySelector(s)?.dataset['3d'] === 'live', sel, { timeout: 15000 })
     .then(() => true)
     .catch(() => false);
   if (i === 0) {
-    check('click on the flagship opens the case study', await page.evaluate(() => location.hash.startsWith('#/project/')));
-    check('case study diorama goes live', live, await page.$eval(sel, (e) => e.dataset['3d'] ?? 'none').catch(() => 'no media'));
+    check(`${id}: the case study opens`, await page.evaluate((pid) => location.hash === `#/project/${pid}`, id));
+    check(`${id}: case study diorama goes live`, live, await page.$eval(sel, (e) => e.dataset['3d'] ?? 'none').catch(() => 'no media'));
     await page.waitForSelector('#project-detail .pd-explorer.is-live', { timeout: 5000 }).catch(() => {});
     const caseCh = () => page.evaluate(() => [...window.__three.slots].find((x) => x.opts.context === 'case')?.chapters?.current?.id);
     const selected = () => page.$eval('#project-detail .pd-chapter[aria-selected="true"]', (t) => t.dataset.chapter).catch(() => null);
-    check('the explorer is driven by the diorama', await page.$('#project-detail .pd-explorer.is-live').then(Boolean));
-    check('it opens at the chapter the card was showing', !tourAt || ((await caseCh()) === tourAt && (await selected()) === tourAt), `card ${tourAt}, case ${await caseCh()}`);
+    check(`${id}: the explorer is driven by the diorama`, await page.$('#project-detail .pd-explorer.is-live').then(Boolean));
+    check(`${id}: it opens at the chapter the card was showing`, !tourAt || ((await caseCh()) === tourAt && (await selected()) === tourAt), `card ${tourAt}, case ${await caseCh()}`);
 
     // Every chapter: the tab, the scene and the readouts agree.
     const tabs = await page.$$eval('#project-detail .pd-chapter', (ts) => ts.map((t) => t.dataset.chapter));
@@ -169,10 +180,12 @@ async function openAndClose(i) {
     for (const id of tabs) {
       await page.click(`#project-detail .pd-chapter[data-chapter="${id}"]`);
       await page.waitForTimeout(900);
+      // (They come with the scene's next frame, a while on a software renderer.)
+      await page.waitForFunction(() => document.querySelectorAll('#project-detail .pd-readouts dd').length > 0, null, { timeout: 8000 }).catch(() => {});
       const reads = await page.$$eval('#project-detail .pd-readouts dd', (d) => d.length);
       if ((await caseCh()) !== id || (await selected()) !== id || reads === 0) bad.push(`${id} (scene ${await caseCh()}, ${reads} readouts)`);
     }
-    check(`all ${tabs.length} chapters switch the scene and show readouts`, tabs.length > 0 && bad.length === 0, bad.join(', '));
+    check(`${id}: all ${tabs.length} chapters switch the scene and show readouts`, tabs.length > 0 && bad.length === 0, bad.join(', '));
 
     // The tablist walks with the arrow keys and keeps focus on the tab.
     await page.focus('#project-detail .pd-chapter[aria-selected="true"]');
@@ -181,16 +194,20 @@ async function openAndClose(i) {
     await page.waitForTimeout(300);
     const to = await selected();
     const focusOk = await page.evaluate(() => document.activeElement?.getAttribute('aria-selected') === 'true');
-    check('ArrowRight moves to the next chapter', to && to !== from && (await caseCh()) === to && focusOk, `${from} -> ${to}`);
+    check(`${id}: ArrowRight moves to the next chapter`, to && to !== from && (await caseCh()) === to && focusOk, `${from} -> ${to}`);
     await page.keyboard.press('Home');
     await page.waitForTimeout(300);
-    check('Home goes to the first chapter', (await selected()) === tabs[0]);
+    check(`${id}: Home goes to the first chapter`, (await selected()) === tabs[0]);
 
-    // An action operates its feature (the heat chapter moves a rail).
-    await page.click('#project-detail .pd-chapter[data-chapter="heat"]').catch(() => {});
-    await page.waitForTimeout(600);
-    const acts = await page.$$eval('#project-detail .pd-act', (bs) => bs.map((b) => b.dataset.act));
-    check('a chapter offers controls for its feature', acts.length > 0, acts.join(', '));
+    // A chapter offers controls that operate its feature (the first that has any).
+    let acts = [];
+    for (const t of tabs) {
+      await page.click(`#project-detail .pd-chapter[data-chapter="${t}"]`).catch(() => {});
+      await page.waitForTimeout(400);
+      acts = await page.$$eval('#project-detail .pd-act', (bs) => bs.map((b) => b.dataset.act));
+      if (acts.length) break;
+    }
+    check(`${id}: a chapter offers controls for its feature`, acts.length > 0, acts.join(', '));
 
     // Reset: orbit away, then the tool brings the camera home.
     const m = await page.$eval(sel, (e) => { const r = e.getBoundingClientRect(); return { x: r.left + r.width * 0.15, y: r.top + r.height * 0.2 }; });
@@ -205,7 +222,7 @@ async function openAndClose(i) {
       const r = [...window.__three.slots].find((x) => x.opts.context === 'case')?.rig;
       return [r?.yaw.x, r?.shot?.yaw ?? 0];
     });
-    check('Reset brings the camera home', Math.abs((yaw ?? 1) - want) < 0.03, `yaw ${yaw?.toFixed(3)}, shot ${want.toFixed(2)}`);
+    check(`${id}: Reset brings the camera home`, Math.abs((yaw ?? 1) - want) < 0.03, `yaw ${yaw?.toFixed(3)}, shot ${want.toFixed(2)}`);
 
     // Nothing sits on the diorama: with it in full view below the site's
     // floating nav, every point of it hits the canvas.
@@ -223,31 +240,35 @@ async function openAndClose(i) {
       }
       return [...new Set(hits)];
     });
-    check('no control is laid over the diorama', covered.length === 0, covered.join(', '));
+    check(`${id}: no control is laid over the diorama`, covered.length === 0, covered.join(', '));
 
     const small = await page.$$eval('#project-detail .pd-chapter, #project-detail .pd-tool, #project-detail .pd-act', (bs) => bs.filter((x) => x.offsetWidth < 44 || x.offsetHeight < 44).map((x) => x.dataset.chapter ?? x.dataset.tool ?? x.dataset.act));
-    check('explorer controls are at least 44 px', small.length === 0, small.join(', '));
+    check(`${id}: explorer controls are at least 44 px`, small.length === 0, small.join(', '));
     const unnamed = await page.$$eval('#project-detail .pd-explorer button', (bs) => bs.filter((x) => !(x.getAttribute('aria-label') || x.textContent.trim())).length);
-    check('explorer controls are named', unnamed === 0);
+    check(`${id}: explorer controls are named`, unnamed === 0);
     check('canvases are hidden from assistive tech', await page.$$eval('canvas.media-3d', (cs) => cs.every((c) => c.getAttribute('aria-hidden') === 'true')));
   }
   await page.keyboard.press('Escape');
   await page.waitForFunction(() => !document.body.classList.contains('detail-open'), null, { timeout: 5000 }).catch(() => {});
   await page.waitForTimeout(600);
   if (i === 0) {
-    check('Escape closes the case study', await page.evaluate(() => !document.body.classList.contains('detail-open')));
-    check('case slot released', await page.evaluate(() => ![...window.__three.slots].some((s) => s.opts.context === 'case')));
+    check(`${id}: Escape closes the case study`, await page.evaluate(() => !document.body.classList.contains('detail-open')));
+    check(`${id}: case slot released`, await page.evaluate(() => ![...window.__three.slots].some((s) => s.opts.context === 'case')));
   }
 }
 
 // The first cycle compiles programs the renderer keeps for good (the shadow
 // pass's depth materials), so leaks are measured from after it.
-await openAndClose(0);
+// Each diorama once (every check), then the counts, then the rest of the cycles.
+for (const id of withScene) await openAndClose(0, id);
 await scrollTo(flag);
 await page.waitForTimeout(800);
-const warm = await page.evaluate(() => window.__three.info());
-baseline.programs = Math.max(baseline.programs, warm.programs);
-for (let i = 1; i < CYCLES; i++) await openAndClose(i);
+const baseline = await page.evaluate(() => ({
+  ...window.__three.info(),
+  triggers: window.__portfolio.ScrollTrigger.getAll().length,
+}));
+const warm = baseline;
+for (let i = 1; i < CYCLES; i++) for (const id of withScene) await openAndClose(i, id);
 await scrollTo(flag);
 await page.waitForTimeout(800);
 const after = await page.evaluate(() => ({

@@ -179,8 +179,10 @@ window.qa = {
    * Run the scene's simulation for `secs` of scene time without drawing, and
    * measure what collision must guarantee: the closest two figures ever got,
    * any moment a figure stood inside an obstacle, and who stopped moving.
+   * With `trace` (seconds between samples), also where everyone was: it only
+   * reads positions, so the run is the same with it or without.
    */
-  simulate(secs = 60, dt = 1 / 30, { during } = {}) {
+  simulate(secs = 60, dt = 1 / 30, { during, trace } = {}) {
     const agents = slot.controller?.agents ?? [];
     const grid = slot.controller?.grid;
     const crowd = slot.controller?.crowd;
@@ -241,6 +243,9 @@ window.qa = {
     // Who is who: the scene says (roles: { customer, staff }); a store's by default.
     const ROLES = slot.controller?.roles ?? { customer: 'shopper', staff: ['staff', 'stock', 'manager', 'cashier'] };
     const CUSTOMER = ROLES.customer;
+    // People who are there all day (a site's workers) have no visits to
+    // count: for them "districts a visit" is districts over the whole run.
+    const RESIDENT = !!ROLES.resident;
     const STAFF_ROLES = new Set(ROLES.staff);
     const sp = D && {
       n: 0,
@@ -360,14 +365,14 @@ window.qa = {
       sp.acts.push(new Set(here.filter((a) => a.role === CUSTOMER && a.task?.act).map((a) => a.task.act)));
       for (const a of here) {
         // Visits begun during the run (not ones the page opened in the middle of).
-        if (a.role !== CUSTOMER || !a.task?.act || !sp.fresh.has(a)) continue;
+        if (a.role !== CUSTOMER || !a.task?.act || !(RESIDENT || sp.fresh.has(a))) continue;
         const d = D.of(a.pos.x, a.pos.y);
         if (d && !d.walkThrough) (sp.seen.get(a) ?? sp.seen.set(a, new Set()).get(a)).add(d.name);
       }
       for (const [a, set] of sp.seen) {
         if (!a.visible) {
           sp.visits.push(set.size);
-          if (sp.visitLog.length < 30) sp.visitLog.push(`${a.id} in ${sp.fresh.get(a).toFixed(0)}-${t.toFixed(0)}s: ${[...set].join(' > ') || '-'}`);
+          if (sp.visitLog.length < 30) sp.visitLog.push(`${a.id} in ${(sp.fresh.get(a) ?? 0).toFixed(0)}-${t.toFixed(0)}s: ${[...set].join(' > ') || '-'}`);
           sp.seen.delete(a);
           sp.fresh.delete(a);
         }
@@ -397,9 +402,13 @@ window.qa = {
     const was = new Map(agents.map((a) => [a, { vis: a.visible, x: a.pos.x, z: a.pos.y }]));
     const last = new Map(agents.map((a) => [a, { x: a.pos.x, z: a.pos.y, t: 0, still: 0 }]));
     const steps = Math.round(secs / dt);
+    const every = trace ? Math.max(1, Math.round(trace / dt)) : 0;
+    const tracks = every ? new Map(agents.map((a) => [a, []])) : null;
     for (let i = 0; i < steps; i++) {
       during?.(i * dt);
       slot.update(dt);
+      // Where each figure is ([x, z, standing]), or null while off the island.
+      if (every && i % every === 0) for (const [a, pts] of tracks) pts.push(a.visible ? [+a.pos.x.toFixed(2), +a.pos.y.toFixed(2), a.task?.go ? 0 : 1] : null);
       for (const a of agents) {
         const w = was.get(a);
         if (w.vis !== a.visible && a.visible) sp?.fresh.set(a, i * dt);
@@ -608,6 +617,7 @@ window.qa = {
       partySpread: partyFrames ? +((partyFar / partyFrames) * 100).toFixed(1) : 0,
       partySpreadLong: +farLong.toFixed(1),
       followerAt,
+      ...(tracks && { trace: { every: every * dt, people: [...tracks].map(([a, pts]) => ({ id: a.id, role: a.role ?? 'agent', pts })) } }),
       spread: sp && (() => {
         const q = (arr, f) => (arr.length ? [...arr].sort((x, y) => x - y)[Math.min(arr.length - 1, Math.floor(arr.length * f))] : 0);
         const mean = (arr) => (arr.length ? arr.reduce((x, y) => x + y, 0) / arr.length : 0);
@@ -638,7 +648,7 @@ window.qa = {
           // Visits over, and those a minute or more along (a run's end cuts
           // the long ones short: counting only the finished would favour short visits).
           ...(() => {
-            const v = [...sp.visits, ...[...sp.seen].filter(([a]) => sp.fresh.has(a) && secs - sp.fresh.get(a) >= 60).map(([, set]) => set.size)];
+            const v = [...sp.visits, ...[...sp.seen].filter(([a]) => (RESIDENT && !sp.fresh.has(a)) || (sp.fresh.has(a) && secs - sp.fresh.get(a) >= 60)).map(([, set]) => set.size)];
             return { visits: v.length, districtsPerVisit: +mean(v).toFixed(2) };
           })(),
           stillP95: q(sp.still1, 0.95),

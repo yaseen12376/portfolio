@@ -21,12 +21,13 @@ export const shortTitle = (p) => p.title.split(':')[0];
 /**
  * Poster (or a typographic frame), an optional lazy loop, and lock brackets.
  * A diorama's poster comes from the build in three shapes; a phone gets the
- * square one, framed for its square media box.
+ * square one where the media box turns square (`square`: the flagship and the
+ * case study's hero; a stack card stays 16:9).
  */
-export function mediaMarkup(p, { eager = false } = {}) {
+export function mediaMarkup(p, { eager = false, square: squareBox = false } = {}) {
   const scene = sceneFor(p);
   const img = p.poster && `<img src="${esc(p.poster)}" alt="" loading="${eager ? 'eager' : 'lazy'}" decoding="async" />`;
-  const square = scene && p.poster?.startsWith('/3d/') ? p.poster.replace(/poster\.webp$/, 'poster-sq.webp') : null;
+  const square = squareBox && scene && p.poster?.startsWith('/3d/') ? p.poster.replace(/poster\.webp$/, 'poster-sq.webp') : null;
   const still = p.poster
     ? square
       ? `<picture><source media="(max-width: 599.98px)" srcset="${esc(square)}" />${img}</picture>`
@@ -97,7 +98,7 @@ function flagshipMarkup(p) {
   return `
     <article class="flagship" data-id="${esc(p.id)}">
       <div class="shell flag-media" data-open="${esc(p.id)}" aria-hidden="true">
-        <div class="core">${mediaMarkup(p, { eager: true })}</div>
+        <div class="core">${mediaMarkup(p, { eager: true, square: true })}</div>
       </div>
       <div class="flagship-body">
         <div>

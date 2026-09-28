@@ -300,22 +300,41 @@ export class Evidence {
   /** The evidence in the picture-in-picture: the clip frame by frame with its time bar, or the still. */
   drawPip(g, w, h, caption) {
     const n = this.frames.length;
+    if (!n) {
+      g.fillStyle = '#0b0b0e';
+      g.fillRect(0, 0, w, h);
+      return;
+    }
+    this.play = (this.play ?? 0) + 1;
+    const i = this.play % n;
+    const f = this.frames[i];
+    const rel = f.t - this.flagAt;
+    this.drawFrame(g, w, h, i, {
+      caption: caption ?? (this.still ? 'EVIDENCE · the still taken at the alert' : `EVIDENCE CLIP · ${this.before} s before, ${this.after} s after · ${this.fps} fps · ${rel < 0 ? '' : '+'}${rel.toFixed(1)} s`),
+      bar: n > 1 ? '#fb6f8a' : null,
+    });
+  }
+
+  /**
+   * Frame `i` of what was recorded, filling the picture, with a caption band
+   * and a bar along the bottom showing how far through the recording it is
+   * (`bar`: its colour, or null for none).
+   */
+  drawFrame(g, w, h, i, { caption = '', bar = '#fb6f8a' } = {}) {
+    const n = this.frames.length;
     g.fillStyle = '#0b0b0e';
     g.fillRect(0, 0, w, h);
     if (!n) return;
-    this.play = (this.play ?? 0) + 1;
-    const f = this.frames[this.play % n];
-    g.drawImage(f.c, 0, 0, w, h);
+    g.drawImage(this.frames[i].c, 0, 0, w, h);
     const band = Math.round(w / 22);
     g.fillStyle = 'rgba(5,5,6,0.72)';
     g.fillRect(0, h - band, w, band);
-    if (n > 1) {
-      g.fillStyle = '#fb6f8a';
-      g.fillRect(0, h - 3, (w * ((this.play % n) + 1)) / n, 3);
+    if (bar) {
+      g.fillStyle = bar;
+      g.fillRect(0, h - 3, (w * (i + 1)) / n, 3);
     }
     g.fillStyle = '#e4e4e7';
     g.font = `500 ${Math.round(w / 48)}px "Geist Mono Variable", monospace`;
-    const rel = f.t - this.flagAt;
-    g.fillText(caption ?? (this.still ? 'EVIDENCE · the still taken at the alert' : `EVIDENCE CLIP · ${this.before} s before, ${this.after} s after · ${this.fps} fps · ${rel < 0 ? '' : '+'}${rel.toFixed(1)} s`), 8, h - band * 0.3);
+    g.fillText(caption, 8, h - band * 0.3);
   }
 }

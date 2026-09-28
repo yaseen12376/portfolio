@@ -30,15 +30,26 @@ export function args() {
 /**
  * Headless Chromium on the real GPU (ANGLE on D3D11). Without these flags it
  * falls back to SwiftShader: correct pixels, useless timings.
+ *
+ * Off Windows (a cloud container with no GPU) it asks for SwiftShader
+ * outright, so WebGL2 works; frame timings there mean nothing. QA_CHROMIUM
+ * points at a browser binary when the installed one doesn't match the
+ * Playwright version.
  */
+export const SOFTWARE_GL = process.platform !== 'win32';
+
 export async function launch({ gpu = true, discrete = false, uncapped = false } = {}) {
   // discrete: the laptop's discrete GPU (headless Chromium otherwise takes the
   // integrated one). uncapped: no vsync or frame-rate cap, so frame times
   // measure the work rather than the display's 60 Hz.
   const extra = [...(discrete ? ['--force_high_performance_gpu'] : []), ...(uncapped ? ['--disable-gpu-vsync', '--disable-frame-rate-limit'] : [])];
+  const flags = SOFTWARE_GL
+    ? ['--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist', ...extra]
+    : ['--use-angle=d3d11', '--ignore-gpu-blocklist', '--enable-gpu-rasterization', ...extra];
   const browser = await chromium.launch({
     headless: true,
-    args: gpu ? ['--use-angle=d3d11', '--ignore-gpu-blocklist', '--enable-gpu-rasterization', ...extra] : [],
+    executablePath: process.env.QA_CHROMIUM || undefined,
+    args: gpu ? flags : [],
   });
   const context = await browser.newContext({ deviceScaleFactor: 1, viewport: { width: 1920, height: 1080 } });
   return { browser, context };
@@ -52,13 +63,13 @@ export async function gpuName(page) {
   });
 }
 
-/** Collect console errors and warnings for a page (ANGLE's X4122 is benign). */
+/** Collect console errors and warnings for a page (ANGLE's X4122, and SwiftShader lacking parallel shader compiles, are benign). */
 export function watchConsole(page) {
   const log = [];
   page.on('console', (m) => {
     if (!['error', 'warning'].includes(m.type())) return;
     const text = m.text();
-    if (/X4122|GPU stall due to ReadPixels|Automatic fallback to software WebGL/.test(text)) return;
+    if (/X4122|GPU stall due to ReadPixels|Automatic fallback to software WebGL|KHR_parallel_shader_compile/.test(text)) return;
     log.push(`${m.type()}: ${text}`);
   });
   page.on('pageerror', (e) => log.push(`pageerror: ${e.message}`));
@@ -66,10 +77,11 @@ export function watchConsole(page) {
 }
 
 /** Open the bench for one scene and wait until it has drawn. */
-export async function bench(page, base, id, { w = 1920, h = 1080, still = false, nopost = false, seed = null } = {}) {
+export async function bench(page, base, id, { w = 1920, h = 1080, still = false, nopost = false, seed = null, context = null } = {}) {
   await page.setViewportSize({ width: Math.max(w, 320), height: Math.max(h, 240) });
   const q = new URLSearchParams({ id, w: String(w), h: String(h), '3d': 'force' });
   if (seed != null) q.set('seed', String(seed));
+  if (context) q.set('context', context);
   if (still) q.set('still', '');
   if (nopost) q.set('nopost', '');
   await page.goto(`${base}/qa/3d.html?${q}`);

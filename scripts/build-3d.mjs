@@ -34,6 +34,9 @@ import sharp from 'sharp';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const BLENDER = process.env.BLENDER || 'C:/Program Files/Blender Foundation/Blender 5.2/blender.exe';
+// A stage that runs longer is killed: 20 minutes suits the laptop's GPU; a
+// CPU-only machine bakes slower (BLENDER_TIMEOUT_MIN=120).
+const TIMEOUT_MIN = Number(process.env.BLENDER_TIMEOUT_MIN ?? 20);
 const BUILD = join(ROOT, 'build', '3d');
 const PUBLIC = join(ROOT, 'public', '3d');
 const STAGES = ['light', 'env', 'export', 'still'];
@@ -74,7 +77,7 @@ function blender(script, args, label) {
     };
     p.stdout.on('data', onData);
     p.stderr.on('data', onData);
-    const timer = setTimeout(() => p.kill(), 20 * 60 * 1000);
+    const timer = setTimeout(() => p.kill(), TIMEOUT_MIN * 60 * 1000);
     p.on('close', (code) => {
       clearTimeout(timer);
       const secs = ((Date.now() - t0) / 1000).toFixed(1);

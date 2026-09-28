@@ -43,21 +43,27 @@ export const caseCopy = {
     problem:
       'Site safety is checked by supervisors walking the site, so most of it goes unobserved most of the time. A helmet-only detector is not enough either. It cannot say who is at risk, and it misses the incidents that matter most, like a worker falling or a fire starting.',
     solution:
-      'Run several specialised models on each stream at once and merge them into one alert pipeline. A PPE detector classifies every worker as safe or unsafe, a pose model scores falls, a fire and smoke model watches the background, and face recognition attaches a name to each violation. Alerts are rate-limited, stored with evidence and pushed to the dashboard live.',
+      'Give each camera a detection mode and run every mode through one alert pipeline. A PPE detector classifies each worker as safe or unsafe, a pose model scores falls, a fire and smoke model watches the whole frame, and face recognition matches faces to enrolled workers in the live view. Alerts are rate-limited per camera, stored with a screenshot as evidence and pushed to the dashboard live.',
     implementation: [
-      'Ran YOLOv8 PPE detection across 10 classes (hard hat, mask, vest and their violations) to label each worker safe or unsafe',
-      'Rewrote fall detection on MoveNet pose estimation: 17 keypoints feeding a six-factor score, replacing a bounding-box heuristic',
+      'Ran YOLOv8 PPE detection across 10 classes (hard hat, mask, vest and their violations) on each person found, to label every worker safe or unsafe',
+      'Rewrote fall detection on MoveNet pose estimation: 17 keypoints and four rules scored out of 6, a fall at 4, replacing a bounding-box heuristic',
       'Integrated a team-trained YOLO fire and smoke model into the same per-frame pipeline',
-      'Added InsightFace recognition so every violation is attributed to a named worker',
-      'Built alert cooldowns, annotated evidence screenshots, JSON event logs and asynchronous AWS S3 upload',
-      'Exported models to ONNX Runtime with CUDA and a CPU fallback: 1.31× faster than PyTorch on the same hardware',
-      'Added continuous H.264 recording, then HLS history retrieval, clip stitching and camera IDs on alerts in the product backend',
+      'Added InsightFace recognition, matching faces in the live view to enrolled workers, with anyone else labelled Unknown',
+      'Built alert cooldowns (10 s per camera and alert type), annotated evidence screenshots, JSON event logs and asynchronous AWS S3 upload',
+      'Exported models to ONNX Runtime, with CUDA and a CPU fallback: 1.31× faster than PyTorch in an export benchmark (YOLOv8s on CPU, 97 to 74 ms a frame)',
+      'Added continuous H.264 recording, then HLS playback with 12 hours of rewind, clip stitching and camera IDs on alerts in the product backend',
     ],
     outcomes: [
-      'One pipeline covering helmets, vests, falls, fire and smoke instead of four separate tools',
-      'Violations tied to a named worker, with an annotated screenshot as evidence',
-      'An alert stream kept actionable by per-person cooldowns',
-      'Recorded footage retrievable from the dashboard for any past alert',
+      'One pipeline covering helmets, masks, vests, falls, fire and smoke instead of four separate tools',
+      'Faces in the live view matched to enrolled workers, and an annotated screenshot kept for every alert',
+      'An alert stream kept actionable by a 10 s cooldown per camera and alert type',
+      'Recorded footage retrievable from the dashboard for the last 12 hours',
+    ],
+    limitations: [
+      'A mask the camera cannot see, on someone facing away, counts as missing, so a turned head reads as a violation.',
+      'Falls and fires are each raised on a single frame, with nothing to confirm them over time.',
+      'Fall detection scores one pose a frame, the most prominent person’s, so it follows one person at a time.',
+      'Only enrolled workers are named; everyone else stays Unknown.',
     ],
   },
 

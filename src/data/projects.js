@@ -134,23 +134,23 @@ export const projects = [
     tier: 'featured',
     title: 'ConstructSafe: AI Site Safety Platform',
     short:
-      'Construction-site monitoring that flags missing PPE, falls, fire and smoke in real time, and names the worker involved.',
-    blurb: 'PPE, falls, fire and faces, watched on every site camera.',
+      'Construction-site monitoring that flags missing PPE, falls, fire and smoke as they happen, and matches faces to workers in the live view.',
+    blurb: 'PPE, falls, fire and faces, each site camera in its own mode.',
     tags: ['YOLOv8', 'MoveNet', 'ONNX Runtime', 'InsightFace'],
     detail: {
       problem: 'Supervisors cannot watch every camera, and a helmet detector cannot say who is at risk.',
-      built: 'Four detectors in one pipeline, naming each violator and filing the evidence.',
-      result: '1.31× faster on ONNX Runtime, and the most commits on the team.',
+      built: 'Four detectors in one pipeline, matching faces to workers in the live view and filing the evidence.',
+      result: '1.31× faster in an ONNX export benchmark, and the most commits on the team.',
     },
     year: '2026',
     role: 'Detection engine lead',
     team: 'Team of 7 at Ethical Intelligence Technologies',
     private: true,
-    // Interim art until the corrected Veo clip lands (docs/image-prompts.md).
-    poster: '/posters/constructsafe.webp',
+    // The diorama's own Cycles still (the live scene fades in over it).
+    poster: '/3d/constructsafe/poster.webp',
     video: '/project-video/constructsafe',
     metrics: [
-      { value: '1.31×', label: 'faster inference with ONNX Runtime (97 to 74 ms a frame)' },
+      { value: '1.31×', label: 'faster in an ONNX export benchmark (YOLOv8s, 97 to 74 ms a frame)' },
       { value: '10', label: 'PPE classes, with a safe or unsafe state per worker' },
       { value: '4', label: 'detectors in one pipeline: PPE, falls, fire and smoke, faces' },
       { value: '40', label: 'commits to the detection engine, the most on the team' },
@@ -159,6 +159,69 @@ export const projects = [
       'Python', 'YOLOv8', 'MoveNet', 'InsightFace', 'ONNX Runtime', 'CUDA', 'OpenCV',
       'Flask-SocketIO', 'React', 'TypeScript', 'PostgreSQL', 'AWS S3', 'HLS',
     ],
+    // The diorama: one chapter per real feature of the product
+    // (construct_safe/backend/detection_system: app.py and config.py), every
+    // number the code's own.
+    scene3d: {
+      id: 'constructsafe',
+      tour: ['ppe', 'falls', 'fire'],
+      chapters: [
+        {
+          id: 'cameras',
+          title: 'Four cameras, one mode each',
+          caption: 'CAM-01 and CAM-02 watch outdoors, CAM-03 the ground floor inside, and CAM-04 the welding bay, labelled High-Risk Zone. Each takes a frame every 2 s in its own mode (Face, PPE, Fall, Fire, PPE+Fall or All), and they start 2 s apart.',
+          hint: 'Pick a camera, then switch its mode.',
+        },
+        {
+          id: 'ppe',
+          title: 'PPE check',
+          caption: 'Each person found (YOLOv8n, confidence 0.30) is cropped with 15% padding and checked for a hard hat, mask and safety vest (confidence 0.50). Any NO- class, or a required item not seen, makes them unsafe, so a mask turned away from the camera counts as missing. Items are smoothed over 3 frames.',
+          hint: 'Take a hard hat or mask off, or turn someone away.',
+        },
+        {
+          id: 'faces',
+          title: 'Who is it',
+          caption: 'InsightFace (ArcFace), after CLAHE, matches faces to enrolled workers in the live view: a similarity above 0.35 names them, and anyone else is Unknown. A new worker is enrolled from a photo, and the faces reload without a restart.',
+          hint: 'Enrol the new starter at the hut.',
+        },
+        {
+          id: 'falls',
+          title: 'Falls',
+          caption: 'MoveNet Thunder finds 17 keypoints on one person a frame. Four rules score it out of 6: torso over 60° from vertical (+2), shoulders level with hips (+2), a short body in the frame (+1), lying low in it (+1). 4 or more is a fall, raised on a single frame.',
+          hint: 'Have someone slip on the ground floor.',
+        },
+        {
+          id: 'fire',
+          title: 'Fire and smoke',
+          caption: 'A YOLOv8n fine-tuned on fire and smoke (mAP50 0.861) looks at the whole frame. One frame at 0.6 or more raises FIRE/SMOKE DETECTED, critical.',
+          hint: 'Let the sparks catch the bin, then put it out.',
+        },
+        {
+          id: 'alerts',
+          title: 'Alerts and evidence',
+          caption: 'Each alert type has a 10 s cooldown per camera, not per person. Every alert saves one JPEG with its boxes drawn, uploaded to S3 behind a link that lasts 7 days, and the dashboard shows a card for each person in it.',
+          hint: 'Raise two violations back to back, then open the screenshot.',
+        },
+        {
+          id: 'playback',
+          title: 'Recording and playback',
+          caption: 'Each camera’s H.264 goes straight into HLS in 2 s segments, with 12 hours to rewind. A timelapse takes a snapshot every 10 minutes and plays at 24 fps.',
+          hint: 'Go back to the fall, step 10 s either way, then GO LIVE.',
+        },
+        {
+          id: 'productivity',
+          title: 'Productivity and attendance',
+          caption: 'A worker is idle after 120 s moving no more than 5% of their box’s diagonal. The gate camera logs attendance only inside the worker’s shift, and each worker card reads Active, Idle or PPE Violation.',
+          hint: 'Have someone stand idle, or clock someone in at the gate.',
+        },
+        {
+          id: 'office',
+          title: 'Site office',
+          caption: 'Each model can be unloaded to save memory: PPE 250 MB, Fall 180 MB, Fire 200 MB, Face 150 MB, as estimated. In an ONNX export benchmark, YOLOv8s ran in 74 ms a frame against 97 ms (1.31×).',
+          hint: 'Unload a model, or send a test alert.',
+        },
+      ],
+    },
   },
 
   {

@@ -23,7 +23,9 @@
     "qa:site": "node scripts/qa/site.mjs",
     "qa:gate": "node scripts/qa/gate.mjs",
     "qa:perf": "node scripts/qa/perf.mjs",
-    "qa:shots": "node scripts/qa/shots.mjs"
+    "qa:shots": "node scripts/qa/shots.mjs",
+    "qa:board": "node scripts/qa/board.mjs",
+    "qa:spread": "node scripts/qa/spread-map.mjs"
   },
   "devDependencies": {
     "@gltf-transform/cli": "^4.5.0",

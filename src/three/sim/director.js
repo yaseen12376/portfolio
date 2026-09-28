@@ -159,3 +159,14 @@ export class Director {
     });
   }
 }
+
+/**
+ * A casting score (lower is better, for `cast`'s `to`) that prefers whoever
+ * moving would thin a crowd (the groups in their district and the people
+ * within a metre of them), then whoever is nearest `to`:
+ * `director.cast(pool, ok, crowdScore({ districts, people })(spot))`.
+ */
+export function crowdScore({ districts, people }) {
+  const crowdAt = (p) => (districts.of(p.pos.x, p.pos.y)?.groups ?? 0) + people.filter((q) => q !== p && q.visible && Math.hypot(q.pos.x - p.pos.x, q.pos.y - p.pos.y) < 1).length;
+  return (to) => (p) => -2 * crowdAt(p) + 0.1 * Math.hypot(p.pos.x - to.x, p.pos.y - to.z);
+}

@@ -11,6 +11,7 @@ import { CylinderGeometry, Mesh, MeshBasicMaterial } from 'three';
 import { GLOW, OVERLAY_LAYER } from '../overlays/lines.js';
 import { HeatMap, Trails, Zone } from '../overlays/floor.js';
 import { base } from './base.js';
+import { cross, floorPointOn, rng } from './kit/util.js';
 
 export const meta = {
   tour: ['track', 'line', 'heat'],
@@ -21,14 +22,6 @@ export const meta = {
     { id: 'heat', title: 'Heatmap', caption: 'Where people stood, summed over time.', hint: 'Drag the rail: people re-route around it.' },
   ],
 };
-
-// Deterministic randomness, so QA runs repeat.
-function rng(seed) {
-  let s = seed >>> 0;
-  return () => ((s = (s * 1664525 + 1013904223) >>> 0) / 4294967296);
-}
-
-const cross = (ax, az, bx, bz) => ax * bz - az * bx;
 
 export async function create(ctx) {
   const { stage, labels } = ctx;
@@ -178,14 +171,7 @@ export async function create(ctx) {
   };
   place();
 
-  const floorPt = (ray) => {
-    const p = b.floorPoint(ray);
-    if (!p) return null;
-    const A = b.area(0.05);
-    p.x = Math.min(A.x1, Math.max(A.x0, p.x));
-    p.z = Math.min(A.z1, Math.max(A.z0, p.z));
-    return p;
-  };
+  const floorPt = (ray) => floorPointOn(b, ray);
 
   return {
     chapters,

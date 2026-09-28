@@ -12,7 +12,7 @@ export const experience = [
     points: [
       {
         title: 'ConstructSafe detection engine',
-        body: 'Top contributor to the team’s construction-safety platform: YOLOv8 PPE detection, MoveNet fall detection, face identification of violators, ONNX Runtime export (1.31× faster) and S3-backed alert evidence.',
+        body: 'Top contributor to the team’s construction-safety platform: YOLOv8 PPE detection, MoveNet fall detection, face matching to workers in the live view, an ONNX Runtime export (1.31× faster in its benchmark) and S3-backed alert evidence.',
         project: 'constructsafe',
       },
       {

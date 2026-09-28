@@ -3,9 +3,10 @@
  *
  *   node scripts/qa/framing.mjs [--url http://localhost:3000]
  *
- * For the flagship's diorama as a card (1024, 1440 and 1920 wide), in its
- * case study, in full screen, and on a phone after the tap, it projects the
- * silhouette hull (the same points the fit uses) into the media box and checks:
+ * For every project with a diorama: as a card (1024, 1440 and 1920 wide), in
+ * its case study and in full screen (at 1440), and on a phone after the tap,
+ * it projects the silhouette hull (the same points the fit uses) into the
+ * media box and checks:
  *   - the binding dimension is filled 70 to 96% (the rest is breathing room)
  *   - every edge keeps a margin of at least 3%
  *   - on a card, the caption chip never overlaps the silhouette's box
@@ -13,7 +14,7 @@
  */
 import { join } from 'node:path';
 
-import { OUT, args, launch, watchConsole } from './lib.mjs';
+import { OUT, SOFTWARE_GL, args, launch, watchConsole } from './lib.mjs';
 
 const opts = args();
 const results = [];
@@ -72,7 +73,9 @@ async function judge(page, name, sel) {
 }
 
 const { browser } = await launch();
-const flag = '.flagship .media';
+const cardOf = (id) => `#main-content .media[data-id="${id}"]`;
+const hero = '#project-detail .pd-hero-media .media';
+let ids = null;
 
 for (const w of [1024, 1440, 1920]) {
   const context = await browser.newContext({ viewport: { width: w, height: Math.round(w * 0.6) } });
@@ -80,52 +83,62 @@ for (const w of [1024, 1440, 1920]) {
   const errors = watchConsole(page);
   await page.goto(`${opts.url}/?3d=force`);
   await page.waitForFunction(() => window.__portfolio?.lenis, null, { timeout: 15000 });
-  await page.evaluate((s) => window.__portfolio.lenis.scrollTo(document.querySelector(s), { immediate: true, force: true, offset: -120 }), flag);
-  await page.waitForFunction((s) => document.querySelector(s)?.dataset['3d'] === 'live', flag, { timeout: 30000 });
-  await page.waitForTimeout(1800);
-  await judge(page, `card ${w}`, flag);
+  ids ??= await page.$$eval('#main-content .media[data-scene]', (ms) => ms.map((m) => m.dataset.id));
+  for (const id of ids) {
+    const sel = cardOf(id);
+    await page.evaluate((q) => window.__portfolio.lenis.scrollTo(document.querySelector(q), { immediate: true, force: true, offset: -120 }), sel);
+    const live = await page.waitForFunction((q) => document.querySelector(q)?.dataset['3d'] === 'live', sel, { timeout: 30000 }).then(() => true).catch(() => false);
+    check(`card ${id} ${w}: goes live`, live);
+    if (!live) continue;
+    await page.waitForTimeout(1800);
+    await judge(page, `card ${id} ${w}`, sel);
+  }
 
   if (w === 1440) {
-    // Every other project with a diorama, as its card.
-    const others = await page.$$eval('#main-content .media[data-scene]', (ms) => ms.filter((m) => !m.closest('.flagship')).map((m) => m.dataset.id));
-    for (const pid of others) {
-      const sel = `#main-content .media[data-id="${pid}"]`;
-      await page.evaluate((q) => window.__portfolio.lenis.scrollTo(document.querySelector(q), { immediate: true, force: true, offset: -120 }), sel);
-      const live = await page.waitForFunction((q) => document.querySelector(q)?.dataset['3d'] === 'live', sel, { timeout: 30000 }).then(() => true).catch(() => false);
-      check(`card ${pid} 1440: goes live`, live);
-      if (!live) continue;
-      await page.waitForTimeout(1800);
-      await judge(page, `card ${pid} 1440`, sel);
+    // Each one's case study, then full screen.
+    for (const id of ids) {
+      await page.evaluate((pid) => (location.hash = `#/project/${pid}`), id);
+      const live = await page.waitForFunction((s) => document.querySelector(s)?.dataset['3d'] === 'live', hero, { timeout: 30000 }).then(() => true).catch(() => false);
+      check(`case ${id} 1440: goes live`, live);
+      if (live) {
+        await page.waitForTimeout(1500);
+        await page.$eval(hero, (m) => m.scrollIntoView({ block: 'center' }));
+        await page.waitForTimeout(400);
+        await judge(page, `case ${id} 1440`, hero);
+        await page.click('#project-detail [data-tool="full"]').catch(() => {});
+        await page.waitForTimeout(1500);
+        if (await page.evaluate(() => !!document.fullscreenElement)) {
+          await judge(page, `full screen ${id}`, hero);
+          await page.evaluate(() => document.exitFullscreen?.());
+          await page.waitForTimeout(600);
+        } else console.log(`     full screen not available headless (${id})`);
+      }
+      await page.keyboard.press('Escape');
+      await page.waitForFunction(() => !document.body.classList.contains('detail-open'), null, { timeout: 5000 }).catch(() => {});
+      await page.waitForTimeout(600);
     }
-    await page.evaluate((q) => window.__portfolio.lenis.scrollTo(document.querySelector(q), { immediate: true, force: true, offset: -120 }), flag);
-    await page.waitForTimeout(800);
-    await page.locator(flag).click({ position: { x: 16, y: 16 } });
-    const hero = '#project-detail .pd-hero-media .media';
-    await page.waitForFunction((s) => document.querySelector(s)?.dataset['3d'] === 'live', hero, { timeout: 30000 });
-    await page.waitForTimeout(1500);
-    await page.$eval(hero, (m) => m.scrollIntoView({ block: 'center' }));
-    await page.waitForTimeout(400);
-    await judge(page, 'case 1440', hero);
-    await page.click('#project-detail [data-tool="full"]').catch(() => {});
-    await page.waitForTimeout(1500);
-    if (await page.evaluate(() => !!document.fullscreenElement)) await judge(page, 'full screen', hero);
-    else console.log('     full screen not available headless');
   }
-  check(`card ${w}: no console errors`, errors.length === 0, errors.slice(0, 3).join(' | '));
+  check(`page ${w}: no console errors`, errors.length === 0, errors.slice(0, 3).join(' | '));
   await context.close();
 }
 
-{
+// A phone: each diorama after its tap. (Off Windows, ?swgl lets the software
+// renderer through the performance caveat; the gate still asks for the tap.)
+for (const id of ids ?? []) {
   const context = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true });
   const page = await context.newPage();
-  await page.goto(opts.url);
+  const sel = cardOf(id);
+  await page.goto(`${opts.url}/${SOFTWARE_GL ? '?swgl' : ''}`);
   await page.waitForFunction(() => window.__portfolio, null, { timeout: 15000 });
-  await page.$eval(flag, (m) => m.scrollIntoView({ block: 'center' }));
+  await page.$eval(sel, (m) => m.scrollIntoView({ block: 'center' }));
   await page.waitForTimeout(1200);
-  await page.tap('.flagship .media-3d-play');
-  await page.waitForFunction((s) => ['live', 'paused'].includes(document.querySelector(s)?.dataset['3d']), flag, { timeout: 30000 });
-  await page.waitForTimeout(1500);
-  await judge(page, 'phone 390', flag);
+  await page.tap(`${sel} .media-3d-play`);
+  const live = await page.waitForFunction((s) => ['live', 'paused'].includes(document.querySelector(s)?.dataset['3d']), sel, { timeout: 30000 }).then(() => true).catch(() => false);
+  check(`phone 390 ${id}: goes live after the tap`, live);
+  if (live) {
+    await page.waitForTimeout(1500);
+    await judge(page, `phone 390 ${id}`, sel);
+  }
   await context.close();
 }
 

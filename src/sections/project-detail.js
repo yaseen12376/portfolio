@@ -71,7 +71,7 @@ function detailMarkup(p) {
         <p class="pd-short">${esc(p.short)}</p>
       </header>
 
-      <div class="shell pd-hero-media is-locked"><div class="core">${mediaMarkup(p, { eager: true })}</div></div>
+      <div class="shell pd-hero-media is-locked"><div class="core">${mediaMarkup(p, { eager: true, square: true })}</div></div>
       ${p.scene3d?.chapters?.length ? '<div class="pd-explorer-mount"></div>' : ''}
 
       <div class="pd-layout">

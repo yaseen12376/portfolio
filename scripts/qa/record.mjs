@@ -3,7 +3,7 @@
  *
  *   node scripts/qa/record.mjs [--url http://localhost:3000] [--project retail-analytics]
  *
- * Writes build/qa/rec/: 1-card-tour.webm (the flagship card's tour, as a
+ * Writes build/qa/rec/<project>/: 1-card-tour.webm (the card's tour, as a
  * visitor scrolling past sees it), 2-case-explorer.webm (the case study, each
  * chapter chosen and its feature operated), 3-phone.webm (390 px: the tap,
  * then the tour). Recorded on the discrete GPU.
@@ -11,15 +11,15 @@
 import { readdir, rename, rm } from 'node:fs/promises';
 import { join } from 'node:path';
 
-import { args, ensureOut, launch } from './lib.mjs';
+import { SOFTWARE_GL, args, ensureOut, launch } from './lib.mjs';
 
 const opts = args();
 const id = opts.project ?? 'retail-analytics';
-const out = await ensureOut('rec');
+const out = await ensureOut('rec', id);
 const { browser } = await launch({ discrete: true });
 
 async function record(name, contextOpts, run) {
-  const tmp = await ensureOut('rec', '_tmp');
+  const tmp = await ensureOut('rec', id, '_tmp');
   const context = await browser.newContext({ ...contextOpts, recordVideo: { dir: tmp, size: contextOpts.viewport } });
   const page = await context.newPage();
   await run(page);
@@ -51,6 +51,8 @@ await record('2-case-explorer', { viewport: { width: 1440, height: 1000 } }, asy
   await page.waitForFunction((s) => document.querySelector(s)?.dataset['3d'] === 'live', card, { timeout: 30000 });
   await pause(page, 1500);
   await page.locator(card).click({ position: { x: 16, y: 16 } });
+  // (A pinned stack card that isn't the current one doesn't open on a click: go by its address.)
+  if (!(await page.evaluate(() => location.hash.startsWith('#/project/')))) await page.evaluate((pid) => (location.hash = `#/project/${pid}`), id);
   await page.waitForFunction((s) => document.querySelector(s)?.dataset['3d'] === 'live', hero, { timeout: 30000 });
   await pause(page, 1200);
   await page.evaluate((s) => window.__portfolio.lenis.scrollTo(document.querySelector(s), { force: true, offset: -24, duration: 1.2 }), '#project-detail .pd-hero-media');
@@ -91,7 +93,8 @@ await record('2-case-explorer', { viewport: { width: 1440, height: 1000 } }, asy
 
 // 3. A phone: the tap, then the tour.
 await record('3-phone', { viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true }, async (page) => {
-  await page.goto(opts.url);
+  // (Off Windows, ?swgl lets the software renderer through the performance caveat once tapped.)
+  await page.goto(`${opts.url}/${SOFTWARE_GL ? '?swgl' : ''}`);
   await page.waitForFunction(() => window.__portfolio, null, { timeout: 15000 });
   await page.$eval(card, (m) => m.scrollIntoView({ block: 'center', behavior: 'smooth' }));
   await pause(page, 2500);

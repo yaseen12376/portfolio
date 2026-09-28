@@ -35,7 +35,9 @@ class Engine {
       antialias: false, // the scene target is multisampled; the composite needs none
       alpha: false,
       powerPreference: 'high-performance',
-      failIfMajorPerformanceCaveat: !/[?&]3d=(force|cal)\b/.test(location.search),
+      // QA without a GPU: ?3d=force skips the gate too, ?swgl only lets a
+      // software renderer through (so a phone QA run still has to tap).
+      failIfMajorPerformanceCaveat: !/[?&](3d=(force|cal)|swgl)\b/.test(location.search),
     });
     const r = this.renderer;
     r.setPixelRatio(1); // sizes are device pixels already

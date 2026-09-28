@@ -52,3 +52,27 @@ export function jobBoard({ people, districts, rand, staff, customer }) {
 
   return { next, staffIn, standingBy, customerBy, staffNear };
 }
+
+/**
+ * Somewhere to stand by `c` for a word: a pace (0.85 m) off, on open floor in
+ * sight of them, not in a walk-through district, clear of everyone else;
+ * the nearest such place to `a`, or null. `n` places round `c` are tried
+ * (each scene keeps its own count, so its people keep their paths).
+ */
+export function besideOf(c, a, { grid, districts, people, n = 12 }) {
+  let best = null;
+  let bd = Infinity;
+  for (let k = 0; k < n; k++) {
+    const t = (k / n) * Math.PI * 2;
+    const x = c.pos.x + Math.sin(t) * 0.85;
+    const z = c.pos.y + Math.cos(t) * 0.85;
+    if (!grid.free(x, z) || !grid.los(c.pos.x, c.pos.y, x, z) || districts.of(x, z)?.walkThrough) continue;
+    if (people.some((p) => p !== a && p !== c && p.visible && Math.hypot(p.pos.x - x, p.pos.y - z) < 0.7)) continue;
+    const d = Math.hypot(x - a.pos.x, z - a.pos.y);
+    if (d < bd) {
+      bd = d;
+      best = { x, z };
+    }
+  }
+  return best;
+}

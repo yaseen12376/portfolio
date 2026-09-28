@@ -3,9 +3,12 @@
  * bench switches to each chapter and runs its qa(), which operates the
  * feature through the simulation and checks what the product would do.
  *
- *   node scripts/qa/features.mjs [ids...] [--url http://localhost:3000]
+ *   node scripts/qa/features.mjs [ids...] [--url http://localhost:3000] [--json out.json]
+ *
+ * --json writes every check's result, detail included, so two runs (before
+ * and after a refactor) can be diffed exactly.
  */
-import { existsSync, readdirSync } from 'node:fs';
+import { existsSync, readdirSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 
 import { ROOT, args, bench, launch, watchConsole } from './lib.mjs';
@@ -18,9 +21,11 @@ const page = await context.newPage();
 const errors = watchConsole(page);
 let failed = 0;
 let total = 0;
+const dump = {};
 for (const id of ids) {
   await bench(page, opts.url, id, { w: 640, h: 360, still: true });
   const res = await page.evaluate(() => window.qa.chapterQA());
+  dump[id] = res;
   console.log(`\n${id}`);
   for (const [chapter, checks] of Object.entries(res)) {
     for (const c of checks) {
@@ -32,5 +37,6 @@ for (const id of ids) {
 }
 if (errors.length) console.log('\nconsole:\n  ' + errors.join('\n  '));
 console.log(`\n${total - failed}/${total} passed`);
+if (opts.json) writeFileSync(opts.json, JSON.stringify(dump, null, 1));
 await browser.close();
 process.exit(failed || errors.length ? 1 : 0);

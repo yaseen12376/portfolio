@@ -46,8 +46,12 @@
  *   - staff apart: two members of staff standing within 1.5 m of each other
  *     at most 15% of the time
  * Each scene is run from --seeds different random starts (default 1,2).
+ * --json out.json writes every run's measurements; with --still each run
+ * starts from the t = 0 frame rather than after however many live frames the
+ * page drew first, so two runs (before and after a refactor) repeat exactly
+ * and can be diffed.
  */
-import { existsSync, readdirSync } from 'node:fs';
+import { existsSync, readdirSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 
 import { ROOT, args, bench, launch, watchConsole } from './lib.mjs';
@@ -58,6 +62,7 @@ const SEEDS = String(opts.seeds ?? '1,2').split(',').map(Number);
 const PUBLIC = resolve(ROOT, 'public', '3d');
 const ids = opts._.length ? opts._ : readdirSync(PUBLIC).filter((d) => !d.startsWith('_') && existsSync(resolve(PUBLIC, d, 'scene.json')));
 const results = [];
+const dump = {};
 const check = (name, ok, detail = '') => {
   results.push({ name, ok, detail });
   console.log(`${ok ? 'ok  ' : 'FAIL'} ${name}${detail ? ` · ${detail}` : ''}`);
@@ -69,7 +74,7 @@ const errors = watchConsole(page);
 for (const id of ids) {
   const runs = [];
   for (const seed of SEEDS) {
-  await bench(page, opts.url, id, { w: 800, h: 500, seed });
+  await bench(page, opts.url, id, { w: 800, h: 500, seed, still: !!opts.still });
   runs.push(...(await page.evaluate((secs) => {
     const out = [window.qa.simulate(secs)];
     // After hours and back, where the scene has it: everyone leaves, someone comes and goes.
@@ -85,6 +90,7 @@ for (const id of ids) {
     return out;
   }, SECS)));
   }
+  dump[id] = runs;
   const all = (k, f) => runs.map((r) => r[k]).reduce((a, b) => f(a, b));
   const popped = runs.flatMap((r) => r.popped);
   check(`${id}: nobody appears or vanishes outside a portal`, popped.length === 0, popped.slice(0, 3).join(' | '));
@@ -135,4 +141,5 @@ check('no console errors', errors.length === 0, errors.slice(0, 3).join(' | '));
 await browser.close();
 const failed = results.filter((r) => !r.ok).length;
 console.log(`\n${results.length - failed}/${results.length} passed`);
+if (opts.json) writeFileSync(opts.json, JSON.stringify(dump, null, 1));
 process.exit(failed ? 1 : 0);
