@@ -1,0 +1,560 @@
+{
+ "en": {
+  "stages": [
+   {
+    "step": "memory",
+    "status": "start",
+    "ms": 0
+   },
+   {
+    "step": "memory",
+    "status": "done",
+    "ms": 1,
+    "detail": "No saved profile"
+   },
+   {
+    "step": "calc",
+    "status": "start",
+    "ms": 0
+   },
+   {
+    "step": "calc",
+    "status": "done",
+    "ms": 13,
+    "detail": "45 calculation steps"
+   },
+   {
+    "step": "retrieve",
+    "status": "start",
+    "ms": 0
+   },
+   {
+    "step": "retrieve",
+    "status": "done",
+    "ms": 171,
+    "detail": "4 official passages"
+   },
+   {
+    "step": "llm",
+    "status": "start",
+    "ms": 0,
+    "detail": "qwen3.5:4b"
+   },
+   {
+    "step": "llm",
+    "status": "done",
+    "ms": 13701,
+    "detail": "Explanation drafted"
+   },
+   {
+    "step": "safety",
+    "status": "start",
+    "ms": 0
+   },
+   {
+    "step": "safety",
+    "status": "retry",
+    "ms": 5,
+    "detail": "Asking the model to fix: Numbers match calculator"
+   },
+   {
+    "step": "safety",
+    "status": "done",
+    "ms": 3979,
+    "detail": "4/4 checks passed"
+   }
+  ],
+  "wall": 17.91,
+  "fireImpact": "The required monthly SIP of ₹74,500 exceeds your current investment of ₹20,000, making full FIRE at age 50 unlikely without increasing contributions significantly. The single most critical lever to reach your target corpus of ₹6.99 Cr is raising your monthly SIP amount from ₹20,000 to ₹74,500.",
+  "milestones": [
+   "Increase monthly SIP by ₹54,500 to meet FIRE goal",
+   "Open emergency fund covering ₹3.6 L expenses",
+   "Secure term life cover of ₹2.46 Cr for family",
+   "Take home health floater policy worth ₹10 L",
+   "Opt for New Regime tax saving ₹1.19 L"
+  ],
+  "sipAllocation": [
+   "Nifty 50 / Sensex index fund, direct plan",
+   "Diversified active or index flexi-cap, direct plan",
+   "Global index FoF or gold fund for diversification",
+   "Government-backed, tax-efficient debt",
+   "For goals and rebalancing liquidity"
+  ],
+  "trust": {
+   "checks": [
+    {
+     "key": "source",
+     "label": "Sources",
+     "passed": true,
+     "detail": "0 citation(s) to 4 retrieved source(s)"
+    },
+    {
+     "key": "numbers",
+     "label": "Numbers match calculator",
+     "passed": true,
+     "detail": "10 ₹ figure(s) verified against the engine"
+    },
+    {
+     "key": "output",
+     "label": "Output validated",
+     "passed": true,
+     "detail": "Response matched the expected structure"
+    },
+    {
+     "key": "products",
+     "label": "Category-level only",
+     "passed": true,
+     "detail": "No named schemes or fund houses recommended"
+    },
+    {
+     "key": "consistency",
+     "label": "Consistent with calculator",
+     "passed": true,
+     "detail": "Agrees that the new regime is better"
+    }
+   ],
+   "warnings": [],
+   "groundedScore": 100,
+   "explanationSource": "llm",
+   "disclaimer": "Educational guidance generated on this device, not investment, tax or legal advice. Numbers come from a deterministic calculator; verify important decisions with a SEBI-registered adviser or a Chartered Accountant."
+  },
+  "source": "llm",
+  "latencyMs": 17867,
+  "citations": [
+   [
+    "S1",
+    "FAQs on New vs Old Tax Regime",
+    "202"
+   ],
+   [
+    "S2",
+    "FAQs for Mutual Fund Investors",
+    "123"
+   ],
+   [
+    "S3",
+    "FAQs on New vs Old Tax Regime",
+    "202"
+   ],
+   [
+    "S4",
+    "FAQs on New vs Old Tax Regime",
+    "202"
+   ]
+  ]
+ },
+ "hi": {
+  "stages": [
+   {
+    "step": "memory",
+    "status": "start",
+    "ms": 0
+   },
+   {
+    "step": "memory",
+    "status": "done",
+    "ms": 1,
+    "detail": "No saved profile"
+   },
+   {
+    "step": "calc",
+    "status": "start",
+    "ms": 0
+   },
+   {
+    "step": "calc",
+    "status": "done",
+    "ms": 8,
+    "detail": "45 calculation steps"
+   },
+   {
+    "step": "retrieve",
+    "status": "start",
+    "ms": 0
+   },
+   {
+    "step": "retrieve",
+    "status": "done",
+    "ms": 4928,
+    "detail": "4 official passages"
+   },
+   {
+    "step": "llm",
+    "status": "start",
+    "ms": 0,
+    "detail": "qwen3.5:4b"
+   },
+   {
+    "step": "llm",
+    "status": "done",
+    "ms": 14267,
+    "detail": "Explanation drafted"
+   },
+   {
+    "step": "safety",
+    "status": "start",
+    "ms": 0
+   },
+   {
+    "step": "safety",
+    "status": "done",
+    "ms": 1,
+    "detail": "4/4 checks passed"
+   }
+  ],
+  "wall": 19.22,
+  "fireImpact": "आपकी मासिक बचत में ₹54,500 और ₹74,500 की SIP जोड़ने से FIRE लक्ष्य तक पहुँचना संभव है, लेकिन सबसे महत्वपूर्ण कारक आपके वर्तमान बचत क्षमता (₹8,00,000) है।",
+  "milestones": [
+   "₹54,500 मासिक SIP शुरू करें",
+   "₹3,60,000 आपातकालीन फंड भरें",
+   "₹2.46 करोड़ टर्म लाइफ कवर लें",
+   "₹10 लाख स्वास्थ्य बीमा लें",
+   "₹75,000 स्टैंडर्ड डेडक्शन चुनें"
+  ],
+  "sipAllocation": [
+   "Nifty 50 / Sensex index fund, direct plan",
+   "Diversified active or index flexi-cap, direct plan",
+   "Global index FoF or gold fund for diversification",
+   "Government-backed, tax-efficient debt",
+   "For goals and rebalancing liquidity"
+  ],
+  "trust": {
+   "checks": [
+    {
+     "key": "source",
+     "label": "Sources",
+     "passed": true,
+     "detail": "0 citation(s) to 4 retrieved source(s)"
+    },
+    {
+     "key": "numbers",
+     "label": "Numbers match calculator",
+     "passed": true,
+     "detail": "8 ₹ figure(s) verified against the engine"
+    },
+    {
+     "key": "output",
+     "label": "Output validated",
+     "passed": true,
+     "detail": "Response matched the expected structure"
+    },
+    {
+     "key": "products",
+     "label": "Category-level only",
+     "passed": true,
+     "detail": "No named schemes or fund houses recommended"
+    },
+    {
+     "key": "consistency",
+     "label": "Consistent with calculator",
+     "passed": true,
+     "detail": "Agrees that the new regime is better"
+    }
+   ],
+   "warnings": [],
+   "groundedScore": 100,
+   "explanationSource": "llm",
+   "disclaimer": "Educational guidance generated on this device, not investment, tax or legal advice. Numbers come from a deterministic calculator; verify important decisions with a SEBI-registered adviser or a Chartered Accountant."
+  },
+  "source": "llm",
+  "latencyMs": 19206,
+  "citations": [
+   [
+    "S1",
+    "FAQs on New vs Old Tax Regime",
+    "202"
+   ],
+   [
+    "S2",
+    "FAQs for Mutual Fund Investors",
+    "123"
+   ],
+   [
+    "S3",
+    "FAQs on New vs Old Tax Regime",
+    "202"
+   ],
+   [
+    "S4",
+    "FAQs on New vs Old Tax Regime",
+    "202"
+   ]
+  ]
+ },
+ "te": {
+  "stages": [
+   {
+    "step": "memory",
+    "status": "start",
+    "ms": 0
+   },
+   {
+    "step": "memory",
+    "status": "done",
+    "ms": 0,
+    "detail": "No saved profile"
+   },
+   {
+    "step": "calc",
+    "status": "start",
+    "ms": 0
+   },
+   {
+    "step": "calc",
+    "status": "done",
+    "ms": 8,
+    "detail": "45 calculation steps"
+   },
+   {
+    "step": "retrieve",
+    "status": "start",
+    "ms": 0
+   },
+   {
+    "step": "retrieve",
+    "status": "done",
+    "ms": 4925,
+    "detail": "4 official passages"
+   },
+   {
+    "step": "llm",
+    "status": "start",
+    "ms": 0,
+    "detail": "qwen3.5:4b"
+   },
+   {
+    "step": "llm",
+    "status": "done",
+    "ms": 15974,
+    "detail": "Explanation drafted"
+   },
+   {
+    "step": "safety",
+    "status": "start",
+    "ms": 0
+   },
+   {
+    "step": "safety",
+    "status": "done",
+    "ms": 1,
+    "detail": "4/4 checks passed"
+   }
+  ],
+  "wall": 20.91,
+  "fireImpact": "సీపిఐ (SIP) పరిమాణం ₹74,500 మీసేతానీయ సేకరణకు అనుగుణంగా ఉంది, కానీ మీరు ఇప్పుడు మాత్రమే ₹20,000 పెట్టుబడి చేస్తున్నారు. ఈ ప్రక్రియలో అత్యంత ముఖ్యమైన కారకం మీ పరిపాలన యొక్క వయస్సు (retirement age) మరియు ఆర్థిక వినియోగం.",
+  "milestones": [
+   "₹54,500 నెలవారీ సీపిఐను ప్రారంభించండి",
+   "మీరు పొందే మొత్తాన్ని ₹6.99 కోట్లుగా పెంచుకోండి",
+   "ఆర్థిక వినియోగం 50 వ సంవత్సరంలో ₹24,47,686 అవుతుంది",
+   "దీనిని సేకరించడానికి మీరు 35 సంవత్సరాలు పడుతున్నారు",
+   "మీ ఆర్థిక భద్రతను నిర్ధారించుకోండి"
+  ],
+  "sipAllocation": [
+   "Nifty 50 / Sensex index fund, direct plan",
+   "Diversified active or index flexi-cap, direct plan",
+   "Global index FoF or gold fund for diversification",
+   "Government-backed, tax-efficient debt",
+   "For goals and rebalancing liquidity"
+  ],
+  "trust": {
+   "checks": [
+    {
+     "key": "source",
+     "label": "Sources",
+     "passed": true,
+     "detail": "0 citation(s) to 4 retrieved source(s)"
+    },
+    {
+     "key": "numbers",
+     "label": "Numbers match calculator",
+     "passed": true,
+     "detail": "5 ₹ figure(s) verified against the engine"
+    },
+    {
+     "key": "output",
+     "label": "Output validated",
+     "passed": true,
+     "detail": "Response matched the expected structure"
+    },
+    {
+     "key": "products",
+     "label": "Category-level only",
+     "passed": true,
+     "detail": "No named schemes or fund houses recommended"
+    },
+    {
+     "key": "consistency",
+     "label": "Consistent with calculator",
+     "passed": true,
+     "detail": "Agrees that the new regime is better"
+    }
+   ],
+   "warnings": [],
+   "groundedScore": 100,
+   "explanationSource": "llm",
+   "disclaimer": "Educational guidance generated on this device, not investment, tax or legal advice. Numbers come from a deterministic calculator; verify important decisions with a SEBI-registered adviser or a Chartered Accountant."
+  },
+  "source": "llm",
+  "latencyMs": 20910,
+  "citations": [
+   [
+    "S1",
+    "FAQs on New vs Old Tax Regime",
+    "202"
+   ],
+   [
+    "S2",
+    "FAQs for Mutual Fund Investors",
+    "123"
+   ],
+   [
+    "S3",
+    "FAQs on New vs Old Tax Regime",
+    "202"
+   ],
+   [
+    "S4",
+    "FAQs on New vs Old Tax Regime",
+    "202"
+   ]
+  ]
+ },
+ "ta": {
+  "stages": [
+   {
+    "step": "memory",
+    "status": "start",
+    "ms": 0
+   },
+   {
+    "step": "memory",
+    "status": "done",
+    "ms": 1,
+    "detail": "No saved profile"
+   },
+   {
+    "step": "calc",
+    "status": "start",
+    "ms": 0
+   },
+   {
+    "step": "calc",
+    "status": "done",
+    "ms": 8,
+    "detail": "45 calculation steps"
+   },
+   {
+    "step": "retrieve",
+    "status": "start",
+    "ms": 0
+   },
+   {
+    "step": "retrieve",
+    "status": "done",
+    "ms": 4858,
+    "detail": "4 official passages"
+   },
+   {
+    "step": "llm",
+    "status": "start",
+    "ms": 0,
+    "detail": "qwen3.5:4b"
+   },
+   {
+    "step": "llm",
+    "status": "done",
+    "ms": 15598,
+    "detail": "Explanation drafted"
+   },
+   {
+    "step": "safety",
+    "status": "start",
+    "ms": 0
+   },
+   {
+    "step": "safety",
+    "status": "done",
+    "ms": 1,
+    "detail": "4/4 checks passed"
+   }
+  ],
+  "wall": 20.49,
+  "fireImpact": "தற்போதைய மாதச் செலவு ₹7,20,000 மற்றும் பிறப்பு வயது 50-ல் செலவு ₹24,47,686 ஆக உயரும். நம்பிக்கை இழப்பு வீதம் 3.5% என்பதால், தேவையான தொகை ₹6.99 கோடி.",
+  "milestones": [
+   "தற்போதைய SIP ₹20,000-ஐ மேலும் ₹54,500 ஆக அதிகரிக்கவும்.",
+   "நாள் தலைமைத் தொகை மற்றும் நோய் பாதுகாப்பு உத்தரவாதத்தைச் சேர்க்கவும்.",
+   "தற்போதைய செலவுகளைக் குறைத்து மாதச் சேமிப்பை 50% ஆக மாற்றவும்.",
+   "6 வருடங்களில் வீட்டுத் தொகையைப் பெறுவதற்காக ஹைபிரிட் பங்குச் சேமையைத் தேர்ந்தெடுக்கவும்.",
+   "பொதுவான வயோதி 50-ல் நிறைவேறும் முன்னரே நிதியில்லாமைக்குப் போகவும்."
+  ],
+  "sipAllocation": [
+   "Nifty 50 / Sensex index fund, direct plan",
+   "Diversified active or index flexi-cap, direct plan",
+   "Global index FoF or gold fund for diversification",
+   "Government-backed, tax-efficient debt",
+   "For goals and rebalancing liquidity"
+  ],
+  "trust": {
+   "checks": [
+    {
+     "key": "source",
+     "label": "Sources",
+     "passed": true,
+     "detail": "0 citation(s) to 4 retrieved source(s)"
+    },
+    {
+     "key": "numbers",
+     "label": "Numbers match calculator",
+     "passed": true,
+     "detail": "5 ₹ figure(s) verified against the engine"
+    },
+    {
+     "key": "output",
+     "label": "Output validated",
+     "passed": true,
+     "detail": "Response matched the expected structure"
+    },
+    {
+     "key": "products",
+     "label": "Category-level only",
+     "passed": true,
+     "detail": "No named schemes or fund houses recommended"
+    },
+    {
+     "key": "consistency",
+     "label": "Consistent with calculator",
+     "passed": true,
+     "detail": "Agrees that the new regime is better"
+    }
+   ],
+   "warnings": [],
+   "groundedScore": 100,
+   "explanationSource": "llm",
+   "disclaimer": "Educational guidance generated on this device, not investment, tax or legal advice. Numbers come from a deterministic calculator; verify important decisions with a SEBI-registered adviser or a Chartered Accountant."
+  },
+  "source": "llm",
+  "latencyMs": 20467,
+  "citations": [
+   [
+    "S1",
+    "FAQs on New vs Old Tax Regime",
+    "202"
+   ],
+   [
+    "S2",
+    "FAQs for Mutual Fund Investors",
+    "123"
+   ],
+   [
+    "S3",
+    "FAQs on New vs Old Tax Regime",
+    "202"
+   ],
+   [
+    "S4",
+    "FAQs on New vs Old Tax Regime",
+    "202"
+   ]
+  ]
+ }
+}

@@ -356,11 +356,15 @@ def realize(o):
 
 
 def text(name, body, size=0.05, depth=0.002, loc=(0, 0, 0), rot=(90, 0, 0), col=None, material=None,
-         align='CENTER', role='set', font_path=None, **extras):
+         align='CENTER', role='set', font_path=None, resolution=None, **extras):
+    """`resolution`: the glyph curves' subdivisions (Blender's default, 12,
+    when None); small printed labels read the same at 2 with a sixth of the triangles."""
     cu = bpy.data.curves.new(name, 'FONT')
     cu.body = body
     cu.size = size
     cu.extrude = depth
+    if resolution:
+        cu.resolution_u = resolution
     cu.align_x = align
     cu.align_y = 'CENTER'
     if font_path:

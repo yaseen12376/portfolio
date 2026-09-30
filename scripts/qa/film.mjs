@@ -37,10 +37,19 @@ const PIP_W = Math.round((PIP_H * 16) / 9);
 const out = await ensureOut('film', id);
 
 function ffmpegPath() {
-  const root = process.env.PLAYWRIGHT_BROWSERS_PATH ?? resolve(process.env.HOME ?? '', '.cache', 'ms-playwright');
-  const dir = existsSync(root) && readdirSync(root).find((d) => d.startsWith('ffmpeg'));
-  const exe = dir && ['ffmpeg-linux', 'ffmpeg-win64.exe', 'ffmpeg-mac'].map((f) => resolve(root, dir, f)).find(existsSync);
-  return process.env.FFMPEG ?? exe ?? 'ffmpeg';
+  // Where Playwright keeps its browsers (and ffmpeg): Linux, Windows and macOS defaults.
+  const roots = [
+    process.env.PLAYWRIGHT_BROWSERS_PATH,
+    process.env.LOCALAPPDATA && resolve(process.env.LOCALAPPDATA, 'ms-playwright'),
+    process.env.HOME && resolve(process.env.HOME, '.cache', 'ms-playwright'),
+    process.env.HOME && resolve(process.env.HOME, 'Library', 'Caches', 'ms-playwright'),
+  ].filter((r) => r && existsSync(r));
+  for (const root of roots) {
+    const dir = readdirSync(root).find((d) => d.startsWith('ffmpeg'));
+    const exe = dir && ['ffmpeg-linux', 'ffmpeg-win64.exe', 'ffmpeg-mac'].map((f) => resolve(root, dir, f)).find(existsSync);
+    if (exe) return process.env.FFMPEG || exe;
+  }
+  return process.env.FFMPEG || 'ffmpeg';
 }
 
 /** An encoder fed JPEG frames on stdin. */

@@ -1,0 +1,30 @@
+{
+ "id": "finmind",
+ "hash": "abb0e6cb22d36ca1",
+ "triangles": 72402,
+ "drawCalls": 57,
+ "nodes": 22,
+ "animations": 0,
+ "validator": {
+  "errors": 0,
+  "warnings": 0
+ },
+ "sizes": {
+  "env.webp": 5342,
+  "lightmap-small.webp": 498556,
+  "lightmap.webp": 980596,
+  "manifest.json": 545,
+  "poster-960.webp": 43364,
+  "poster-sq.webp": 107450,
+  "poster-wide.webp": 114754,
+  "poster.webp": 112308,
+  "scene.glb": 1093068,
+  "scene.json": 17656
+ },
+ "posters": [
+  "poster.webp",
+  "poster-960.webp",
+  "poster-sq.webp",
+  "poster-wide.webp"
+ ]
+}

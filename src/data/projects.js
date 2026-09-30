@@ -241,7 +241,67 @@ export const projects = [
     role: 'Backend and AI pipeline',
     team: 'Hackathon team project',
     // The public repository's history holds API keys, so it is not linked.
-    poster: null,
+    poster: '/3d/finmind/poster.webp',
+    scene3d: {
+      id: 'finmind',
+      tour: ['tools', 'safety', 'montecarlo'],
+      chapters: [
+        {
+          id: 'tools',
+          title: 'Seven tools, one pipeline',
+          caption: 'FIRE planning, a money health score, a tax wizard, life events, a couples’ planner, a portfolio X-ray and a scam shield all run the same stages: input, memory, calculation, retrieval, context, a local LLM and safety checks. Each stage streams to the app as it finishes. On a measured FIRE plan: 37 ms to calculate, 222 ms to retrieve, 5.3 s for the LLM, 6 ms to check.',
+          hint: 'Pick a tool to ask it a question.',
+        },
+        {
+          id: 'memory',
+          title: 'It remembers you',
+          caption: 'A saved profile loads the person’s age, income, goals and recent questions from SQLite for the model to read, and each answer is filed back afterwards. A guest has no memory.',
+          hint: 'Sign in, or stay a guest.',
+        },
+        {
+          id: 'engine',
+          title: 'A calculator makes the numbers',
+          caption: 'Every rupee figure comes from a Java engine and versioned rules for the 2025-26 and 2026-27 tax years, each step with its formula: 45 steps in 37 ms for this plan. New regime ₹1,19,340, old ₹3,01,080. The 2026-27 rules carry the Income-tax Act 2025’s section numbers.',
+          hint: 'Switch the tax year.',
+        },
+        {
+          id: 'library',
+          title: 'Official sources',
+          caption: '113 passages from four Income Tax Department and SEBI documents, one book each. A vector search (bge-m3, similarity 0.52 or more) and a keyword search (SQLite FTS5) find 8 each, and reciprocal-rank fusion keeps 4. Keyword hits alone count only when a section or form is named.',
+          hint: 'Ask the library a question.',
+        },
+        {
+          id: 'context',
+          title: 'What the model reads',
+          caption: 'Four blocks: the rules, what it remembers about you, the calculator’s lines (the slab-by-slab detail left out) and the sources, citable as S1 to S4. The window is 8,192 tokens, so the sources are never cut off.',
+          hint: 'Open each folder.',
+        },
+        {
+          id: 'scribe',
+          title: 'A model on this machine',
+          caption: 'qwen3.5:4b runs in Ollama through Spring AI, at temperature 0.2 with thinking off: 51 tokens a second with every layer on the GPU, 16 with Ollama’s default split. Unplug the internet and answers still come. Nothing about you is sent.',
+          hint: 'Unplug the internet, or change the GPU split.',
+        },
+        {
+          id: 'safety',
+          title: 'Five checks before it’s shown',
+          caption: 'Sources, every ₹ figure traced to the calculator, output structure, no named fund houses, and agreement with the calculator, weighted 25, 40, 15, 10 and 10 into a trust score. A failing answer goes back once, told exactly what was wrong. If it fails again, the calculator’s own explanation is shown.',
+          hint: 'Slip a made-up figure into the next answer.',
+        },
+        {
+          id: 'languages',
+          title: 'English, Hindi, Telugu, Tamil',
+          caption: 'The model writes in the chosen language but keeps every digit, ₹ figure and section number as the calculator gave it, and the checks run on the translated text. Its wording is weakest in Indian languages; the numbers are guarded.',
+          hint: 'Pick a language.',
+        },
+        {
+          id: 'montecarlo',
+          title: '1,000 futures',
+          caption: 'The plan runs through 1,000 seeded market scenarios (equity σ 18%, debt σ 4%, a glide path from 80% to 30% equity). For this plan, 37% reach the FIRE number at the ₹74,500 a month the calculator asks for.',
+          hint: 'Retire earlier or later, or raise inflation.',
+        },
+      ],
+    },
     metrics: [
       { value: '5', label: 'safety checks on every answer before it is shown' },
       { value: '8/8', label: 'retrieval and answer accuracy on the seed evaluation set' },

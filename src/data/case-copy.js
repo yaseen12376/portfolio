@@ -77,11 +77,11 @@ export const caseCopy = {
     implementation: [
       'Rebuilt the backend as a seven-stage Spring Boot pipeline (input, memory, calculation, retrieval, context, local LLM, safety), streamed to the React UI stage by stage over server-sent events',
       'Wrote the calculation engine in Java from versioned rules files for the 2025-26 and 2026-27 tax years, each value carrying its source and the date it was verified',
-      'Retrieved from 113 passages across 4 official Income Tax Department and SEBI documents, fusing Qdrant vector search with SQLite FTS5 keyword search by reciprocal-rank fusion',
+      'Retrieved from 113 passages across the 4 official Income Tax Department and SEBI documents ingested so far, fusing Qdrant vector search with SQLite FTS5 keyword search by reciprocal-rank fusion',
       'Ran qwen3.5:4b locally through Ollama and Spring AI, so a person’s finances never leave the machine',
-      'Checked every answer five ways: citations, every ₹ figure traced to the engine, output structure, no named fund houses, and agreement with the calculator. A failing answer gets one retry told exactly which figures it may use, then falls back to the calculator’s own explanation',
+      'Checked every answer five ways: citations, every ₹ figure traced to the engine, output structure, no named fund houses, and agreement with the calculator. A planner’s failing answer gets one retry told exactly which figures it may use, then falls back to the calculator’s own explanation; the Tax Wizard’s streamed chat shows a failed check as a warning instead',
       'Projected FIRE plans over 1,000 Monte Carlo market scenarios, and explained answers in Hindi, Telugu and Tamil as well as English',
-      'Measured every stage: 37 ms for calculation, 222 ms for retrieval, 5.3 s for the LLM and 6 ms for the safety checks',
+      'Measured every stage on a FIRE plan: 37 ms for calculation, 222 ms for retrieval, 5.3 s for the LLM and 6 ms for the safety checks',
     ],
     outcomes: [
       'Every rupee figure traceable to a calculation step, never to the model',
@@ -92,6 +92,7 @@ export const caseCopy = {
     limitations: [
       'The tax engine covers resident individuals under 60 with salary income. Capital gains are not modelled yet.',
       'Explanations come from a 4B-parameter model. The safety layer guards the numbers, not the wording, which is weakest in Indian languages.',
+      'Retrieval covers four official documents so far.',
       'Educational guidance, not investment, tax or legal advice.',
     ],
   },

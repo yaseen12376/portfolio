@@ -1,0 +1,610 @@
+[
+ {
+  "id": "regime-80c",
+  "question": "Can I claim 80C deductions under the new tax regime?",
+  "taxYear": "2026-27",
+  "expanded": "Can I claim 80C deductions under the new tax regime? | Section 202 new tax regime (formerly 115BAC)",
+  "exactTerm": true,
+  "keywordUsed": true,
+  "vector": [
+   {
+    "id": "cd7190d0-97d9-44b8-88b9-0d401c66f547",
+    "score": 0.6778,
+    "title": "FAQs on New vs Old Tax Regime",
+    "authority": "Income Tax Department",
+    "section": "139(1)",
+    "text": "New vs. Old Tax Regime> FAQs mployee shall be required to do so separately before the due date specified under section 139(1) for filing of …"
+   },
+   {
+    "id": "eca5a6db-b6ee-422c-9527-a23d2b474486",
+    "score": 0.6565,
+    "title": "FAQs on New vs Old Tax Regime",
+    "authority": "Income Tax Department",
+    "section": "202",
+    "text": "1. Overview ## 1. Overview The Finance Act 2023 has amended the provisions of Section 115BAC w.e.f AY 2024-25 to make new tax regime the def…"
+   },
+   {
+    "id": "1e6b0028-3966-4b2c-9ce9-56037f08af23",
+    "score": 0.6551,
+    "title": "FAQs on New vs Old Tax Regime",
+    "authority": "Income Tax Department",
+    "section": "202",
+    "text": "New vs. Old Tax Regime> FAQs . 12,500/. In the new tax regime, w.e.f 01-04-2024, in case of a resident Individual, the rebate will be applic…"
+   },
+   {
+    "id": "ce828bd7-6556-4fca-8e2f-003d080f7916",
+    "score": 0.6502,
+    "title": "FAQs on New vs Old Tax Regime",
+    "authority": "Income Tax Department",
+    "section": "202",
+    "text": "New vs. Old Tax Regime> FAQs ## New vs. Old Tax Regime> FAQs What is the difference between the old and new tax regime? Ans: The tax slabs a…"
+   },
+   {
+    "id": "1d420fc4-64f3-44f1-95cf-052a6a60ed6a",
+    "score": 0.6072,
+    "title": "FAQs on New vs Old Tax Regime",
+    "authority": "Income Tax Department",
+    "section": "202",
+    "text": "New vs. Old Tax Regime> FAQs ITR. in ITR 1 / ITR 2 Or in ITR 3 and ITR 4 Can I claim deduction of Interest on borrowed capital of Rs. 2,00,0…"
+   },
+   {
+    "id": "498b69ef-e065-48e1-96b9-e1b8a738ef62",
+    "score": 0.5779,
+    "title": "FAQs for Mutual Fund Investors",
+    "authority": "SEBI",
+    "section": "123",
+    "text": "8) Are there any mutual fund schemes launched with the objective to provide tax benefits? 8) Are there any mutual fund schemes launched with…"
+   },
+   {
+    "id": "62d600d5-ecaa-4c94-8c18-5cb25f5c8a92",
+    "score": 0.565,
+    "title": "FAQs on New vs Old Tax Regime",
+    "authority": "Income Tax Department",
+    "section": "139(1)",
+    "text": "New vs. Old Tax Regime> FAQs the new and old tax regimes every year. Within the same year, again it is emphasized that the choice of old tax…"
+   },
+   {
+    "id": "74cf2aa9-afa1-433f-ad7b-f02cb880d520",
+    "score": 0.5289,
+    "title": "FAQs on New vs Old Tax Regime",
+    "authority": "Income Tax Department",
+    "section": "139(1)",
+    "text": "New vs. Old Tax Regime> FAQs the default new tax regime, should I file Form 10-IEA before filing his income tax return (ITR)? Form 10-IEA is…"
+   }
+  ],
+  "keyword": [
+   {
+    "id": "ce828bd7-6556-4fca-8e2f-003d080f7916",
+    "bm25": -16.351,
+    "title": "FAQs on New vs Old Tax Regime",
+    "authority": "Income Tax Department",
+    "section": "202",
+    "text": "New vs. Old Tax Regime> FAQs ## New vs. Old Tax Regime> FAQs What is the difference between the old and new tax regime? Ans: The tax slabs a…"
+   },
+   {
+    "id": "1d420fc4-64f3-44f1-95cf-052a6a60ed6a",
+    "bm25": -16.193,
+    "title": "FAQs on New vs Old Tax Regime",
+    "authority": "Income Tax Department",
+    "section": "202",
+    "text": "New vs. Old Tax Regime> FAQs ITR. in ITR 1 / ITR 2 Or in ITR 3 and ITR 4 Can I claim deduction of Interest on borrowed capital of Rs. 2,00,0…"
+   },
+   {
+    "id": "cd7190d0-97d9-44b8-88b9-0d401c66f547",
+    "bm25": -15.471,
+    "title": "FAQs on New vs Old Tax Regime",
+    "authority": "Income Tax Department",
+    "section": "139(1)",
+    "text": "New vs. Old Tax Regime> FAQs mployee shall be required to do so separately before the due date specified under section 139(1) for filing of …"
+   },
+   {
+    "id": "eca5a6db-b6ee-422c-9527-a23d2b474486",
+    "bm25": -14.314,
+    "title": "FAQs on New vs Old Tax Regime",
+    "authority": "Income Tax Department",
+    "section": "202",
+    "text": "1. Overview ## 1. Overview The Finance Act 2023 has amended the provisions of Section 115BAC w.e.f AY 2024-25 to make new tax regime the def…"
+   },
+   {
+    "id": "1e6b0028-3966-4b2c-9ce9-56037f08af23",
+    "bm25": -13.724,
+    "title": "FAQs on New vs Old Tax Regime",
+    "authority": "Income Tax Department",
+    "section": "202",
+    "text": "New vs. Old Tax Regime> FAQs . 12,500/. In the new tax regime, w.e.f 01-04-2024, in case of a resident Individual, the rebate will be applic…"
+   },
+   {
+    "id": "498b69ef-e065-48e1-96b9-e1b8a738ef62",
+    "bm25": -9.663,
+    "title": "FAQs for Mutual Fund Investors",
+    "authority": "SEBI",
+    "section": "123",
+    "text": "8) Are there any mutual fund schemes launched with the objective to provide tax benefits? 8) Are there any mutual fund schemes launched with…"
+   },
+   {
+    "id": "5a06e68b-d380-42ec-af69-7a1022cfa1da",
+    "bm25": -7.463,
+    "title": "FAQs on New vs Old Tax Regime",
+    "authority": "Income Tax Department",
+    "section": "115BAE",
+    "text": "New vs. Old Tax Regime> FAQs her Form 10-IFA or Form 10- IEA would be applicable to me? Form 10-IEA is applicable to AOP’s (other than Co-op…"
+   },
+   {
+    "id": "74cf2aa9-afa1-433f-ad7b-f02cb880d520",
+    "bm25": -6.755,
+    "title": "FAQs on New vs Old Tax Regime",
+    "authority": "Income Tax Department",
+    "section": "139(1)",
+    "text": "New vs. Old Tax Regime> FAQs the default new tax regime, should I file Form 10-IEA before filing his income tax return (ITR)? Form 10-IEA is…"
+   }
+  ],
+  "fused": [
+   {
+    "id": "cd7190d0-97d9-44b8-88b9-0d401c66f547",
+    "rrf": 0.0323,
+    "title": "FAQs on New vs Old Tax Regime",
+    "authority": "Income Tax Department",
+    "section": "139(1)",
+    "fromVector": 1,
+    "fromKeyword": 3,
+    "text": "New vs. Old Tax Regime> FAQs mployee shall be required to do so separately before the due date specified under section 139(1) for filing of …"
+   },
+   {
+    "id": "ce828bd7-6556-4fca-8e2f-003d080f7916",
+    "rrf": 0.032,
+    "title": "FAQs on New vs Old Tax Regime",
+    "authority": "Income Tax Department",
+    "section": "202",
+    "fromVector": 4,
+    "fromKeyword": 1,
+    "text": "New vs. Old Tax Regime> FAQs ## New vs. Old Tax Regime> FAQs What is the difference between the old and new tax regime? Ans: The tax slabs a…"
+   },
+   {
+    "id": "eca5a6db-b6ee-422c-9527-a23d2b474486",
+    "rrf": 0.0318,
+    "title": "FAQs on New vs Old Tax Regime",
+    "authority": "Income Tax Department",
+    "section": "202",
+    "fromVector": 2,
+    "fromKeyword": 4,
+    "text": "1. Overview ## 1. Overview The Finance Act 2023 has amended the provisions of Section 115BAC w.e.f AY 2024-25 to make new tax regime the def…"
+   },
+   {
+    "id": "1d420fc4-64f3-44f1-95cf-052a6a60ed6a",
+    "rrf": 0.0315,
+    "title": "FAQs on New vs Old Tax Regime",
+    "authority": "Income Tax Department",
+    "section": "202",
+    "fromVector": 5,
+    "fromKeyword": 2,
+    "text": "New vs. Old Tax Regime> FAQs ITR. in ITR 1 / ITR 2 Or in ITR 3 and ITR 4 Can I claim deduction of Interest on borrowed capital of Rs. 2,00,0…"
+   }
+  ],
+  "app": [
+   {
+    "id": "S1",
+    "title": "FAQs on New vs Old Tax Regime",
+    "section": "139(1)",
+    "score": 0.0323
+   },
+   {
+    "id": "S2",
+    "title": "FAQs on New vs Old Tax Regime",
+    "section": "202",
+    "score": 0.032
+   },
+   {
+    "id": "S3",
+    "title": "FAQs on New vs Old Tax Regime",
+    "section": "202",
+    "score": 0.0318
+   },
+   {
+    "id": "S4",
+    "title": "FAQs on New vs Old Tax Regime",
+    "section": "202",
+    "score": 0.0315
+   }
+  ],
+  "matchesApp": true
+ },
+ {
+  "id": "direct-plan",
+  "question": "What is a direct plan in mutual funds?",
+  "taxYear": "2026-27",
+  "expanded": "What is a direct plan in mutual funds?",
+  "exactTerm": false,
+  "keywordUsed": true,
+  "vector": [
+   {
+    "id": "ed4504c8-cf8f-4f2d-ba3f-13a75790e5a9",
+    "score": 0.7611,
+    "title": "FAQs for Mutual Fund Investors",
+    "authority": "SEBI",
+    "section": null,
+    "text": "24) What is a direct plan? 24) What is a direct plan? SEBI has mandated mutual funds to compulsorily launch a direct plan for direct investm…"
+   },
+   {
+    "id": "f859b694-9a35-4ecd-a25f-b4f7955eaa81",
+    "score": 0.6562,
+    "title": "Regular and Direct Mutual Fund Plans",
+    "authority": "SEBI",
+    "section": null,
+    "text": "Example ## Example Suppose you invest ₹1,00,000 in a mutual fund offering 10% annual returns. In a regular plan, an expense ratio of 1.5% re…"
+   },
+   {
+    "id": "1efd0581-8c55-471c-a40e-e1fb8ac7aa58",
+    "score": 0.6558,
+    "title": "Regular and Direct Mutual Fund Plans",
+    "authority": "SEBI",
+    "section": null,
+    "text": "Understanding Regular and Direct Mutual Funds ## Understanding Regular and Direct Mutual Funds Mutual funds are a popular investment choice,…"
+   },
+   {
+    "id": "76aa1944-10cb-4be7-81dd-ba940c076a20",
+    "score": 0.6466,
+    "title": "Regular and Direct Mutual Fund Plans",
+    "authority": "SEBI",
+    "section": null,
+    "text": "What are Regular and Direct Mutual Funds? ## What are Regular and Direct Mutual Funds? ## Regular Mutual Funds These plans are bought throug…"
+   },
+   {
+    "id": "32674dc9-9719-4825-9ad9-364bea391aff",
+    "score": 0.6385,
+    "title": "Regular and Direct Mutual Fund Plans",
+    "authority": "SEBI",
+    "section": null,
+    "text": "Direct Mutual Funds ## Direct Mutual Funds Investors purchase directly from the Asset Management Company (AMC) without intermediaries. Inves…"
+   },
+   {
+    "id": "913c98fe-1c6b-412e-acea-1e8936f94642",
+    "score": 0.5955,
+    "title": "Regular and Direct Mutual Fund Plans",
+    "authority": "SEBI",
+    "section": null,
+    "text": "Home Personal Finance and Investment Securities Market Investment Content ## Thematic/Sectoral Mutual Funds ## Regular and direct mutual fun…"
+   },
+   {
+    "id": "9a56f4eb-f6ca-4707-8b9f-36a8f6971539",
+    "score": 0.5831,
+    "title": "Regular and Direct Mutual Fund Plans",
+    "authority": "SEBI",
+    "section": null,
+    "text": "Key Differences ## Key Differences Aspect Aspect Regular Plans Regular Plans Direct Plans Direct Plans Expense Ratio Expense Ratio Higher (i…"
+   },
+   {
+    "id": "51b0f47d-2f98-429f-855b-a93d71961122",
+    "score": 0.5392,
+    "title": "FAQs for Mutual Fund Investors",
+    "authority": "SEBI",
+    "section": null,
+    "text": "27) What is Systematic Withdrawal Plan (SWP)? 27) What is Systematic Withdrawal Plan (SWP)? SWP allows the investor/unitholder to withdraw a…"
+   }
+  ],
+  "keyword": [
+   {
+    "id": "ed4504c8-cf8f-4f2d-ba3f-13a75790e5a9",
+    "bm25": -8.471,
+    "title": "FAQs for Mutual Fund Investors",
+    "authority": "SEBI",
+    "section": null,
+    "text": "24) What is a direct plan? 24) What is a direct plan? SEBI has mandated mutual funds to compulsorily launch a direct plan for direct investm…"
+   },
+   {
+    "id": "1efd0581-8c55-471c-a40e-e1fb8ac7aa58",
+    "bm25": -8.207,
+    "title": "Regular and Direct Mutual Fund Plans",
+    "authority": "SEBI",
+    "section": null,
+    "text": "Understanding Regular and Direct Mutual Funds ## Understanding Regular and Direct Mutual Funds Mutual funds are a popular investment choice,…"
+   },
+   {
+    "id": "f859b694-9a35-4ecd-a25f-b4f7955eaa81",
+    "bm25": -7.95,
+    "title": "Regular and Direct Mutual Fund Plans",
+    "authority": "SEBI",
+    "section": null,
+    "text": "Example ## Example Suppose you invest ₹1,00,000 in a mutual fund offering 10% annual returns. In a regular plan, an expense ratio of 1.5% re…"
+   },
+   {
+    "id": "913c98fe-1c6b-412e-acea-1e8936f94642",
+    "bm25": -7.903,
+    "title": "Regular and Direct Mutual Fund Plans",
+    "authority": "SEBI",
+    "section": null,
+    "text": "Home Personal Finance and Investment Securities Market Investment Content ## Thematic/Sectoral Mutual Funds ## Regular and direct mutual fun…"
+   },
+   {
+    "id": "9a56f4eb-f6ca-4707-8b9f-36a8f6971539",
+    "bm25": -7.888,
+    "title": "Regular and Direct Mutual Fund Plans",
+    "authority": "SEBI",
+    "section": null,
+    "text": "Key Differences ## Key Differences Aspect Aspect Regular Plans Regular Plans Direct Plans Direct Plans Expense Ratio Expense Ratio Higher (i…"
+   },
+   {
+    "id": "76aa1944-10cb-4be7-81dd-ba940c076a20",
+    "bm25": -7.713,
+    "title": "Regular and Direct Mutual Fund Plans",
+    "authority": "SEBI",
+    "section": null,
+    "text": "What are Regular and Direct Mutual Funds? ## What are Regular and Direct Mutual Funds? ## Regular Mutual Funds These plans are bought throug…"
+   },
+   {
+    "id": "32674dc9-9719-4825-9ad9-364bea391aff",
+    "bm25": -7.287,
+    "title": "Regular and Direct Mutual Fund Plans",
+    "authority": "SEBI",
+    "section": null,
+    "text": "Direct Mutual Funds ## Direct Mutual Funds Investors purchase directly from the Asset Management Company (AMC) without intermediaries. Inves…"
+   },
+   {
+    "id": "07781163-4127-49f4-9238-4a07e9ccd272",
+    "bm25": -4.52,
+    "title": "FAQs for Mutual Fund Investors",
+    "authority": "SEBI",
+    "section": null,
+    "text": "19) How does an investor know how much commission the distributor is earning and what 19) How does an investor know how much commission the …"
+   }
+  ],
+  "fused": [
+   {
+    "id": "ed4504c8-cf8f-4f2d-ba3f-13a75790e5a9",
+    "rrf": 0.0328,
+    "title": "FAQs for Mutual Fund Investors",
+    "authority": "SEBI",
+    "section": null,
+    "fromVector": 1,
+    "fromKeyword": 1,
+    "text": "24) What is a direct plan? 24) What is a direct plan? SEBI has mandated mutual funds to compulsorily launch a direct plan for direct investm…"
+   },
+   {
+    "id": "f859b694-9a35-4ecd-a25f-b4f7955eaa81",
+    "rrf": 0.032,
+    "title": "Regular and Direct Mutual Fund Plans",
+    "authority": "SEBI",
+    "section": null,
+    "fromVector": 2,
+    "fromKeyword": 3,
+    "text": "Example ## Example Suppose you invest ₹1,00,000 in a mutual fund offering 10% annual returns. In a regular plan, an expense ratio of 1.5% re…"
+   },
+   {
+    "id": "1efd0581-8c55-471c-a40e-e1fb8ac7aa58",
+    "rrf": 0.032,
+    "title": "Regular and Direct Mutual Fund Plans",
+    "authority": "SEBI",
+    "section": null,
+    "fromVector": 3,
+    "fromKeyword": 2,
+    "text": "Understanding Regular and Direct Mutual Funds ## Understanding Regular and Direct Mutual Funds Mutual funds are a popular investment choice,…"
+   },
+   {
+    "id": "76aa1944-10cb-4be7-81dd-ba940c076a20",
+    "rrf": 0.0308,
+    "title": "Regular and Direct Mutual Fund Plans",
+    "authority": "SEBI",
+    "section": null,
+    "fromVector": 4,
+    "fromKeyword": 6,
+    "text": "What are Regular and Direct Mutual Funds? ## What are Regular and Direct Mutual Funds? ## Regular Mutual Funds These plans are bought throug…"
+   }
+  ],
+  "app": [
+   {
+    "id": "S1",
+    "title": "FAQs for Mutual Fund Investors",
+    "section": null,
+    "score": 0.0328
+   },
+   {
+    "id": "S2",
+    "title": "Regular and Direct Mutual Fund Plans",
+    "section": null,
+    "score": 0.032
+   },
+   {
+    "id": "S3",
+    "title": "Regular and Direct Mutual Fund Plans",
+    "section": null,
+    "score": 0.032
+   },
+   {
+    "id": "S4",
+    "title": "Regular and Direct Mutual Fund Plans",
+    "section": null,
+    "score": 0.0308
+   }
+  ],
+  "matchesApp": true
+ },
+ {
+  "id": "form16",
+  "question": "What is Form 16?",
+  "taxYear": "2025-26",
+  "expanded": "What is Form 16?",
+  "exactTerm": true,
+  "keywordUsed": true,
+  "vector": [],
+  "keyword": [
+   {
+    "id": "53be49c7-e27a-4a6c-8b78-3bcea9f8e0fa",
+    "bm25": -5.709,
+    "title": "Salaried Individuals for AY 2026-27",
+    "authority": "Income Tax Department",
+    "section": "203",
+    "text": "2. Form 16 - Certificate of Tax Deducted at Source on Salary (u/s 203 of the Income Tax Act, 1961) 2. Form 16 - Certificate of Tax Deducted …"
+   },
+   {
+    "id": "692dbe2c-572d-439b-854e-fab6f53eb19e",
+    "bm25": -4.891,
+    "title": "Salaried Individuals for AY 2026-27",
+    "authority": "Income Tax Department",
+    "section": "139(1)",
+    "text": "Tax Slabs for AY 2026-27*** nto default tax regime (New Tax regime) shall also be done by way of furnishing Form No.10-IEA on or before the …"
+   },
+   {
+    "id": "75b7d5ed-d70a-46fe-88e8-61168b52cfc8",
+    "bm25": -4.803,
+    "title": "Salaried Individuals for AY 2026-27",
+    "authority": "Income Tax Department",
+    "section": "202",
+    "text": "Tax Slabs for AY 2026-27*** 0 + 15% above ₹ 12,00,000 ₹ 16,00,001 - ₹ 20,00,000 ₹ 16,00,001 - ₹ 20,00,000 ₹ 1,20,000 + 20% above ₹ 16,00,000…"
+   },
+   {
+    "id": "ac3f116b-5628-411a-a861-f899543afb62",
+    "bm25": -4.63,
+    "title": "Salaried Individuals for AY 2026-27",
+    "authority": "Income Tax Department",
+    "section": null,
+    "text": "Tax Slabs for AY 2026-27*** 0** 5% above ₹ 4,00,000 5% above ₹ 4,00,000 above ₹ 10,00,000 above ₹ 10,00,000 ₹ 1,00,000 + 30% above ₹ 10,00,0…"
+   },
+   {
+    "id": "0be6fda7-58f3-4a54-82fc-2a01c23c6325",
+    "bm25": -4.339,
+    "title": "FAQs for Mutual Fund Investors",
+    "authority": "SEBI",
+    "section": null,
+    "text": "16) What are the various methods available to investors for investing in a scheme of a 16) What are the various methods available to investo…"
+   },
+   {
+    "id": "6675db8a-607f-42c5-8ad3-ccc6efb90b4d",
+    "bm25": -4.08,
+    "title": "Salaried Individuals for AY 2026-27",
+    "authority": "Income Tax Department",
+    "section": "202",
+    "text": "Tax Slabs for AY 2026-27*** ,00,000 ₹ 1,20,000 + 20% above ₹ 16,00,000 ₹ 1,20,000 + 20% above ₹ 16,00,000 ₹ 20,00,001 – ₹ 24,00,000 ₹ 20,00,…"
+   },
+   {
+    "id": "a165c287-39bd-467a-b1cb-a24c91b34f1d",
+    "bm25": -2.968,
+    "title": "FAQs for Mutual Fund Investors",
+    "authority": "SEBI",
+    "section": null,
+    "text": "16) What are the various methods available to investors for investing in a scheme of a d not be taken as their own schemes and there is no a…"
+   },
+   {
+    "id": "cd776e86-ca98-4a29-a234-42befc968fee",
+    "bm25": -1.479,
+    "title": "Salaried Individuals for AY 2026-27",
+    "authority": "Income Tax Department",
+    "section": "26AS",
+    "text": "5. Form 26 AS 5. Form 26 AS 5. Form 26 AS AIS (Annual information Statement) AIS (Annual information Statement) Provided by: Income Tax Depa…"
+   }
+  ],
+  "fused": [
+   {
+    "id": "53be49c7-e27a-4a6c-8b78-3bcea9f8e0fa",
+    "rrf": 0.0164,
+    "title": "Salaried Individuals for AY 2026-27",
+    "authority": "Income Tax Department",
+    "section": "203",
+    "fromVector": null,
+    "fromKeyword": 1,
+    "text": "2. Form 16 - Certificate of Tax Deducted at Source on Salary (u/s 203 of the Income Tax Act, 1961) 2. Form 16 - Certificate of Tax Deducted …"
+   },
+   {
+    "id": "692dbe2c-572d-439b-854e-fab6f53eb19e",
+    "rrf": 0.0161,
+    "title": "Salaried Individuals for AY 2026-27",
+    "authority": "Income Tax Department",
+    "section": "139(1)",
+    "fromVector": null,
+    "fromKeyword": 2,
+    "text": "Tax Slabs for AY 2026-27*** nto default tax regime (New Tax regime) shall also be done by way of furnishing Form No.10-IEA on or before the …"
+   },
+   {
+    "id": "75b7d5ed-d70a-46fe-88e8-61168b52cfc8",
+    "rrf": 0.0159,
+    "title": "Salaried Individuals for AY 2026-27",
+    "authority": "Income Tax Department",
+    "section": "202",
+    "fromVector": null,
+    "fromKeyword": 3,
+    "text": "Tax Slabs for AY 2026-27*** 0 + 15% above ₹ 12,00,000 ₹ 16,00,001 - ₹ 20,00,000 ₹ 16,00,001 - ₹ 20,00,000 ₹ 1,20,000 + 20% above ₹ 16,00,000…"
+   },
+   {
+    "id": "ac3f116b-5628-411a-a861-f899543afb62",
+    "rrf": 0.0156,
+    "title": "Salaried Individuals for AY 2026-27",
+    "authority": "Income Tax Department",
+    "section": null,
+    "fromVector": null,
+    "fromKeyword": 4,
+    "text": "Tax Slabs for AY 2026-27*** 0** 5% above ₹ 4,00,000 5% above ₹ 4,00,000 above ₹ 10,00,000 above ₹ 10,00,000 ₹ 1,00,000 + 30% above ₹ 10,00,0…"
+   }
+  ],
+  "app": [
+   {
+    "id": "S1",
+    "title": "Salaried Individuals for AY 2026-27",
+    "section": "203",
+    "score": 0.0164
+   },
+   {
+    "id": "S2",
+    "title": "Salaried Individuals for AY 2026-27",
+    "section": "139(1)",
+    "score": 0.0161
+   },
+   {
+    "id": "S3",
+    "title": "Salaried Individuals for AY 2026-27",
+    "section": "202",
+    "score": 0.0159
+   },
+   {
+    "id": "S4",
+    "title": "Salaried Individuals for AY 2026-27",
+    "section": null,
+    "score": 0.0156
+   }
+  ],
+  "matchesApp": true
+ },
+ {
+  "id": "off-topic",
+  "question": "How do I buy crypto on Binance?",
+  "taxYear": "2026-27",
+  "expanded": "How do I buy crypto on Binance?",
+  "exactTerm": false,
+  "keywordUsed": false,
+  "vector": [],
+  "keyword": [
+   {
+    "id": "6e449403-fd05-4028-9f8c-bd297a0ba207",
+    "bm25": -5.793,
+    "title": "FAQs for Mutual Fund Investors",
+    "authority": "SEBI",
+    "section": null,
+    "text": "10) What are Exchange Traded Funds (ETFs)? 10) What are Exchange Traded Funds (ETFs)? ETFs are mutual fund units that investors can buy or s…"
+   },
+   {
+    "id": "9f319bb6-9f3e-44ec-932c-e4bf90cd8be7",
+    "bm25": -3.767,
+    "title": "FAQs for Mutual Fund Investors",
+    "authority": "SEBI",
+    "section": null,
+    "text": "6) What are the different types of mutual fund schemes? 6) What are the different types of mutual fund schemes? Schemes according to Maturit…"
+   },
+   {
+    "id": "5d9a19da-0804-489f-ae0c-f1f3fcc1e37a",
+    "bm25": -2.552,
+    "title": "FAQs for Mutual Fund Investors",
+    "authority": "SEBI",
+    "section": null,
+    "text": "5) What is cut off timing and its role in determining the applicable NAV for transactions next business day;  Where the application is rece…"
+   },
+   {
+    "id": "da556b2f-d5a1-4775-8d93-72e1d3a53b3e",
+    "bm25": -2.513,
+    "title": "FAQs for Mutual Fund Investors",
+    "authority": "SEBI",
+    "section": null,
+    "text": "4) What is Net Asset Value (NAV) of a scheme? 4) What is Net Asset Value (NAV) of a scheme? NAV is the unit price of a mutual fund scheme. T…"
+   }
+  ],
+  "fused": [],
+  "app": [],
+  "matchesApp": true
+ }
+]

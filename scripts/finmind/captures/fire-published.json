@@ -1,0 +1,128 @@
+{
+ "stages": [
+  {
+   "step": "memory",
+   "status": "start",
+   "ms": 0
+  },
+  {
+   "step": "memory",
+   "status": "done",
+   "ms": 1,
+   "detail": "No saved profile"
+  },
+  {
+   "step": "calc",
+   "status": "start",
+   "ms": 0
+  },
+  {
+   "step": "calc",
+   "status": "done",
+   "ms": 37,
+   "detail": "45 calculation steps"
+  },
+  {
+   "step": "retrieve",
+   "status": "start",
+   "ms": 0
+  },
+  {
+   "step": "retrieve",
+   "status": "done",
+   "ms": 222,
+   "detail": "4 official passages"
+  },
+  {
+   "step": "llm",
+   "status": "start",
+   "ms": 0,
+   "detail": "qwen3.5:4b"
+  },
+  {
+   "step": "llm",
+   "status": "done",
+   "ms": 5280,
+   "detail": "Explanation drafted"
+  },
+  {
+   "step": "safety",
+   "status": "start",
+   "ms": 0
+  },
+  {
+   "step": "safety",
+   "status": "done",
+   "ms": 6,
+   "detail": "4/4 checks passed"
+  }
+ ],
+ "latencyMs": 5551,
+ "trust": {
+  "checks": [
+   {
+    "key": "source",
+    "label": "Sources",
+    "passed": true,
+    "detail": "0 citation(s) to 4 retrieved source(s)"
+   },
+   {
+    "key": "numbers",
+    "label": "Numbers match calculator",
+    "passed": true,
+    "detail": "7 ₹ figure(s) verified against the engine"
+   },
+   {
+    "key": "output",
+    "label": "Output validated",
+    "passed": true,
+    "detail": "Response matched the expected structure"
+   },
+   {
+    "key": "products",
+    "label": "Category-level only",
+    "passed": true,
+    "detail": "No named schemes or fund houses recommended"
+   },
+   {
+    "key": "consistency",
+    "label": "Consistent with calculator",
+    "passed": true,
+    "detail": "Agrees that the new regime is better"
+   }
+  ],
+  "warnings": [],
+  "groundedScore": 100,
+  "explanationSource": "llm",
+  "disclaimer": "Educational guidance generated on this device, not investment, tax or legal advice. Numbers come from a deterministic calculator; verify important decisions with a SEBI-registered adviser or a Chartered Accountant."
+ },
+ "model": "qwen3.5:4b",
+ "citations": [
+  [
+   "S1",
+   "Income Tax Department",
+   "FAQs on New vs Old Tax Regime",
+   "202"
+  ],
+  [
+   "S2",
+   "SEBI",
+   "FAQs for Mutual Fund Investors",
+   "123"
+  ],
+  [
+   "S3",
+   "Income Tax Department",
+   "FAQs on New vs Old Tax Regime",
+   "202"
+  ],
+  [
+   "S4",
+   "Income Tax Department",
+   "FAQs on New vs Old Tax Regime",
+   "202"
+  ]
+ ],
+ "fireImpact": "Your required monthly SIP of ₹74,500 exceeds your current investment of ₹20,000, making full financial independence at age 50 unlikely without increasing savings significantly. The single most critical lever to reach your FIRE number of ₹6.99 Cr is boosting your monthly SIP amount.",
+ "successPct": 37
+}

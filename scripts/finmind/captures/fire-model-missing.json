@@ -1,0 +1,131 @@
+{
+ "en": {
+  "stages": [
+   {
+    "step": "memory",
+    "status": "start",
+    "ms": 0
+   },
+   {
+    "step": "memory",
+    "status": "done",
+    "ms": 2,
+    "detail": "No saved profile"
+   },
+   {
+    "step": "calc",
+    "status": "start",
+    "ms": 0
+   },
+   {
+    "step": "calc",
+    "status": "done",
+    "ms": 41,
+    "detail": "45 calculation steps"
+   },
+   {
+    "step": "retrieve",
+    "status": "start",
+    "ms": 0
+   },
+   {
+    "step": "retrieve",
+    "status": "done",
+    "ms": 4871,
+    "detail": "4 official passages"
+   },
+   {
+    "step": "llm",
+    "status": "start",
+    "ms": 0,
+    "detail": "model-that-is-not-installed"
+   },
+   {
+    "step": "llm",
+    "status": "done",
+    "ms": 109,
+    "detail": "Malformed output — using templates"
+   }
+  ],
+  "wall": 5.07,
+  "fireImpact": "You need ₹1,03,655 a month but have a ₹60,000 surplus; retiring later, trimming expenses or raising the SIP each year closes the gap.",
+  "milestones": [
+   "SIP of ₹74,500/mo running; emergency fund complete",
+   "Rebalance to 80% Equity / 20% Debt",
+   "Rebalance to 70% Equity / 30% Debt",
+   "Rebalance to 50% Equity / 50% Debt",
+   "FIRE: corpus ₹7 Cr vs target ₹6.99 Cr"
+  ],
+  "sipAllocation": [
+   "Nifty 50 / Sensex index fund, direct plan",
+   "Diversified active or index flexi-cap, direct plan",
+   "Global index FoF or gold fund for diversification",
+   "Government-backed, tax-efficient debt",
+   "For goals and rebalancing liquidity"
+  ],
+  "trust": {
+   "checks": [
+    {
+     "key": "source",
+     "label": "Sources",
+     "passed": true,
+     "detail": "0 citation(s) to 4 retrieved source(s)"
+    },
+    {
+     "key": "numbers",
+     "label": "Numbers match calculator",
+     "passed": true,
+     "detail": "0 ₹ figure(s) verified against the engine"
+    },
+    {
+     "key": "output",
+     "label": "Output validated",
+     "passed": false,
+     "detail": "Model output was malformed; template used"
+    },
+    {
+     "key": "products",
+     "label": "Category-level only",
+     "passed": true,
+     "detail": "No named schemes or fund houses recommended"
+    },
+    {
+     "key": "consistency",
+     "label": "Consistent with calculator",
+     "passed": true,
+     "detail": "Agrees that the new regime is better"
+    }
+   ],
+   "warnings": [
+    "Model output was malformed — explanation from templates"
+   ],
+   "groundedScore": 85,
+   "explanationSource": "template",
+   "disclaimer": "Educational guidance generated on this device, not investment, tax or legal advice. Numbers come from a deterministic calculator; verify important decisions with a SEBI-registered adviser or a Chartered Accountant."
+  },
+  "source": "template",
+  "latencyMs": 5028,
+  "citations": [
+   [
+    "S1",
+    "FAQs on New vs Old Tax Regime",
+    "202"
+   ],
+   [
+    "S2",
+    "FAQs for Mutual Fund Investors",
+    "123"
+   ],
+   [
+    "S3",
+    "FAQs on New vs Old Tax Regime",
+    "202"
+   ],
+   [
+    "S4",
+    "FAQs on New vs Old Tax Regime",
+    "202"
+   ]
+  ]
+ }
+}
