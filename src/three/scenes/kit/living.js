@@ -121,7 +121,7 @@ export function pigeons({ scene, rand, rect, count = 4, disposables }) {
 }
 
 /** A soft round dot, bright in the middle: points drawn with it read as a glow or a puff, not a square. */
-function softDot() {
+function drawDot() {
   const c = document.createElement('canvas');
   c.width = c.height = 64;
   const g = c.getContext('2d');
@@ -133,6 +133,20 @@ function softDot() {
   g.fillRect(0, 0, 64, 64);
   return new CanvasTexture(c);
 }
+// One dot for every particle system (the page has one renderer), made on
+// first use and let go when the last system is disposed.
+let dot = null;
+let dotUsers = 0;
+const takeDot = () => {
+  dotUsers++;
+  return (dot ??= drawDot());
+};
+const dropDot = () => {
+  if (--dotUsers > 0) return;
+  dot?.dispose();
+  dot = null;
+  dotUsers = 0;
+};
 
 /**
  * `n` points, each living 0.6 to 1.4 s from where `spawn(i, pos, vel)` puts
@@ -143,7 +157,7 @@ function softDot() {
 export function particles({ scene, rand, n, color, size, blending = null, opacity = 0.8 }) {
   const g = new BufferGeometry();
   g.setAttribute('position', new BufferAttribute(new Float32Array(n * 3), 3));
-  const map = softDot();
+  const map = takeDot();
   const m = new PointsMaterial({ color, size, map, transparent: true, opacity, depthWrite: false, sizeAttenuation: true, ...(blending ? { blending } : {}) });
   const pts = new Points(g, m);
   pts.frustumCulled = false;
@@ -180,7 +194,8 @@ export function particles({ scene, rand, n, color, size, blending = null, opacit
       pts.removeFromParent();
       g.dispose();
       m.dispose();
-      map.dispose();
+      if (m.map) dropDot();
+      m.map = null;
     },
   };
 }

@@ -28,15 +28,16 @@ export function args() {
 }
 
 /**
- * Headless Chromium on the real GPU (ANGLE on D3D11). Without these flags it
- * falls back to SwiftShader: correct pixels, useless timings.
+ * Headless Chromium on the real GPU: ANGLE on D3D11 on Windows (without
+ * these flags it falls back to SwiftShader: correct pixels, useless
+ * timings), the platform's own GPU elsewhere (a Mac's Metal).
  *
- * Off Windows (a cloud container with no GPU) it asks for SwiftShader
- * outright, so WebGL2 works; frame timings there mean nothing. QA_CHROMIUM
- * points at a browser binary when the installed one doesn't match the
- * Playwright version.
+ * On Linux (a cloud container, usually with no GPU) it asks for SwiftShader
+ * outright, so WebGL2 works; frame timings there mean nothing.
+ * QA_SOFTWARE_GL=1 or 0 says which, on any machine. QA_CHROMIUM points at a
+ * browser binary when the installed one doesn't match the Playwright version.
  */
-export const SOFTWARE_GL = process.platform !== 'win32';
+export const SOFTWARE_GL = process.env.QA_SOFTWARE_GL ? process.env.QA_SOFTWARE_GL === '1' : process.platform === 'linux';
 
 export async function launch({ gpu = true, discrete = false, uncapped = false } = {}) {
   // discrete: the laptop's discrete GPU (headless Chromium otherwise takes the
@@ -45,7 +46,7 @@ export async function launch({ gpu = true, discrete = false, uncapped = false } 
   const extra = [...(discrete ? ['--force_high_performance_gpu'] : []), ...(uncapped ? ['--disable-gpu-vsync', '--disable-frame-rate-limit'] : [])];
   const flags = SOFTWARE_GL
     ? ['--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist', ...extra]
-    : ['--use-angle=d3d11', '--ignore-gpu-blocklist', '--enable-gpu-rasterization', ...extra];
+    : [...(process.platform === 'win32' ? ['--use-angle=d3d11'] : []), '--ignore-gpu-blocklist', '--enable-gpu-rasterization', ...extra];
   const browser = await chromium.launch({
     headless: true,
     executablePath: process.env.QA_CHROMIUM || undefined,

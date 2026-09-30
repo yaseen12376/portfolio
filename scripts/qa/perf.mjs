@@ -35,6 +35,7 @@ for (const discrete of [true, false]) {
       await page.goto(`${opts.url}/qa/3d.html?id=${id}&w=${Math.round(s.w * s.dpr)}&h=${Math.round(s.h * s.dpr)}&context=${s.ctx}&3d=force`);
       await page.evaluate(() => window.qa.ready);
       const gpu = await gpuName(page);
+      if (/SwiftShader/i.test(gpu)) console.log(`     (${gpu}: a software renderer, so these timings mean nothing; run perf on a machine with a GPU)`);
       await page.waitForTimeout(2500); // warm up: shaders, the first uploads, the tour
       // Frame cost, not frame pacing: headless Chromium paces rAF on its own
       // (alternate frames wait ~16 ms whatever the work), so each frame is

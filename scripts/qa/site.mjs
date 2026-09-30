@@ -147,6 +147,12 @@ async function tourOnce(sel) {
   }, sel);
 }
 for (const id of withScene) await tourOnce(cardOf(id));
+await scrollTo(flag);
+await page.waitForTimeout(800);
+const baseline = await page.evaluate(() => ({
+  ...window.__three.info(),
+  triggers: window.__portfolio.ScrollTrigger.getAll().length,
+}));
 
 async function openAndClose(i, id) {
   const card = cardOf(id);
@@ -177,13 +183,13 @@ async function openAndClose(i, id) {
     // Every chapter: the tab, the scene and the readouts agree.
     const tabs = await page.$$eval('#project-detail .pd-chapter', (ts) => ts.map((t) => t.dataset.chapter));
     const bad = [];
-    for (const id of tabs) {
-      await page.click(`#project-detail .pd-chapter[data-chapter="${id}"]`);
+    for (const t of tabs) {
+      await page.click(`#project-detail .pd-chapter[data-chapter="${t}"]`);
       await page.waitForTimeout(900);
       // (They come with the scene's next frame, a while on a software renderer.)
       await page.waitForFunction(() => document.querySelectorAll('#project-detail .pd-readouts dd').length > 0, null, { timeout: 8000 }).catch(() => {});
       const reads = await page.$$eval('#project-detail .pd-readouts dd', (d) => d.length);
-      if ((await caseCh()) !== id || (await selected()) !== id || reads === 0) bad.push(`${id} (scene ${await caseCh()}, ${reads} readouts)`);
+      if ((await caseCh()) !== t || (await selected()) !== t || reads === 0) bad.push(`${t} (scene ${await caseCh()}, ${reads} readouts)`);
     }
     check(`${id}: all ${tabs.length} chapters switch the scene and show readouts`, tabs.length > 0 && bad.length === 0, bad.join(', '));
 
@@ -259,15 +265,13 @@ async function openAndClose(i, id) {
 
 // The first cycle compiles programs the renderer keeps for good (the shadow
 // pass's depth materials), so leaks are measured from after it.
-// Each diorama once (every check), then the counts, then the rest of the cycles.
+// Each diorama once (every check), then the rest of the cycles. Only the
+// programs may stay up after the first (they're compiled once and kept).
 for (const id of withScene) await openAndClose(0, id);
 await scrollTo(flag);
 await page.waitForTimeout(800);
-const baseline = await page.evaluate(() => ({
-  ...window.__three.info(),
-  triggers: window.__portfolio.ScrollTrigger.getAll().length,
-}));
-const warm = baseline;
+const warm = await page.evaluate(() => window.__three.info());
+baseline.programs = Math.max(baseline.programs, warm.programs);
 for (let i = 1; i < CYCLES; i++) for (const id of withScene) await openAndClose(i, id);
 await scrollTo(flag);
 await page.waitForTimeout(800);

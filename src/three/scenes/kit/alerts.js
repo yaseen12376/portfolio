@@ -2,13 +2,15 @@
  * An alert queue, as the products keep one: the newest first, the last `max`
  * kept, and optionally a cooldown per key (a camera and an alert type, say)
  * during which the same alert is held back and counted rather than raised.
+ * `now()` is the clock the cooldown runs on, in seconds (the page's by
+ * default; a scene with its own clock passes that).
  *
  * What an alert holds, and what happens to it after (a person reviews it, a
  * dashboard turns it into cards), is the scene's own; `make()` builds it only
  * once the alert is actually raised, so nothing expensive (a screenshot) is
  * done for one that is held back.
  */
-export function alertQueue({ list = [], max = 20, cooldown = 0, now = () => 0 } = {}) {
+export function alertQueue({ list = [], max = 20, cooldown = 0, now = () => performance.now() / 1000 } = {}) {
   const clear = new Map(); // key -> when it may be raised again
   const q = {
     list,

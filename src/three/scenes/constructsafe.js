@@ -27,7 +27,7 @@ import { alertQueue } from './kit/alerts.js';
 import { Evidence, countInView, drawCctv, drawFrustums, occlusion, siteCameras } from './kit/cctv.js';
 import { particles, spin } from './kit/living.js';
 import { besideOf as besideFor, jobBoard } from './kit/staff.js';
-import { act, asideFrom, clockFeed, go, near, placeNamer, rng, spotsOf } from './kit/util.js';
+import { act, asideFrom, clockFeed, go, hhmm, near, placeNamer, rng, spotsOf } from './kit/util.js';
 
 // ---------------------------------------------------------------- the product's numbers
 // backend/detection_system/app.py and config.py unless noted.
@@ -582,9 +582,13 @@ export async function create(ctx) {
       const y = errand(a) < errand(o) || (errand(a) === errand(o) && a.id > o.id) ? a : o;
       const to = asideFrom(y, { rand, grid: b.grid, districts, people });
       if (!to) continue;
-      const phase = y.st.phase;
-      director.redirect(y, (q) => q.st.tasks.push(go(to), act('idle', 1.5, null)));
-      y.st.phase = phase;
+      // Aside a moment, then on with the same walk and whatever was to follow
+      // it (a director's errand, the new starter's way to the hut: nothing is dropped).
+      const was = y.task;
+      y.resume = null;
+      y.detour = null;
+      y.st.tasks = [go(to, { claim: y.claim }), act('idle', 1.5, null, { claim: y.claim }), ...(was ? [was] : []), ...y.st.tasks];
+      b.crowd.next(y);
       a.stuckAt = o.stuckAt = null;
       if (b.crowd.stats) b.crowd.stats.gaveUp = (b.crowd.stats.gaveUp ?? 0) + 1;
       b.crowd.note?.('unstick', y, y === a ? o : a);
@@ -599,7 +603,7 @@ export async function create(ctx) {
   let armLift = 0;
   const binSpot = spot('fire_bin') ?? { x: 4.75, z: -2.55 };
   // Fire and smoke: points rising from the bin (the fire chapter's).
-  const fire = { phase: 'none', t: 0, smoke: 0, flame: 0 };
+  const fire = { phase: 'none', t: 0, smoke: 0, flame: 0, n: 0 }; // n: fires lit so far
   // (Sized to read from the fire chapter's shot: a flame a hand across, smoke in puffs.)
   const flames = particles({ scene, rand: fxRand, n: 90, color: new Color(2.2, 0.9, 0.25), size: 0.24, blending: AdditiveBlending });
   const smoke = particles({ scene, rand: fxRand, n: 46, color: new Color(0.2, 0.2, 0.21), size: 0.6, opacity: 0.6 });
@@ -1022,7 +1026,6 @@ export async function create(ctx) {
     rec.want = null;
     return true;
   }
-  const hhmm = (t) => `${String(Math.floor(t / 3600) % 24).padStart(2, '0')}:${String(Math.floor(t / 60) % 60).padStart(2, '0')}`;
   const recPip = (g, w, h) => {
     const n = tape.frames.length;
     const i = Math.max(0, n - 1 - Math.round(rec.pos / SEGMENT));
@@ -1261,7 +1264,9 @@ export async function create(ctx) {
     // one who slips is whoever it is watching (walking or at work), or, with
     // nobody in its picture, someone sent to the bench in the middle of it.
     // (Once a slip is under way, asking again is the same slip.)
-    const already = people.find((p) => p.slipping);
+    // (A flag outliving its errand, a walk that ran over or was cut short, is dropped.)
+    for (const p of people) if (p.slipping && !slipping(p)) p.slipping = false;
+    const already = people.find(slipping);
     if (already) return already;
     siteModes(); // no camera in a combined mode sees it
 
@@ -1282,11 +1287,15 @@ export async function create(ctx) {
       director.hire(director.redirect(w, (q) => {
         // Wherever the walk ends by the bench (a pace off counts).
         q.st.tasks.push(go(s, { claim: k }), { call: () => slipNow(q) });
-      }), 'slip', 40);
+      }), 'slip', 90);
       return w;
     }
     slipNow(w);
     return w;
+  }
+  /** Is `p` slipping, or on the way to (their errand still running)? */
+  function slipping(p) {
+    return !!p.slipping && director.onJob(p, 'slip');
   }
   function slipNow(w) {
     // Across CAM-03's picture, so the camera sees a body on the floor (lying
@@ -1299,7 +1308,7 @@ export async function create(ctx) {
     const secs = (n, d) => ctx.people?.clips?.get(n)?.duration ?? d;
     director.hire(director.redirect(w, (q) => {
       hold(q, null);
-      q.st.tasks.push(act('slip', secs('slip', 1.4), across, { claim: q.claim }), act('down', 7, across, { claim: q.claim }), act('getup', secs('getup', 1.8), across, { claim: q.claim }), { call: () => (q.slipping = false) });
+      q.st.tasks.push(act('slip', secs('slip', 1.4), across, { claim: q.claim }), act('down', 7, across, { claim: q.claim }), act('getup', secs('getup', 1.8), across, { claim: q.claim }), { call: () => ((q.slipping = false), director.hire(q, 'slip', 0)) });
     }), 'slip', 20);
     w.slipping = true;
     event('someone slips on the ground floor');
@@ -1309,15 +1318,23 @@ export async function create(ctx) {
     siteModes(); // no camera in a combined mode sees it
     fire.phase = 'smoke';
     fire.t = 0;
+    fire.n++;
     event('sparks catch the bin in the welding bay');
   }
   function extinguish() {
     if (fire.phase !== 'smoke' && fire.phase !== 'fire') return null;
+    // Someone already on the way with it: asking again sends nobody else.
+    const going = people.find((p) => director.onJob(p, 'fire'));
+    if (going) return going;
     const w = director.cast(people, (p) => working(p), spot('extinguisher'));
+    const n = fire.n;
     const done = () => {
+      if (fire.n !== n || (fire.phase !== 'smoke' && fire.phase !== 'fire')) return;
       fire.phase = 'out';
       event('fire put out with the extinguisher');
     };
+    // Out by then whatever happens on the way (a walk that fails, an errand cut short).
+    later(150, done);
     if (!w) {
       done();
       return null;
@@ -1328,9 +1345,10 @@ export async function create(ctx) {
       const bin = spot('fire_bin');
       const by = besideOf({ pos: { x: bin.x, y: bin.z } }, q) ?? e;
       // To the fire point for the extinguisher, then to the bin with it.
-      q.st.tasks.push(go(e, { claim: 'extinguisher' }), act('fold', 1.2, e.face, { at: e, claim: 'extinguisher' }), go(by), act('point', 3, [bin.x, bin.z], { at: by }), { call: done });
+      // (The errand over, they're free for others at once.)
+      q.st.tasks.push(go(e, { claim: 'extinguisher' }), act('fold', 1.2, e.face, { at: e, claim: 'extinguisher' }), go(by), act('point', 3, [bin.x, bin.z], { at: by }), { call: (a) => (done(), director.hire(a, 'fire', 0)) });
       q.st.phase = 'work';
-    }), 'fire', 30);
+    }), 'fire', 60);
     return w;
   }
   function enrol() {
@@ -1355,7 +1373,7 @@ export async function create(ctx) {
       out.st.back = 0;
       return out;
     }
-    const can = (q) => working(q) && q !== newStarter && !q.ppeFix && !q.slipping;
+    const can = (q) => working(q) && q !== newStarter && !q.ppeFix && !slipping(q);
     const p = director.cast(people, (q) => can(q) && q.task?.act, spot('gate_in')) ?? director.cast(people, can, spot('gate_in'));
     if (!p) return null;
     director.hire(director.redirect(p, (q) => {
@@ -1593,7 +1611,7 @@ export async function create(ctx) {
         const instead = new Set(); // anyone scored in their place while they were down
         // Until they're back on their feet (a walk to the bench first, maybe).
         // One pose a frame: if someone else was the one scored, a second slip.
-        for (let k = 0, tries = 1; k < 80 && (k < 4 || w?.slipping || (peak < FALL_AT && tries < 2 && (w = slip(), tries++, true))); k++) {
+        for (let k = 0, tries = 1; k < 80 && (k < 4 || (w && slipping(w)) || (peak < FALL_AT && tries < 2 && (w = slip(), tries++, true))); k++) {
           run(1);
           const f = camState.cam03.fall;
           if (f?.who === w) peak = Math.max(peak, f.score);
@@ -1694,7 +1712,11 @@ export async function create(ctx) {
         run(2);
         const n1 = site.alerts.filter((a) => a.type === 'ppe' && a.cam === 'cam02').length;
         const latest = site.alerts[0];
-        const withCard = site.alerts.find((a) => a.type === 'ppe' && a.cards.length);
+        // A card is a helmet or a vest (a mask alone gets none): one just held
+        // back behind a mask-only alert comes once the cooldown is over.
+        const carded = () => site.alerts.find((a) => a.type === 'ppe' && a.cards.length);
+        for (let k = 0; k < 12 && !carded(); k++) run(1);
+        const withCard = carded();
         this.act('shot');
         const opened = this.pip && ctx.slot.controller.pip()?.image === site.alerts.find((q) => q.shot)?.shot;
         this.act('shot');
@@ -1745,7 +1767,7 @@ export async function create(ctx) {
           }
           if (!toTheFall()) {
             rec.want = 'fall';
-            if (!people.some((p) => p.slipping)) slip();
+            if (!people.some(slipping)) slip();
           }
           return;
         }
@@ -1908,7 +1930,9 @@ export async function create(ctx) {
   director.beat('fire', () => {
     if (fire.phase === 'smoke' || fire.phase === 'fire') return null;
     ignite();
-    later(42, () => extinguish());
+    // Put out a while later: this fire, not one lit since.
+    const n = fire.n;
+    later(42, () => fire.n === n && extinguish());
     return null;
   });
 

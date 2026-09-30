@@ -31,15 +31,15 @@ export const go = (s, extra = {}) => ({ go: [s.x, s.z], ...extra });
 export const act = (clip, secs, face, extra = {}) => ({ act: clip, secs, face, ...extra });
 export const near = (a, s, d = 0.4) => Math.hypot(a.pos.x - s.x, a.pos.y - s.z) < d;
 
+/** Seconds into the day as hh:mm. */
+export const hhmm = (t) => `${String(Math.floor(t / 3600) % 24).padStart(2, '0')}:${String(Math.floor(t / 60) % 60).padStart(2, '0')}`;
+
 /**
  * A scene's clock and event feed: `time()` the clock as hh:mm, `event(text)`
  * a line in the feed (the last `max` kept). `state.clock` is in seconds.
  */
 export function clockFeed(state, max = 30) {
-  const time = () => {
-    const t = state.clock;
-    return `${String(Math.floor(t / 3600) % 24).padStart(2, '0')}:${String(Math.floor(t / 60) % 60).padStart(2, '0')}`;
-  };
+  const time = () => hhmm(state.clock);
   const event = (text) => {
     state.feed.push(`${time()}  ${text}`);
     if (state.feed.length > max) state.feed.shift();
