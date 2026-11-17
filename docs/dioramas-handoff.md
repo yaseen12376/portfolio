@@ -1,27 +1,40 @@
-# Handoff: portfolio dioramas, revision 6
+# Handoff: portfolio dioramas and pieces, revision 7
 
 ## 1. Where things stand
 
-**Repo:** `yaseen12376/portfolio`, branch **`3D_miniatures`**. Everything is pushed and nothing is uncommitted.
+**Repo:** `yaseen12376/portfolio`, branch **`3D_miniatures`**. The last commit is `3285e01` ("finmind done"). Everything revision 7 added (below) is **uncommitted** in the working tree: nothing is committed or pushed until you say so.
 
 | Commit | What |
 |---|---|
 | `f9ffd0e` | "2nd miniature half done": your ConstructSafe start (bake, kit, first controller) |
 | `4007e67` | ConstructSafe diorama: nine chapters live, the shared scene kit, QA for every scene |
 | `7b36168` | Bug fixes: stuck errands, stale slips, stray fire timers, and QA tooling fixes |
-| (next) | `docs/dioramas-handoff.md`, this file |
+| `982c19a` | Revision 6 of this file |
+| `3285e01` | "finmind done": the FinMind diorama |
+| (uncommitted) | Revision 7, below |
 
-**Order of the nine scenes:** 1 ConstructSafe (**done, awaiting your review**), then 2 FinMind (**next, not started**), 3 KPS Clean-O, 4 Courier, 5 Attendance, 6 Indoor Tracking, 7 ObserveX, 8 ADRAF, 9 AirDraw, and then the R4 cleanup.
+**Revision 7 changed the plan.** Three dioramas stay live: Retail Analytics, ConstructSafe and FinMind. The other ten projects (the seven r6 scenes still to come, and three new projects) each get a **piece under glass** instead: a small model of the project under a bell jar, rendered in Blender as a turntable loop (§3a). The site was rehung around them as an exhibition:
 
-**Standing rules (yours, from the r6 plan):**
-- Stop for your review after each scene. The next scene starts only after you reply, and your notes are applied first.
+| Part | Where |
+|---|---|
+| Three new projects: Property Claim Review & Settlement Workbench, AthleteVision, Mission Builder 3D | `src/data/projects.js`, `case-copy.js`, `experience.js`, `skills.js` |
+| The exhibition: three stages with tour steppers, a shelf of ten pieces, a catalogue of all thirteen | `src/sections/projects.js`, `index.html`, `style.css`; the case-study morph is a plain tween now (Flip is gone) |
+| Ten pieces under glass | §3a; results in §4 |
+| The résumé: `/resume/`, a two-page PDF printed from the site's data, a build guard against a stale PDF | `resume/`, `src/resume/`, `src/data/resume.js`, `scripts/gen-resume.mjs`; see the README |
+| R4 cleanup | §8 |
+| New QA: `pieces`, `claims`, `resume`; `site`, `gate`, `framing` and `perf` rewritten for the exhibition | `scripts/qa/` |
+
+**Standing rules:**
 - Commit and push only when you ask.
 - Credentials: note paths only, never copy them.
-- Every chapter shows a real feature with real numbers from the code.
-- Keep a don't-claim list per scene.
-- No em or en dashes in site copy.
-- Attendance and ADRAF need your OK before downloading MediaPipe's `canonical_face_model.obj` (Apache-2.0). Real people's face photos from the repos are never used.
-- For any project whose repo isn't on the machine, ask before designing it.
+- Every chapter, label and résumé line shows a real feature with real numbers from the code.
+- Keep a don't-claim list per project.
+- No em or en dashes in site copy (`npm run qa:claims` checks the data, the pages and the build).
+- Real people's face photos from the repos are never used. No piece needs a face model: the ADRAF head form and the AirDraw hand are built from primitives.
+- **Property Claim Review & Settlement Workbench:** the client is never named, and its documents, screenshots, repo and deployment names and real claim numbers appear nowhere. `npm run qa:claims` fails on any of them, and it stores only hashes, so the check names nothing itself. Never claim production use, accuracy on real claims, fraud findings, savings or an approved methodology.
+- **Mission Builder 3D:** students are never named; credits are by role only. Never claim a win, a submission, a team name or place, or NASA endorsement. Never push, deploy or change that repo's remote without the adult technical lead saying so.
+- **AthleteVision:** never claim accuracy on real athletes, an iOS build, national percentiles, or the event's name or result.
+- For any project whose repo isn't on the machine, use only what the site already says (Indoor Tracking and ADRAF in r7).
 
 ## 2. The per-scene pipeline (repeat for each scene)
 
@@ -145,31 +158,61 @@ console.log(errors.length ? 'console:\n  ' + errors.join('\n  ') : 'no console e
 await browser.close();
 ```
 
-## 4. Last QA results (cloud, SwiftShader)
+## 3a. The pieces under glass (revision 7)
+
+**Files:**
+- `scripts/blender/pieces/_kit.py`: the shared kit. The bell jar (real glass thickness, a glass knob), the brass rim, the turned walnut base, the slate pad, the paper tag on its string, the turntable, and the light: a warm museum spot, two tall strips behind (hidden from the camera) that draw the glass's edge highlights, and a faint violet rim.
+- `scripts/blender/pieces/_parts.py`: parts more than one piece uses.
+- `scripts/blender/pieces/<id>.py`: one per piece. `META` (id, tag lines, accent colour), `build(col)` for the model, and `animate(t)` for its secondary motion, `t` running 0 to 1 over the loop.
+- `scripts/blender/pieces/_empty.py`: the empty jar, shown for any piece not built yet.
+- `scripts/blender/pieces/sources.json`: models borrowed from other repos (Mission Builder's lander, KPS Clean-O's products). Where each one is on this machine goes in the git-ignored `sources.local.json` beside it, or in its env variable, so no local folder name is committed. They are copied into `build/pieces/_src/` first, so Blender never reads another repo.
+- `scripts/blender/render_piece.py`: one piece's draft, still or loop frames. Frames already on disk are skipped.
+- `scripts/build-pieces.mjs` (`npm run build:pieces`): stages `sheet` (review only), `still`, `loop` and `encode`; skips work whose inputs haven't changed; writes `public/pieces/<id>/`, `public/pieces/manifest.json` and `src/data/pieces.json`, and fails any file over budget (tile loop 600 KB, header loop 1.4 MB, posters 90 and 160 KB).
+
+**Why the loop has no seam:** only the disc under the jar turns, exactly once per loop, and every secondary motion runs a whole number of cycles per loop. The jar, the tag and the reflections hold still.
+
+**Render settings:** Cycles on CUDA, 1080 px square, 144 frames (6 s at 24 fps). Adaptive sampling: 192 samples at threshold 0.02 for loop frames, 384 at 0.01 for the still. OpenImageDenoise with albedo and normal, and PBR Neutral like the dioramas. About 25 minutes a piece on an RTX 3050 Ti 4 GB, where only one Blender job should run at a time.
+
+**The background.** Frames are rendered opaque on black, and the encode takes the lighter of each pixel and the page colour `#09090b`, so the background is exactly the page: no alpha video, no CSS blend mode. Getting that exact took four ffmpeg 8 details, all handled in `build-pieces.mjs`:
+- the lavfi `color` source is YUV by default and comes out as (9,8,11) in RGB, so it is converted to `gbrp` inside the graph;
+- without `accurate_rnd`, swscale rounds U and V one level off;
+- the CLI's `-color_*` options lose to the frames' own properties, so `setparams` sets them in the graph;
+- when decoding for QA, scaling and converting in one swscale step comes out one or two levels dark: convert at full size, then scale.
+
+Raise `ENCODE_REV` whenever the encode changes what a visitor gets: it is part of the version in every file's URL (`?v=`), and `vercel.json` lets browsers keep the files for a week.
+
+**On the page:** a tile's 720 loop is fetched on its first hover and holds its frame when the pointer leaves; a case study plays the 1080 loop with a Pause button. Touch, reduced motion and Save-Data get posters on the shelf.
+
+**QA:** `npm run qa:pieces` (Node): every piece built, `pieces.json` matching the manifest, files within budget, poster and loop corners equal to the page colour, and a last-to-first step no bigger than a normal frame step. `site.mjs` checks hover-play in the browser and that the backdrop matches the page, still and playing.
+
+## 4. Last QA results (r7, on this laptop: Intel UHD for the page, RTX 3050 Ti for perf)
+
+`npm run qa:3d` against the dev server, 17 November 2026, every suite green:
 
 | Suite | Result |
 |---|---|
 | crowd | 33/33 |
-| features | 82/82 (Retail 43, ConstructSafe 39) |
-| sim | 34/34 |
-| parity | 2/2 (ConstructSafe tone ΔE 1.74, Retail 2.00) |
-| framing | 45/45 |
-| site | 43/43, no leaks |
-| gate | 18/18 (entry bundle 86.2 of 90 KB) |
+| features | 115/115 (Retail, ConstructSafe, FinMind) |
+| sim | 50/50 |
+| parity | 6/6 (tone ΔE against the Cycles poster: ConstructSafe 1.69, FinMind 2.29, Retail 2.00) |
+| framing | 54/54 (stages fill 83 to 84% with 8% margins) |
+| site | 132/132: the exhibition's counts and order, all three steppers, orbit, case studies, no leaks over 5 open/close cycles, and every piece playing on hover with its backdrop the page colour, still and playing |
+| gate | 22/22 (entry bundle and its static imports: 80.4 of 90 KB gzip) |
+| perf | 12/12 (discrete GPU, median frame: stages 3.4 to 5.9 ms against 8, case studies 4.4 to 7.1 ms against 14) |
+| pieces | 115/115 (every loop's backdrop decodes to exactly 9,9,11) |
+| claims | 6/6 |
+| resume | 11/11 |
 
-- ConstructSafe's chapter checks pass 39/39 on seeds 1 to 10.
-- ConstructSafe's sim passes 17/17, both live and from a still start.
-- **Not yet run on real hardware:**
-  - perf (8 / 14 ms on the discrete GPU);
-  - real-time recordings: `node scripts/qa/record.mjs --project constructsafe`.
-- For reference, ConstructSafe draws 139 calls and 193k triangles on a card, 166 and 291k in a case study.
+- Retail's stage is the heaviest: p95 8.7 ms on the discrete GPU (median 5.9), 201 draw calls and 261k triangles. On the integrated GPU the stages run at a median of 12 to 17 ms.
+- The orbit check now waits for drawn frames rather than a fixed 250 ms (the camera's springs only move on a frame), and it names the slot's state if it ever fails again. It had failed once while a piece render had the machine busy.
+- **Not yet run:** the colour check in Safari and Firefox (needs Playwright's WebKit and Firefox, about 300 MB), and real-time recordings: `node scripts/qa/record.mjs --project constructsafe`.
 
 ## 5. Local session: first steps
 
-1. `git pull origin 3D_miniatures`, then `npm ci`, then `npm run assets:3d` (the Poly Haven textures, needed before any bake).
-2. `npm run dev`, then look at the ConstructSafe card and case study.
-3. `npm run qa:3d` (everything, including perf on your GPU).
-4. Review ConstructSafe. Any notes are applied before FinMind.
+1. `npm ci` (r7 added `pdfjs-dist` for the résumé check), then `npm run assets:3d` (the Poly Haven textures, needed before any diorama bake; the pieces don't use them).
+2. `npm run dev`, then look at the exhibition at 1440, 1024 and 390 px wide, a diorama's case study, a piece's case study, and `/resume/`.
+3. `npm run qa:3d` (everything, including perf on your GPU and the résumé PDF).
+4. To change a piece: edit `scripts/blender/pieces/<id>.py`, then `npm run build:pieces -- <id>` (still, loop and encode; about 25 minutes). `--stages sheet` gives four quick views of the turn first.
 5. **Optional ConstructSafe re-bake** (blocked in the cloud by Poly Haven):
    - the crane hook: `jib_hoist()` in `scripts/blender/kit/site.py`, a gin-wheel jib on top of the scaffold with `dyn` nodes `hoist_rope` and `hoist_hook`, plus a `hoist_load` spot and a hoist job;
    - the cameras tagged `prop`, so `cam_cam01..04` become their own nodes (the `props.wall_camera` role in `constructsafe.py`);
@@ -180,7 +223,7 @@ await browser.close();
    - after that, retire the runtime stand-ins in §3 and re-run features, sim and parity.
    - Blender is `BLENDER` (defaults to `C:/Program Files/Blender Foundation/Blender 5.2/blender.exe`).
    - The scene script, with its spots, cameras and zones: `scripts/blender/scenes/constructsafe.py`.
-6. **Don't commit** the Blender kit's tracked `__pycache__/*.pyc` files if a bake touches them: `git checkout -- scripts/blender/**/__pycache__`.
+6. **Don't commit** the Blender kit's tracked `__pycache__/*.pyc` files if a bake or a piece render touches them: `git checkout -- scripts/blender/**/__pycache__`.
 
 ## 6. Known observations (carried, not bugs from this work)
 
@@ -193,7 +236,9 @@ await browser.close();
 - The site's ScrollTrigger count falls during the open/close cycles. That's expected: the reveal triggers use `once: true`.
 - A mask-only PPE alert gets no dashboard card (the product only makes cards for helmet, vest, fall and fire), and the 10 s per-camera cooldown can hold back a helmet alert.
 
-## 7. FinMind (scene 2): next
+## 7. FinMind (scene 2): done
+
+Built in `3285e01` and live as the third stage: `scripts/blender/scenes/finmind.py`, `public/3d/finmind/`, and the controller in `src/three/scenes/finmind.js` (with `finmind-model.js` and `finmind-captures.js`). The r6 notes below are kept as the design record; where they say something does not exist yet, that was true in r6.
 
 **The r6 plan's design:**
 - An island of about 12 × 8 m: a "verification works".
@@ -235,7 +280,9 @@ await browser.close();
 
 **Bake:** with a laptop that has Blender 5.2 and the Poly Haven textures, bake normally. (In the cloud the options were a flat-colour design baked there, or allowing Poly Haven.)
 
-## 8. After FinMind: scenes 3 to 9, and R4
+## 8. Scenes 3 to 9 became pieces, and R4
+
+Revision 7 gave these seven projects pieces under glass (§3a) instead of dioramas. Each piece is built from what its repo shows; Indoor Tracking and ADRAF have no code on this machine, so theirs use only what the site already says. The r6 survey notes below are kept as research, should a piece ever be promoted to a diorama.
 
 The r6 plan's table:
 - **KPS Clean-O:**
@@ -291,10 +338,10 @@ The r6 plan's table:
   - Socket.IO packets;
   - the C++ GPU bridge (WSL, TCP relay);
   - PNG export.
-- **R4 cleanup:**
-  - remove the video code and `public/project-video/`;
-  - keep `_calibration` out of production;
-  - update the docs.
+- **R4 cleanup: done in r7.**
+  - Removed: the video code and `video` fields, `public/project-video/` (9.5 MB), the old 16:9 posters in `public/posters/`, `scripts/encode-videos.mjs`, the poster generators (`gen-posters.mjs`, `gen-posters-ai.mjs`) and their npm scripts, the card shells, lock brackets and scan line, and the pinned card stack.
+  - `_calibration` now exists on the dev server only (`import.meta.env.DEV` in `src/three/scenes/index.js` and `src/three/gate.js`), so production builds have no chunk for it.
+  - Docs: the README is rewritten for the exhibition, the pieces and the résumé; `docs/image-prompts.md` and `docs/veo-briefs.md` are marked retired.
 
 ## 9. Needs your action
 
@@ -305,7 +352,12 @@ The r6 plan's table:
     - the AWS keys and DB password in `FINAL_EIT_PPE/construct_safe/backend/detection_system/.env`;
     - the RTSP logins in `app.py`, `DetectionContext.tsx` and `mockData.ts`, which ship to every browser;
     - the sudo password in `hls_livestreaming/.../server.py`.
-- **Before Attendance and ADRAF:** give your OK (or not) for `canonical_face_model.obj`.
+- **Found in r7:**
+  - `yaseen12376/EIT_FACE_PROJ` is a public repo, and it tracks a camera login with a public IP address (`cctv_attendance_system.py`) and photos of people's faces named after them. Change that camera's password, and take the login and the photos out of the repo and its history. Until then the Attendance project is marked private, with no repo link.
+  - `EIT_ASSET TRACKER/asset_tracker/README.md` holds MQTT broker credentials: rotate them if that repo was ever pushed.
+  - Your phone number used to be in `src/data/profile.js`, so it is in this repo's git history. The code no longer has it (the private résumé reads it from the git-ignored `resume.local.json`), but the history does, wherever the repo is visible.
+- **Blanks only you can fill** (hidden until then): the list is in the README, under "Still needed from you".
+- `canonical_face_model.obj` is no longer needed: no piece uses a face model.
 - **Review ConstructSafe.** The cloud review material (the walkthrough board, the tour and case films, the spread map, parity, the phone card) was sent in chat. To regenerate it locally:
   - `node scripts/qa/film.mjs --project constructsafe [--stills]`;
   - `node scripts/qa/board.mjs --project constructsafe --dir build/qa/film/constructsafe/case --name walkthrough --cols 4`;

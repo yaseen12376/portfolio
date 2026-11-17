@@ -1,14 +1,15 @@
 /**
  * GSAP setup and shared motion vocabulary.
  *
- * Every plugin used here is free as of GSAP 3.13, SplitText and Flip included.
+ * Every GSAP plugin used here is free as of GSAP 3.13, SplitText included.
+ * (The case study's opening morph is a plain tween measured in the viewport,
+ * src/sections/project-detail.js, so Flip is not needed.)
  */
 import { gsap } from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import { SplitText } from 'gsap/SplitText';
-import { Flip } from 'gsap/Flip';
 
-gsap.registerPlugin(ScrollTrigger, SplitText, Flip);
+gsap.registerPlugin(ScrollTrigger, SplitText);
 
 // Mobile browsers fire resize on every URL-bar collapse. Without this the pin
 // spacers get recomputed mid-scroll and sections visibly jump.
@@ -146,4 +147,4 @@ export function revealSectionHeadings() {
   return () => splits.forEach((s) => s.revert());
 }
 
-export { gsap, ScrollTrigger, SplitText, Flip };
+export { gsap, ScrollTrigger, SplitText };

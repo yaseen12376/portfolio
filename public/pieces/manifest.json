@@ -1,0 +1,141 @@
+{
+ "_empty": {
+  "v": "20d12e5f",
+  "frames": 0,
+  "fps": 24,
+  "kb": {
+   "poster-720.webp": 14,
+   "poster-1080.webp": 25
+  }
+ },
+ "adraf": {
+  "v": "7d907af1",
+  "frames": 144,
+  "fps": 24,
+  "kb": {
+   "poster-720.webp": 20,
+   "poster-1080.webp": 36,
+   "loop-720.webm": 290,
+   "loop-720.mp4": 278,
+   "loop-1080.webm": 492,
+   "loop-1080.mp4": 514
+  }
+ },
+ "airdraw": {
+  "v": "b7b82a70",
+  "frames": 144,
+  "fps": 24,
+  "kb": {
+   "poster-720.webp": 21,
+   "poster-1080.webp": 38,
+   "loop-720.webm": 250,
+   "loop-720.mp4": 257,
+   "loop-1080.webm": 404,
+   "loop-1080.mp4": 460
+  }
+ },
+ "athletevision": {
+  "v": "84192290",
+  "frames": 144,
+  "fps": 24,
+  "kb": {
+   "poster-720.webp": 23,
+   "poster-1080.webp": 41,
+   "loop-720.webm": 500,
+   "loop-720.mp4": 516,
+   "loop-1080.webm": 816,
+   "loop-1080.mp4": 916
+  }
+ },
+ "attendance": {
+  "v": "10d7918d",
+  "frames": 144,
+  "fps": 24,
+  "kb": {
+   "poster-720.webp": 21,
+   "poster-1080.webp": 36,
+   "loop-720.webm": 472,
+   "loop-720.mp4": 478,
+   "loop-1080.webm": 755,
+   "loop-1080.mp4": 863
+  }
+ },
+ "claims-workbench": {
+  "v": "1786bce7",
+  "frames": 144,
+  "fps": 24,
+  "kb": {
+   "poster-720.webp": 23,
+   "poster-1080.webp": 40,
+   "loop-720.webm": 485,
+   "loop-720.mp4": 478,
+   "loop-1080.webm": 796,
+   "loop-1080.mp4": 870
+  }
+ },
+ "courier": {
+  "v": "479e4e23",
+  "frames": 144,
+  "fps": 24,
+  "kb": {
+   "poster-720.webp": 20,
+   "poster-1080.webp": 36,
+   "loop-720.webm": 350,
+   "loop-720.mp4": 373,
+   "loop-1080.webm": 574,
+   "loop-1080.mp4": 675
+  }
+ },
+ "indoor-tracking": {
+  "v": "d1721ae6",
+  "frames": 144,
+  "fps": 24,
+  "kb": {
+   "poster-720.webp": 21,
+   "poster-1080.webp": 38,
+   "loop-720.webm": 535,
+   "loop-720.mp4": 528,
+   "loop-1080.webm": 931,
+   "loop-1080.mp4": 1009
+  }
+ },
+ "kps-cleano": {
+  "v": "43b25b7d",
+  "frames": 144,
+  "fps": 24,
+  "kb": {
+   "poster-720.webp": 23,
+   "poster-1080.webp": 44,
+   "loop-720.webm": 459,
+   "loop-720.mp4": 469,
+   "loop-1080.webm": 802,
+   "loop-1080.mp4": 898
+  }
+ },
+ "mission-builder-3d": {
+  "v": "b26e8e19",
+  "frames": 144,
+  "fps": 24,
+  "kb": {
+   "poster-720.webp": 22,
+   "poster-1080.webp": 40,
+   "loop-720.webm": 426,
+   "loop-720.mp4": 422,
+   "loop-1080.webm": 715,
+   "loop-1080.mp4": 778
+  }
+ },
+ "observex": {
+  "v": "f94b98e7",
+  "frames": 144,
+  "fps": 24,
+  "kb": {
+   "poster-720.webp": 25,
+   "poster-1080.webp": 46,
+   "loop-720.webm": 390,
+   "loop-720.mp4": 398,
+   "loop-1080.webm": 603,
+   "loop-1080.mp4": 696
+  }
+ }
+}

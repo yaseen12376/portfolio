@@ -1,5 +1,11 @@
 # Project media prompts (Gemini stills, Veo loops)
 
+> **Retired in November 2026.** The site no longer uses this footage: every
+> project now has a diorama or a piece under glass (`docs/dioramas-handoff.md`,
+> §3a), and `public/project-video/`, `public/posters/` and
+> `scripts/encode-videos.mjs` were removed. Kept as the record of how the old
+> loops were made; the files are in git history.
+
 **All eight have footage.** Every project carries a poster lifted from its own
 loop, so the still matches the first frame the video plays. The interim SVG
 posters are retired.

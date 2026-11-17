@@ -3,13 +3,14 @@
  *
  *   node scripts/qa/framing.mjs [--url http://localhost:3000]
  *
- * For every project with a diorama: as a card (1024, 1440 and 1920 wide), in
+ * For every project with a diorama: on its stage (1024, 1440 and 1920 wide), in
  * its case study and in full screen (at 1440), and on a phone after the tap,
  * it projects the silhouette hull (the same points the fit uses) into the
  * media box and checks:
  *   - the binding dimension is filled 70 to 96% (the rest is breathing room)
  *   - every edge keeps a margin of at least 3%
- *   - on a card, the caption chip never overlaps the silhouette's box
+ *   - where a caption chip shows (the QA bench's card), it never overlaps the
+ *     silhouette's box
  * and writes build/qa/framing-<name>.png with the box drawn on.
  */
 import { join } from 'node:path';
@@ -73,7 +74,7 @@ async function judge(page, name, sel) {
 }
 
 const { browser } = await launch();
-const cardOf = (id) => `#main-content .media[data-id="${id}"]`;
+const stageOf = (id) => `#work-stages .media[data-id="${id}"]`;
 const hero = '#project-detail .pd-hero-media .media';
 let ids = null;
 
@@ -83,15 +84,15 @@ for (const w of [1024, 1440, 1920]) {
   const errors = watchConsole(page);
   await page.goto(`${opts.url}/?3d=force`);
   await page.waitForFunction(() => window.__portfolio?.lenis, null, { timeout: 15000 });
-  ids ??= await page.$$eval('#main-content .media[data-scene]', (ms) => ms.map((m) => m.dataset.id));
+  ids ??= await page.$$eval('#work-stages .media[data-scene]', (ms) => ms.map((m) => m.dataset.id));
   for (const id of ids) {
-    const sel = cardOf(id);
+    const sel = stageOf(id);
     await page.evaluate((q) => window.__portfolio.lenis.scrollTo(document.querySelector(q), { immediate: true, force: true, offset: -120 }), sel);
     const live = await page.waitForFunction((q) => document.querySelector(q)?.dataset['3d'] === 'live', sel, { timeout: 30000 }).then(() => true).catch(() => false);
-    check(`card ${id} ${w}: goes live`, live);
+    check(`stage ${id} ${w}: goes live`, live);
     if (!live) continue;
     await page.waitForTimeout(1800);
-    await judge(page, `card ${id} ${w}`, sel);
+    await judge(page, `stage ${id} ${w}`, sel);
   }
 
   if (w === 1440) {
@@ -127,7 +128,7 @@ for (const w of [1024, 1440, 1920]) {
 for (const id of ids ?? []) {
   const context = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true });
   const page = await context.newPage();
-  const sel = cardOf(id);
+  const sel = stageOf(id);
   await page.goto(`${opts.url}/${SOFTWARE_GL ? '?swgl' : ''}`);
   await page.waitForFunction(() => window.__portfolio, null, { timeout: 15000 });
   await page.$eval(sel, (m) => m.scrollIntoView({ block: 'center' }));

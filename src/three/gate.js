@@ -12,8 +12,8 @@
  * hero's frames go first) and only when a diorama comes within 300 px.
  *
  * QA switches: ?3d=force (ignore the gate: headless GPUs trip the performance
- * caveat), ?3d=cal (as force, and every card shows the calibration scene),
- * ?3d=off.
+ * caveat), ?3d=cal (as force, and on the dev server every diorama shows the
+ * calibration scene), ?3d=off.
  */
 import { isCoarsePointer, prefersReducedMotion } from '../core/device.js';
 import { esc, icons } from '../core/util.js';
@@ -59,18 +59,21 @@ export const snapshot3d = (media) => (media ? handles.get(media)?.snapshot() ?? 
 let slotModule = null;
 const loadSlot = () => (slotModule ??= import('./slot.js'));
 
-/** Which diorama a project shows (the calibration scene under ?3d=cal). */
-export const sceneFor = (project) => (q === 'cal' ? '_calibration' : project?.scene3d?.id ?? null);
+/** ?3d=cal swaps every diorama for the calibration scene, on the dev server only. */
+const cal = import.meta.env.DEV && q === 'cal';
+
+/** Which diorama a project shows. */
+export const sceneFor = (project) => (cal ? '_calibration' : project?.scene3d?.id ?? null);
 
 /** The words for a project's diorama (chapters, tour), from its data. */
-export const sceneMeta = (project) => (q === 'cal' ? null : project?.scene3d ?? null);
+export const sceneMeta = (project) => (cal ? null : project?.scene3d ?? null);
 
 /**
  * Attach a diorama to a project's media box. Returns a handle, or null when
  * this visitor gets stills only.
  * @param {HTMLElement} media
  * @param {object} project
- * @param {{ context: 'card'|'case', tier: string, onOpen?: () => void, resume?: object }} opts
+ * @param {{ context: 'stage'|'card'|'case', tier: string, onOpen?: () => void, onLive?: (slot) => void, resume?: object }} opts
  */
 export function attach3d(media, project, opts) {
   const id = sceneFor(project);

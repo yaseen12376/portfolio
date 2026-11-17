@@ -1,0 +1,11 @@
+{
+  "_note": "Models borrowed from the projects themselves. They are read, never written: scripts/build-pieces.mjs copies each into build/pieces/_src/ (git-ignored) and Blender reads the copy. Where each one is on this machine goes in its env variable or in sources.local.json next to this file (git-ignored), as { \"lander.blend\": \"C:/path/to/lander.blend\" }, so no local folder name is committed.",
+  "lander.blend": {
+    "env": "PIECE_SRC_LANDER",
+    "use": "Mission Builder 3D: the game's own lander (blender/_work/blend/lander.blend in that repo, built by its blender/10_lander.py)"
+  },
+  "kps-tools.glb": {
+    "env": "PIECE_SRC_KPS_TOOLS",
+    "use": "KPS Clean-O: the storefront's own nine product models (style-previews/3d/_bake/tools.glb in that repo)"
+  }
+}

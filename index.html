@@ -53,7 +53,7 @@
         <li><a href="#experience" data-nav>Experience</a></li>
         <li><a href="#contact" data-nav>Contact</a></li>
       </ul>
-      <a class="nav-cta" href="/resume.pdf" target="_blank" rel="noopener" data-resume>Résumé</a>
+      <a class="nav-cta" href="/resume.pdf" download="Sheik-Ahmed-Yaseen-Resume.pdf" data-resume>Résumé</a>
       <button class="nav-toggle" id="nav-toggle" type="button" aria-label="Open menu" aria-expanded="false" aria-controls="nav-overlay">
         <span></span><span></span>
       </button>
@@ -66,7 +66,7 @@
       <li><a href="#about" data-nav><span>About</span></a></li>
       <li><a href="#experience" data-nav><span>Experience</span></a></li>
       <li><a href="#contact" data-nav><span>Contact</span></a></li>
-      <li data-resume><a href="/resume.pdf" target="_blank" rel="noopener"><span>Résumé</span></a></li>
+      <li data-resume><a href="/resume.pdf" download="Sheik-Ahmed-Yaseen-Resume.pdf"><span>Résumé</span></a></li>
     </ul>
     <a class="nav-overlay-mail" href="mailto:yaseen12376@gmail.com">yaseen12376@gmail.com</a>
   </div>
@@ -95,7 +95,7 @@
                 </a>
                 <!-- Résumé while public/resume.pdf exists; a case study until it
                      does, so the row is never lopsided. Swapped in src/main.js. -->
-                <a class="btn btn-ghost" href="/resume.pdf" target="_blank" rel="noopener"
+                <a class="btn btn-ghost" href="/resume.pdf" download="Sheik-Ahmed-Yaseen-Resume.pdf"
                    data-resume-swap
                    data-fallback-href="#/project/retail-analytics"
                    data-fallback-label="Read a case study">Résumé</a>
@@ -103,7 +103,7 @@
               <dl class="hero-figures reveal-hero">
                 <div><dt>2.4×</dt><dd>faster inference after TensorRT</dd></div>
                 <div><dt>6</dt><dd>cameras on one laptop GPU</dd></div>
-                <div><dt data-project-count>10</dt><dd>projects on this page</dd></div>
+                <div><dt data-project-count>13</dt><dd>projects on this page</dd></div>
               </dl>
             </div>
 
@@ -137,21 +137,32 @@
       </div>
     </section>
 
-    <!-- WORK -->
+    <!-- WORK: an exhibition. Three dioramas on stages of their own, then the
+         collection shelf (a model under glass per project), then a plain
+         catalogue of all of them. Rendered from src/data/projects.js. -->
     <section id="projects" class="section section-work" aria-labelledby="work-title">
       <div class="container">
         <header class="section-head">
+          <p class="eyebrow" aria-hidden="true"><span class="eyebrow-n">I</span><span class="eyebrow-t">Work</span><span class="eyebrow-x"><span data-project-total>13</span> projects</span></p>
           <h2 class="section-title" id="work-title">Selected work</h2>
           <p class="section-lede" id="work-lede">Computer vision on real cameras, and the software around it.</p>
+          <a class="skip-list" href="#work-catalogue" data-nav>Skip to the list of all <span data-project-total>13</span></a>
         </header>
-        <div id="work-flagship"></div>
       </div>
 
-      <div class="stack" id="work-stack"></div>
+      <div class="stages" id="work-stages"></div>
 
-      <div class="container">
-        <h3 class="more-title">More builds</h3>
-        <div class="more-grid" id="work-more"></div>
+      <div class="container container-wide">
+        <header class="shelf-head">
+          <h3 class="shelf-title">The collection</h3>
+          <p class="shelf-lede"><span id="shelf-lede">Ten more, each made into a small model under glass.</span> <span class="hint-hover">Rest the pointer on one to turn it.</span></p>
+        </header>
+        <div class="shelf" id="work-shelf"></div>
+
+        <section class="catalogue" id="work-catalogue" aria-labelledby="catalogue-title">
+          <h3 class="shelf-title" id="catalogue-title">The catalogue</h3>
+          <div id="work-catalogue-list"></div>
+        </section>
       </div>
     </section>
 
@@ -159,6 +170,7 @@
     <section id="about" class="section" aria-labelledby="about-title">
       <div class="container about-grid">
         <div class="about-copy">
+          <p class="eyebrow" aria-hidden="true"><span class="eyebrow-n">II</span><span class="eyebrow-t">About</span></p>
           <h2 class="section-title" id="about-title">I build the whole system, not just the model.</h2>
           <p class="about-bio">I’m a final-year AI and Data Science student in Chennai and an intern at Ethical Intelligence Technologies. Most of my work is computer vision that has to survive contact with real cameras: detection, tracking, face recognition, and the APIs, dashboards and video plumbing around them. I measure before I optimise, and I write down what didn’t work.</p>
           <dl class="facts" id="about-facts"></dl>
@@ -171,6 +183,7 @@
     <section id="skills" class="section" aria-labelledby="skills-title">
       <div class="container">
         <header class="section-head">
+          <p class="eyebrow" aria-hidden="true"><span class="eyebrow-n">III</span><span class="eyebrow-t">Toolkit</span></p>
           <h2 class="section-title" id="skills-title">Toolkit</h2>
           <p class="section-lede">Every tool here is used in at least one project above. Hover or focus one to see where.</p>
         </header>
@@ -182,6 +195,7 @@
     <section id="experience" class="section" aria-labelledby="exp-title">
       <div class="container">
         <header class="section-head">
+          <p class="eyebrow" aria-hidden="true"><span class="eyebrow-n">IV</span><span class="eyebrow-t">Experience</span></p>
           <h2 class="section-title" id="exp-title">Experience</h2>
         </header>
         <div class="timeline" id="experience-timeline"></div>
@@ -192,6 +206,7 @@
     <section id="contact" class="section" aria-labelledby="contact-title">
       <div class="container contact-grid">
         <div class="contact-copy">
+          <p class="eyebrow" aria-hidden="true"><span class="eyebrow-n">V</span><span class="eyebrow-t">Contact</span></p>
           <h2 class="section-title contact-title" id="contact-title">Get in touch</h2>
           <p class="section-lede">Hiring for computer vision or ML engineering, or have cameras that should understand what they see? Email is fastest.</p>
           <div class="email-pill">
@@ -204,10 +219,15 @@
             <li><a href="https://github.com/yaseen12376" target="_blank" rel="noopener noreferrer"><span data-brand="github"></span>GitHub</a></li>
             <li><a href="https://www.linkedin.com/in/sheik-yaseen-96a83234a/" target="_blank" rel="noopener noreferrer"><span data-brand="linkedin"></span>LinkedIn</a></li>
           </ul>
+          <!-- Two A4 pages generated from this site's own data (npm run gen:resume). -->
+          <a class="btn btn-primary contact-resume" href="/resume.pdf" download="Sheik-Ahmed-Yaseen-Resume.pdf" data-resume>
+            <span>Download résumé</span><span class="btn-icon" data-icon="download"></span>
+          </a>
         </div>
 
-        <div class="shell form-shell">
-          <form class="core contact-form" id="contact-form" method="post" novalidate>
+        <div class="form-wrap">
+          <p class="form-title">Or write here</p>
+          <form class="contact-form" id="contact-form" method="post" novalidate>
             <div class="field">
               <label for="form-name">Name</label>
               <input type="text" id="form-name" name="name" required autocomplete="name" aria-describedby="err-name" />
@@ -244,7 +264,7 @@
         <li><a href="mailto:yaseen12376@gmail.com">Email</a></li>
         <li><a href="https://github.com/yaseen12376" target="_blank" rel="noopener noreferrer">GitHub</a></li>
         <li><a href="https://www.linkedin.com/in/sheik-yaseen-96a83234a/" target="_blank" rel="noopener noreferrer">LinkedIn</a></li>
-        <li data-resume><a href="/resume.pdf" target="_blank" rel="noopener">Résumé</a></li>
+        <li data-resume><a href="/resume.pdf" download="Sheik-Ahmed-Yaseen-Resume.pdf">Résumé</a></li>
       </ul>
     </div>
   </footer>

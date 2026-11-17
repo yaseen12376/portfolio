@@ -97,6 +97,97 @@ export const caseCopy = {
     ],
   },
 
+  'claims-workbench': {
+    overview:
+      'A claims workbench for commercial property claims that runs on one laptop, built to an insurance technology client’s product specification. Local vision models read the claim file and cite every value back to a page and a line, deterministic rules check it, and people make every decision. A colleague ran the client engagement and I built the software. What is shown here is the demo build, on synthetic claims.',
+    problem:
+      'A commercial property claim arrives as a folder of PDFs, scans, damage photos, estimates and invoices. Someone has to read all of it, reconcile the adjuster with the first notice of loss, catch the line billed twice, work out the settlement and get it approved. The file is also not something that can be sent to a model in the cloud.',
+    solution:
+      'Keep the models on the machine and never let them decide. Vision models running in Ollama classify each document and extract its fields, and every value must point at the line it came from or it is shown as missing, not guessed. Rules then check coverage, the estimate, invoices and prior payments. The settlement is calculated in exact decimals under a versioned rule set and signed off through an approval chain with authority limits. AI output is never overwritten: corrections sit next to it, and every change writes an audit event.',
+    implementation: [
+      'Built intake: checksums and duplicate checks, OCR, photo metadata and perceptual hashes, and splitting a long file into its documents (27 of 27 parts found on the test file)',
+      'Ran classification and extraction on local Qwen vision models through Ollama on a 4 GB laptop GPU, with each extracted value checked against the text of the line it cites',
+      'Verified table rows by arithmetic, quantity times unit price against the total, and drew damage boxes onto photos, merging repeats of the same spot',
+      'Wrote rule families for adjuster findings, coverage, the estimate, financials and settlement, each raising flags that a reviewer confirms or dismisses',
+      'Calculated settlements in Decimal end to end, storing the rule-set version, an input snapshot and the ordered steps, so a result goes stale when an input changes',
+      'Built a three-level approval chain with authority limits and segregation of duties, then payment, closure, a PDF report and a claim pack with checksums',
+      'Built the React 19 workbench: eight workflow stages, a document viewer that lights up the cited line, and an audit trail behind every decision',
+      'Covered it with 109 automated tests and an extraction evaluation run against the synthetic set',
+    ],
+    outcomes: [
+      'Field accuracy 0.987 and table-cell accuracy 0.9955 on the synthetic evaluation set, with every document classified correctly',
+      'Extraction at 16.1 s a page, down from 69.1 s, on a laptop RTX 3050 Ti',
+      'A demo claim taken from intake to a signed-off settlement, a report and a claim pack without the file leaving the machine',
+      'Every figure on screen traceable to a page and line, a rule, or a named reviewer',
+    ],
+    limitations: [
+      'Measured on synthetic documents only. Accuracy on real claim files has not been established.',
+      'Photo analysis describes visible damage. It never states cause, coverage or safety, and its authenticity checks are prompts for a reviewer, not findings.',
+      'The settlement rule set is a demo methodology, not one a carrier has approved.',
+      'A demo build: it has not been used on live claims.',
+    ],
+  },
+
+  'athletevision': {
+    overview:
+      'AthleteVision runs the SAI fitness test battery on one phone with no internet, following the KHOJ Talent Hunt Technical Handbook. It is a Next.js app inside a Capacitor shell: the camera measures eight of the ten tests, a coach types or times the other two, and every attempt is saved with its video. Built by a team of three for a hackathon. I wrote the test analyzers, the capture stack and the native Android pose engine.',
+    problem:
+      'The battery is ten tests: height, weight, sit and reach, two jumps, a medicine ball throw, a 30 m run, a shuttle run, sit-ups and an 800 m run. Each has its own setup, its own fouls and its own way of being measured. The phone doing the measuring has no network to lean on, and it will not sit perfectly still on its stand.',
+    solution:
+      'Give each test its own analyzer on top of MediaPipe pose landmarks, and make the setup forgiving. Tape marks are tapped once and then follow the picture as the phone moves. The pose model runs natively on Android with the WebView as a fallback, and each phone times its own GPU and CPU paths and keeps the faster one. Every result carries its method, its quality and a saved clip.',
+    implementation: [
+      'Wrote the analyzers for the eight filmed tests: head top against wall marks, the furthest two-second reach, jump reach with flight time as a cross-check, heel landing distance with foul checks, and a ball tracked with a gravity prediction',
+      'Timed the 30 m run from first movement to the chest crossing the line, and the 4 × 10 m shuttle with its three hand touches and four splits',
+      'Counted sit-ups live over 45 seconds at the moment the elbows touch the knees, each one judged against the handbook’s three fouls',
+      'Kept calibration marks in place with the motion sensors while the phone turns, then found each mark again in the picture once it settles; an attempt stops if the phone moves',
+      'Moved the camera and both pose models to native Android (CameraX and MediaPipe’s Android library), with the WebView path as a fallback and a per-phone choice between GPU and CPU',
+      'Built the report card: best result per test, a percentile and band against athletes tested on the same phone, a BMI category from the WHO 2007 reference, and the saved clip with an annotated still',
+      'Kept everything on the phone in IndexedDB behind consent and an audit log, with a content security policy that blocks outside connections',
+      'Checked the analyzers and the mark-following code against synthetic sequences with one command',
+    ],
+    outcomes: [
+      'All ten tests of the battery in one offline app, in English, Hindi and Tamil',
+      'Pose 2.7 to 3.7 times faster on native Android than in the WebView on a budget Galaxy A17 5G: 47 to 64 ms a frame against 140 to 174 ms',
+      'On synthetic sequences: height within 0.6 cm, broad jump within 2 cm, medicine ball within 0.12 m',
+      'Every attempt kept as video evidence, with the deciding frame marked',
+    ],
+    limitations: [
+      'The accuracy figures come from synthetic landmark sequences, not from athletes. Validation on real video is still to be done.',
+      'Android is the tested target. The iOS shell is written but has not been compiled.',
+      'Percentiles are local to the phone: one appears once ten athletes of the same sex and age have been tested on it.',
+      'No login, backend or cloud sync in this build.',
+    ],
+  },
+
+  'mission-builder-3d': {
+    overview:
+      'A browser game for the NASA Space Apps Challenge 2026, for the challenge "Space Mission Design Game". The player is the mission manager of a Mars lander: choose the rocket, the science tools, the power source and the antenna, pass six launch checks, fly to Mars and keep the lander alive for 20 sols. Built by a team of four, two adults and two school students, with me as technical lead. As the project’s own AI-use statement says, most of the code and the Blender scripts were written with an AI coding assistant, working from the team’s requirements document and reviewed by the adults. It is a student project and is not endorsed by NASA.',
+    problem:
+      'The game is for players of about 9 to 15, and it has to be honest about three things: dust cuts solar power, a radio signal to Mars takes minutes, and a mission leaves something behind in space. It also had to stay readable for the two students on the team, who must be able to explain the code.',
+    solution:
+      'Keep the rules in a pure engine with no 3D and no page code, so every rule has a test and the 3D world only shows what the engine decided. Take the numbers from real sources and label each one on screen as NASA, calculated, game credit or assumed. Where the game bends reality, such as playing an 11 minute delay as 11 seconds, it says so.',
+    implementation: [
+      'Led the build from the team’s requirements document: directed the AI coding sessions over three days and reviewed what they produced with the other adult on the team',
+      'Kept the rules in a pure engine: totals, six launch checks and a sol that always runs the same six steps (dust, cleaning, generation, consumption, battery, science and comms), under 281 unit tests with a fixed seed',
+      'Used the real Earth to Mars distance on 15 November 2026 from NASA/JPL Horizons, 196,860,092 km, for a signal delay of 10 min 57 s that every command has to wait out',
+      'Shipped a three.js world in nine stages, from the briefing and the design hall to launch, the Mars surface and the report, with three picture-quality tiers',
+      'Had every 3D model built by the project’s own Blender scripts, with part names shared between the lander model and the game',
+      'Added four missions, mission training, eight hands-on tasks (six acted out by the 3D lander), 15 badges and a comparison with Viking 1, Phoenix and InSight',
+      'Kept it offline: no network calls while it runs, every asset bundled, every outside source credited',
+    ],
+    outcomes: [
+      'A complete game, from briefing to mission report, that runs in a browser with no network',
+      'Every number on screen labelled with where it came from, and a Sources screen generated from the same data',
+      '281 passing tests on the engine, so a rule change that breaks the game is caught first',
+      'A demo mode that plays a whole mission by itself in under two minutes',
+    ],
+    limitations: [
+      'Dust is sped up and the signal delay is squeezed, and the green score is a game idea, not a NASA measure. The game says all three on screen.',
+      'Some on-screen texts are still first drafts waiting for the students’ own words, and are marked as such in the code.',
+      'A student project. It is not endorsed by NASA.',
+    ],
+  },
+
   'courier': {
     overview:
       'Operations software for a franchise of a national courier company. Counter staff book consignments, print receipts with barcodes, collect cash on delivery and track shipments, while the owner gets income, expense and branch reports. Built for a paying client, and I wrote most of it.',
@@ -127,12 +218,12 @@ export const caseCopy = {
     problem:
       'Manual attendance is slow, error-prone and trivially defeated by proxy sign-ins. Badge and biometric readers solve accuracy but create queues at the door and need dedicated hardware at every entrance.',
     solution:
-      'Point the system at the cameras already installed. Faces are detected and embedded as they pass, matched against an enrolled database, and logged with a timestamp, with no interaction required. A second camera distinguishes entry from exit, so the record reflects presence rather than just first sighting.',
+      'Point the system at the cameras already installed. Faces are detected and embedded as they pass, matched against an enrolled database, and logged with a timestamp, with no interaction required. A sighting is a check-in and the next one is a check-out, with a cooldown between them, so the record reflects time present rather than just a first sighting.',
     implementation: [
       'Built the recognition pipeline on InsightFace: RetinaFace and SCRFD detection, with ArcFace embeddings matched by cosine similarity at a 0.4 threshold',
-      'Ingested two RTSP CCTV streams, one for check-in and one for check-out',
-      'Derived entry versus exit from which camera produced the sighting, with a cooldown so a person lingering in frame is recorded once',
-      'Generated daily Excel and CSV attendance and time-tracking exports',
+      'Read a live RTSP CCTV stream and recognised faces as people walked past',
+      'Logged each person as a check-in, then a check-out on their next sighting, with a 60 s cooldown so someone lingering in frame is recorded once',
+      'Exported an Excel workbook with a working-hours summary and a detailed in and out log',
       'Served a FastAPI web app with JWT authentication (python-jose and bcrypt) for enrolment and live monitoring',
     ],
     outcomes: [

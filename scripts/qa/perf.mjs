@@ -4,9 +4,9 @@
  *
  *   node scripts/qa/perf.mjs [ids...] [--url http://localhost:3000] [--secs 6]
  *
- * For each scene, a flagship card (1170 x 505, pixel ratio 1.5) and a case
- * study (1184 x 740, pixel ratio 2) run, first on the discrete GPU (median
- * budgets: 8 ms a card, 14 ms a case study) and then on the integrated one,
+ * For each scene, its stage (733 px square, as at 1440 x 900, pixel ratio
+ * 1.5) and a case study (1184 x 740, pixel ratio 2) run, first on the discrete
+ * GPU (median budgets: 8 ms a stage, 14 ms a case study) and then on the integrated one,
  * where the numbers are reported: there the engine's adaptive loop steps the
  * pixel density down on its own once frames run over 22 ms.
  */
@@ -20,7 +20,7 @@ const SECS = Number(opts.secs ?? 6);
 const PUBLIC = resolve(ROOT, 'public', '3d');
 const ids = opts._.length ? opts._ : readdirSync(PUBLIC).filter((d) => !d.startsWith('_') && existsSync(resolve(PUBLIC, d, 'scene.json')));
 const SIZES = [
-  { ctx: 'card', w: 1170, h: 505, dpr: 1.5, budget: 8 },
+  { ctx: 'stage', w: 733, h: 733, dpr: 1.5, budget: 8 },
   { ctx: 'case', w: 1184, h: 740, dpr: 2, budget: 14 },
 ];
 const results = [];

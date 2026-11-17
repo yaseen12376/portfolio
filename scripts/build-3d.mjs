@@ -18,7 +18,6 @@
  *      public/3d/<id>/manifest.json with sizes, counts and a content hash the
  *      page appends to every URL (Vercel caches /3d/ for a week).
  */
-import { spawn } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { existsSync } from 'node:fs';
 import { copyFile, mkdir, readFile, readdir, stat, unlink, writeFile } from 'node:fs/promises';
@@ -32,11 +31,10 @@ import validator from 'gltf-validator';
 import { MeshoptDecoder, MeshoptEncoder } from 'meshoptimizer';
 import sharp from 'sharp';
 
+// Running Blender and hashing inputs are shared with scripts/build-pieces.mjs.
+import { blender, hashFiles } from './lib/blender.mjs';
+
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
-const BLENDER = process.env.BLENDER || 'C:/Program Files/Blender Foundation/Blender 5.2/blender.exe';
-// A stage that runs longer is killed: 20 minutes suits the laptop's GPU; a
-// CPU-only machine bakes slower (BLENDER_TIMEOUT_MIN=120).
-const TIMEOUT_MIN = Number(process.env.BLENDER_TIMEOUT_MIN) > 0 ? Number(process.env.BLENDER_TIMEOUT_MIN) : 20;
 const BUILD = join(ROOT, 'build', '3d');
 const PUBLIC = join(ROOT, 'public', '3d');
 const STAGES = ['light', 'env', 'export', 'still'];
@@ -62,31 +60,6 @@ const samples = opt('samples', '256');
 
 // ---------------------------------------------------------------- blender
 
-function blender(script, args, label) {
-  return new Promise((ok, fail) => {
-    const t0 = Date.now();
-    const p = spawn(BLENDER, ['--background', '--factory-startup', '--python', join(ROOT, script), '--', ...args], { cwd: ROOT });
-    let tail = '';
-    const keep = /BAKED|RENDERED|EXPORTED|MERGED|NAV|Error|Traceback|File "|Exception/;
-    const onData = (b) => {
-      for (const line of b.toString().split(/\r?\n/)) {
-        if (!line) continue;
-        tail = (tail + '\n' + line).slice(-4000);
-        if (keep.test(line) && !/HIPEW/.test(line)) console.log(`    ${label}: ${line.trim()}`);
-      }
-    };
-    p.stdout.on('data', onData);
-    p.stderr.on('data', onData);
-    const timer = setTimeout(() => p.kill(), TIMEOUT_MIN * 60 * 1000);
-    p.on('close', (code) => {
-      clearTimeout(timer);
-      const secs = ((Date.now() - t0) / 1000).toFixed(1);
-      if (code === 0 && !/Traceback/.test(tail)) return ok(secs);
-      fail(new Error(`${label} failed (exit ${code}) after ${secs}s\n${tail.slice(-1500)}`));
-    });
-  });
-}
-
 async function runStage(id, stage) {
   const args = ['--scene', id, '--stage', stage, '--samples', stage === 'export' ? '128' : samples];
   for (let attempt = 1; attempt <= 2; attempt++) {
@@ -104,16 +77,13 @@ async function runStage(id, stage) {
 // ---------------------------------------------------------------- hashing
 
 async function hashInputs(id) {
-  const h = createHash('sha256');
   const files = [
     'scripts/blender/common.py',
     'scripts/blender/bake_scene.py',
     ...(await readdir(join(ROOT, 'scripts/blender/kit'))).filter((f) => f.endsWith('.py')).map((f) => `scripts/blender/kit/${f}`),
     `scripts/blender/scenes/${id}.py`,
   ];
-  for (const f of files.sort()) h.update(f).update(await readFile(join(ROOT, f)));
-  h.update(JSON.stringify({ samples, stages }));
-  return h.digest('hex').slice(0, 16);
+  return hashFiles(files, JSON.stringify({ samples, stages }));
 }
 
 // ---------------------------------------------------------------- glTF

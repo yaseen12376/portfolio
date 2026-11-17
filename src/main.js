@@ -20,7 +20,6 @@ import { icons, brandIcons } from './core/util.js';
 import { initNav } from './ui/nav.js';
 import { initPreloader } from './ui/preloader.js';
 import { initMagnetic } from './ui/magnetic.js';
-import { initSpotlight } from './ui/spotlight.js';
 
 import { initHero, playHeroIntro } from './sections/hero.js';
 import { renderProjects, initProjects } from './sections/projects.js';
@@ -41,9 +40,10 @@ function hydrateIcons(root = document) {
 }
 
 /**
- * The résumé PDF is supplied separately. Until public/resume.pdf exists every
- * link to it would 404, so they are hidden. `__HAS_RESUME__` is set by
- * vite.config.js from the filesystem when the server or build starts.
+ * The résumé PDF is generated from this site's data (npm run gen:resume) and
+ * committed. Until public/resume.pdf exists every link to it would 404, so
+ * they are hidden. `__HAS_RESUME__` is set by vite.config.js from the
+ * filesystem when the server or build starts.
  */
 function gateResume() {
   if (__HAS_RESUME__) return;
@@ -55,6 +55,7 @@ function gateResume() {
   document.querySelectorAll('[data-resume-swap]').forEach((el) => {
     el.href = el.dataset.fallbackHref;
     el.textContent = el.dataset.fallbackLabel;
+    el.removeAttribute('download');
     el.removeAttribute('target');
     el.removeAttribute('rel');
   });
@@ -105,7 +106,6 @@ function boot() {
       initSkills(opts);
       initExperience(opts);
       initMagnetic(opts);
-      initSpotlight(opts);
       const cleanupHeadings = reduce ? null : revealSectionHeadings();
 
       return () => {

@@ -17,7 +17,7 @@ export const experience = [
       },
       {
         title: 'Automated attendance',
-        body: 'Co-built face recognition attendance on live CCTV with InsightFace and ArcFace, separate entry and exit cameras, and a JWT-secured FastAPI app.',
+        body: 'Co-built face recognition attendance on live CCTV with InsightFace and ArcFace, check-in and check-out logging with Excel reports, and a JWT-secured FastAPI app.',
         project: 'attendance',
       },
       {
@@ -34,7 +34,8 @@ export const experience = [
   {
     org: 'Freelance',
     role: 'Full-stack Developer',
-    period: 'Jul 2026 - Sep 2026',
+    // The claims workbench's commits run to November 2026.
+    period: 'Jul 2026 - Nov 2026',
     badge: 'Client work',
     kind: 'work',
     points: [
@@ -42,6 +43,30 @@ export const experience = [
         title: 'Courier Management System',
         body: 'Main developer on booking, billing and tracking software for a courier franchise in Tamil Nadu: ASP.NET Core 8, EF Core, WhatsApp and SMS notifications, PDF receipts and a legacy SQL Server sync.',
         project: 'courier',
+      },
+      {
+        title: 'Property claim review workbench',
+        body: 'Built a claims workbench to an insurance technology client’s specification with a colleague who ran the engagement: local vision models that cite every value, rule checks, an exact-decimal settlement and a three-level approval chain, on FastAPI and React.',
+        project: 'claims-workbench',
+      },
+    ],
+  },
+  {
+    org: 'Hackathons',
+    role: 'Team builds',
+    period: 'Nov 2026',
+    badge: 'Hackathon',
+    kind: 'work',
+    points: [
+      {
+        title: 'Mission Builder 3D',
+        body: 'Technical lead on a Mars lander mission game for the NASA Space Apps Challenge 2026, in a team of two adults and two school students: a tested rules engine, a three.js world and script-built Blender models.',
+        project: 'mission-builder-3d',
+      },
+      {
+        title: 'AthleteVision',
+        body: 'Wrote the test analyzers, the capture stack and the native Android pose engine for an offline app that runs a ten-test fitness battery on one phone, in a team of three.',
+        project: 'athletevision',
       },
     ],
   },

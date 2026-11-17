@@ -6,11 +6,11 @@
  * Scroll position is stored in history state and restored after ScrollTrigger
  * has re-measured, because the overlay hides #main-content while it is open.
  */
-import { gsap, ScrollTrigger, Flip, EASE, revealLines, countUp } from '../core/motion.js';
+import { gsap, ScrollTrigger, EASE, revealLines, countUp } from '../core/motion.js';
 import { getProject, projects, liveMetrics } from '../data/projects.js';
 import { scrollTo, stopScroll, startScroll, resizeScroll } from '../core/smooth-scroll.js';
 import { esc, icons, brandIcons } from '../core/util.js';
-import { mediaMarkup, metricMarkup, playMedia, stopMedia, shortTitle } from './projects.js';
+import { mediaMarkup, metricMarkup, playMedia, holdMedia, stopMedia, shortTitle } from './projects.js';
 import { attach3d, snapshot3d } from '../three/gate.js';
 
 // The feature explorer loads with the first case study that has one, not with the page.
@@ -19,14 +19,20 @@ const loadExplorer = () => (explorerModule ??= import('./explorer.js'));
 
 // The long-form copy is its own chunk (src/data/case-copy.js): fetched when
 // the browser is idle after load, or on the first open, and merged into the
-// projects once.
+// projects once. (A failed fetch is tried again on the next open.)
 let copyLoaded = false;
 let copyModule = null;
 export const loadCaseCopy = () =>
-  (copyModule ??= import('../data/case-copy.js').then(({ caseCopy }) => {
-    for (const p of projects) Object.assign(p, caseCopy[p.id]);
-    copyLoaded = true;
-  }));
+  (copyModule ??= import('../data/case-copy.js').then(
+    ({ caseCopy }) => {
+      for (const p of projects) Object.assign(p, caseCopy[p.id]);
+      copyLoaded = true;
+    },
+    (e) => {
+      copyModule = null;
+      throw e;
+    }
+  ));
 import { detectTier } from '../core/device.js';
 
 const list = (items, cls) => `<ul class="${cls}">${items.map((i) => `<li>${esc(i)}</li>`).join('')}</ul>`;
@@ -58,21 +64,31 @@ function detailMarkup(p) {
   const idx = projects.findIndex((x) => x.id === p.id);
   const next = projects[(idx + 1) % projects.length];
   const metrics = liveMetrics(p);
+  const words = `
+        <p class="proj-meta"><span class="num">${p.num}</span><span>${esc(p.year)}</span>
+          ${p.status ? `<span class="chip chip-accent">${esc(p.status)}</span>` : ''}</p>
+        <h1 class="pd-title">${esc(p.title)}</h1>
+        <p class="pd-short">${esc(p.short)}</p>`;
+  // A diorama gets the full width (its explorer sits under it); a piece sits
+  // beside the words, turning until paused. Both are frameless.
+  const head = p.scene3d
+    ? `<header class="pd-head">${words}</header>
+      <div class="pd-hero-media">${mediaMarkup(p, { eager: true, shape: 'hero' })}</div>
+      ${p.scene3d.chapters?.length ? '<div class="pd-explorer-mount"></div>' : ''}`
+    : `<header class="pd-head pd-head-split">
+        <div class="pd-head-text">${words}</div>
+        <figure class="pd-piece pd-hero-media">
+          ${mediaMarkup(p, { eager: true, size: desktop() ? 1080 : 720 })}
+          <button class="pd-hold" type="button" hidden><span class="hold-icon" aria-hidden="true"></span><span class="pd-hold-label">Pause</span></button>
+        </figure>
+      </header>`;
   return `
     <article class="pd-inner">
       <div class="pd-bar">
         <button class="pd-back" id="pd-back" type="button">${icons.arrowLeft}<span>All work</span></button>
       </div>
 
-      <header class="pd-head">
-        <p class="proj-meta"><span class="num">${p.num}</span><span>${esc(p.year)}</span>
-          ${p.status ? `<span class="chip chip-accent">${esc(p.status)}</span>` : ''}</p>
-        <h1 class="pd-title">${esc(p.title)}</h1>
-        <p class="pd-short">${esc(p.short)}</p>
-      </header>
-
-      <div class="shell pd-hero-media is-locked"><div class="core">${mediaMarkup(p, { eager: true, square: true })}</div></div>
-      ${p.scene3d?.chapters?.length ? '<div class="pd-explorer-mount"></div>' : ''}
+      ${head}
 
       <div class="pd-layout">
         ${railMarkup(p)}
@@ -105,6 +121,27 @@ function detailMarkup(p) {
 
 const reducedMotion = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 const desktop = () => window.matchMedia('(min-width: 900px)').matches;
+
+/**
+ * A piece's loop plays in its case study on every device (the shelf only
+ * plays it under a mouse), with Pause beside it. Reduced motion and Save-Data
+ * keep the poster.
+ */
+function playPiece(el, media) {
+  const btn = el.querySelector('.pd-hold');
+  if (!btn || !media?.querySelector('video') || reducedMotion() || navigator.connection?.saveData === true) return;
+  const label = btn.querySelector('.pd-hold-label');
+  let held = false;
+  btn.hidden = false;
+  btn.addEventListener('click', () => {
+    held = !held;
+    btn.classList.toggle('is-held', held);
+    if (label) label.textContent = held ? 'Play' : 'Pause';
+    if (held) holdMedia(media);
+    else playMedia(media);
+  });
+  playMedia(media);
+}
 
 const detail = () => document.querySelector('#project-detail');
 const main = () => document.querySelector('#main-content');
@@ -180,6 +217,26 @@ function swapViews(from, swap) {
   });
 }
 
+/**
+ * Grow the clicked picture into the case study's header. Both boxes are
+ * measured in the viewport, one before the page swaps and one after, so the
+ * scroll reset in between is not taken for movement. Only between boxes of
+ * the same shape (a square tile into a square header): a square stretched
+ * into a wide box would distort on the way, so that one simply fades in.
+ * Returns whether it runs.
+ */
+function morphFrom(rect, media) {
+  if (!rect || !media || reducedMotion() || rect.bottom <= 0 || rect.top >= innerHeight) return false;
+  const to = media.getBoundingClientRect();
+  if (!to.width || !to.height || Math.abs(rect.width / rect.height - to.width / to.height) > 0.05) return false;
+  gsap.fromTo(
+    media,
+    { x: rect.left - to.left, y: rect.top - to.top, scale: rect.width / to.width, transformOrigin: '0 0' },
+    { x: 0, y: 0, scale: 1, duration: 0.8, ease: EASE.inOut, clearProps: 'transform,transformOrigin' }
+  );
+  return true;
+}
+
 export function openProject(id, { push = true } = {}) {
   const p = getProject(id);
   const el = detail();
@@ -191,9 +248,8 @@ export function openProject(id, { push = true } = {}) {
 
   const scrollY = isOpen ? history.state?.scrollY ?? 0 : window.scrollY;
   const sourceMedia = !isOpen ? main().querySelector(`.media[data-id="${p.id}"]`) : null;
-  const sourceImg = sourceMedia?.querySelector('img') ?? null;
   const resume = snapshot3d(sourceMedia);
-  const flipState = sourceImg ? Flip.getState(sourceImg) : null;
+  const from = sourceMedia?.getBoundingClientRect() ?? null;
   if (!isOpen) returnFocus = document.activeElement;
 
   stopScroll();
@@ -217,21 +273,16 @@ export function openProject(id, { push = true } = {}) {
     ScrollTrigger.refresh();
 
     const media = el.querySelector('.pd-hero-media .media');
-    if (desktop() && !reducedMotion()) playMedia(media);
+    playPiece(el, media);
 
-    // Shared-element morph: the card's poster becomes the detail poster.
-    const target = media?.querySelector('img');
-    const morph = !!(flipState && target && !reducedMotion());
-    if (morph) {
-      Flip.fit(target, flipState, { scale: true });
-      gsap.to(target, { scale: 1, x: 0, y: 0, duration: 0.8, ease: EASE.inOut, clearProps: 'transform' });
-    }
+    // Shared-element morph: the picture that was clicked becomes the header's.
+    const morph = morphFrom(from, media);
 
     // The live diorama fades in over the poster once the morph has landed, so
     // the two never move at once.
     explorerFor(el, p, null);
     const attach = () => {
-      if (!isOpen || !media?.isConnected || caseDiorama) return;
+      if (!isOpen || !media?.isConnected || caseDiorama || !media.hasAttribute('data-scene')) return;
       caseDiorama = attach3d(media, p, {
         context: 'case',
         tier: document.documentElement.dataset.tier || detectTier(),
@@ -250,7 +301,8 @@ export function openProject(id, { push = true } = {}) {
     if (!reducedMotion()) {
       const title = el.querySelector('.pd-title');
       if (title) splits.push(revealLines(title, { trigger: null }));
-      gsap.from(el.querySelectorAll('.pd-head .proj-meta, .pd-short, .pd-hero-media'), {
+      // (A header picture that morphs in is already moving; it doesn't rise too.)
+      gsap.from(el.querySelectorAll(`.pd-head .proj-meta, .pd-short${morph ? '' : ', .pd-hero-media'}`), {
         autoAlpha: 0, y: 22, duration: 0.7, stagger: 0.07, delay: 0.1,
       });
       const blocks = gsap.from(el.querySelectorAll('.pd-block'), {
@@ -263,28 +315,8 @@ export function openProject(id, { push = true } = {}) {
       gsap.from(el.querySelectorAll('.pd-rail dl > div'), {
         autoAlpha: 0, x: 14, duration: 0.6, stagger: 0.05, delay: 0.4,
       });
-
-      // Parallax waits for the shared-element morph to finish: both drive the
-      // same image, and starting now would fight it.
-      gsap.delayedCall(0.95, () => {
-        const img = el.querySelector('.pd-hero-media img');
-        if (!isOpen || !img?.isConnected) return;
-        const tween = gsap.fromTo(
-          img,
-          { yPercent: -3, scale: 1.07 },
-          {
-            yPercent: 3,
-            ease: 'none',
-            scrollTrigger: {
-              trigger: el.querySelector('.pd-hero-media'),
-              start: 'top bottom',
-              end: 'bottom top',
-              scrub: true,
-            },
-          }
-        );
-        detailTriggers.push(tween.scrollTrigger);
-      });
+      // (No parallax on the header picture: a live diorama or a playing loop
+      // sits exactly over it, and a drifting poster would show at the seams.)
     }
 
     el.querySelector('#pd-back')?.addEventListener('click', () => {

@@ -9,12 +9,19 @@
  * ConstructSafe ONNX figure is from ppe-detection/benchmark_results.txt.
  *
  * Field notes:
- * - `tier` places the project: 'flagship' (one), 'featured' (the pinned stack)
- *   or 'more' (the bento at the end of the work section).
+ * - `tier` places the project in the exhibition: 'stage' (a diorama on its own
+ *   full-height stage), 'large' or 'small' (a tile on the collection shelf).
+ * - `kind` is what the project is, in two or three words: the catalogue and
+ *   the résumé print it.
+ * - `period` is optional: the months the work ran, from git history, as
+ *   { from: 'YYYY-MM', to: 'YYYY-MM' }. The résumé prints it; without it the
+ *   résumé falls back to `year`.
+ * - `piece` names the project's model under glass (scripts/blender/pieces/,
+ *   built into public/pieces/<id>/ by `npm run build:pieces`).
  * - `metrics` render as display figures. The first two appear on cards; the
  *   detail view shows all of them. A value of 'TODO_' is skipped everywhere.
- * - `video` is the basename of a loop in public/project-video/ (<id>.webm with
- *   an .mp4 fallback). `poster` is the still; null renders a neutral frame.
+ * - `poster` is a diorama's Cycles still (public/3d/<id>/). A project without
+ *   a diorama has a `piece` instead; with neither it gets a typographic frame.
  * - `repo` is only set for repositories that return 200 to a logged-out
  *   visitor. `private: true` shows a "Private repository" note instead.
  * - `num` is derived from array order below; do not set it by hand.
@@ -23,7 +30,8 @@
 export const projects = [
   {
     id: 'retail-analytics',
-    tier: 'flagship',
+    tier: 'stage',
+    kind: 'Computer vision',
     title: 'Retail Analytics Platform',
     short:
       'Footfall and shopper-behaviour analytics for a clothing franchise, built on the CCTV cameras its stores already have.',
@@ -39,10 +47,8 @@ export const projects = [
     team: 'Designed, built and benchmarked alone',
     status: 'In active development',
     private: true,
-    // The pipeline's own visualiser output on a synthetic scene (no real
-    // shoppers). Swap for the Veo loop once it exists: see docs/image-prompts.md.
+    // The diorama's own Cycles still (the live scene fades in over it).
     poster: '/3d/retail-analytics/poster.webp',
-    video: '/project-video/retail-analytics',
     metrics: [
       { value: '2.4×', label: 'faster inference after TensorRT export, counts unchanged' },
       { value: '6', label: 'camera streams batched through one model' },
@@ -131,7 +137,8 @@ export const projects = [
 
   {
     id: 'constructsafe',
-    tier: 'featured',
+    tier: 'stage',
+    kind: 'Computer vision',
     title: 'ConstructSafe: AI Site Safety Platform',
     short:
       'Construction-site monitoring that flags missing PPE, falls, fire and smoke as they happen, and matches faces to workers in the live view.',
@@ -148,7 +155,6 @@ export const projects = [
     private: true,
     // The diorama's own Cycles still (the live scene fades in over it).
     poster: '/3d/constructsafe/poster.webp',
-    video: '/project-video/constructsafe',
     metrics: [
       { value: '1.31×', label: 'faster in an ONNX export benchmark (YOLOv8s, 97 to 74 ms a frame)' },
       { value: '10', label: 'PPE classes, with a safe or unsafe state per worker' },
@@ -226,7 +232,8 @@ export const projects = [
 
   {
     id: 'finmind',
-    tier: 'featured',
+    tier: 'stage',
+    kind: 'Local LLM assistant',
     title: 'FinMind: AI Money Mentor',
     short:
       'A personal-finance mentor for Indian savers where every rupee figure comes from a calculation engine, and a local LLM only explains it.',
@@ -314,9 +321,113 @@ export const projects = [
     ],
   },
 
+  // Facts from the repo's README and HANDOFF.md (its evaluation tables). The
+  // client is not named anywhere on this site, and every figure is from the
+  // demo build's synthetic documents. Never quote: production use, accuracy
+  // on real claims, fraud findings, savings, or an approved methodology.
+  {
+    id: 'claims-workbench',
+    tier: 'large',
+    kind: 'Document AI',
+    title: 'Property Claim Review & Settlement Workbench',
+    short:
+      'A claims workbench that reads a commercial property claim file with local vision models, checks it with rules, and takes it to a signed-off settlement, all on one laptop.',
+    blurb: 'A property claim file read, checked and settled on one laptop.',
+    tags: ['FastAPI', 'React 19', 'Ollama', 'SQLite'],
+    detail: {
+      problem: 'A claim file is PDFs, scans, photos and invoices that someone has to read line by line.',
+      built: 'Local vision models that cite every value, rule checks, and an exact-decimal settlement behind a three-level approval chain.',
+      result: 'Field accuracy 0.987 on its synthetic evaluation set, at 16.1 s a page instead of 69.1.',
+    },
+    year: '2026',
+    period: { from: '2026-11', to: '2026-11' },
+    role: 'Engineer, full build',
+    team: 'Two people: a colleague ran the client engagement, I built the software',
+    status: 'Demo build on synthetic claims',
+    private: true,
+    piece: { id: 'claims-workbench' },
+    metrics: [
+      { value: '0.987', label: 'field accuracy on the synthetic evaluation set, each value checked against the line it cites' },
+      { value: '16.1 s', label: 'a page for extraction on a 4 GB laptop GPU, down from 69.1 s' },
+      { value: '3', label: 'approval levels, each with its own authority limit' },
+      { value: '109', label: 'automated tests' },
+    ],
+    techStack: [
+      'Python', 'FastAPI', 'SQLAlchemy', 'SQLite', 'PyMuPDF', 'RapidOCR', 'ONNX Runtime', 'Ollama', 'Qwen 3.5',
+      'ReportLab', 'React 19', 'TypeScript', 'TanStack Query', 'Tailwind CSS 4', 'Vite', 'pytest',
+    ],
+  },
+
+  // Facts from the repo's README, TEST_BATTERY_STATUS.md and docs/native-pose.md.
+  // The accuracy figures are from synthetic sequences and are always labelled
+  // so. The event's name and result are not in the repo, so neither is here.
+  {
+    id: 'athletevision',
+    tier: 'large',
+    kind: 'On-device pose',
+    title: 'AthleteVision: Fitness Tests on One Phone',
+    short:
+      'The SAI fitness test battery on one phone with no internet: the camera measures eight of the ten tests with on-device pose tracking.',
+    blurb: 'A ten-test fitness battery, measured offline by one phone.',
+    tags: ['MediaPipe', 'Capacitor 8', 'Next.js 15', 'CameraX'],
+    detail: {
+      problem: 'Ten fitness tests to measure and record, with one phone and no internet.',
+      built: 'An analyzer per test on MediaPipe pose, tape marks that follow the phone, and a native Android pose path.',
+      result: 'Pose runs 2.7 to 3.7 times faster natively than in the WebView on a budget phone.',
+    },
+    year: '2026',
+    period: { from: '2026-11', to: '2026-11' },
+    role: 'Vision and measurement engineer',
+    team: 'Team of three. My part: the test analyzers, the capture stack and native Android pose',
+    status: 'Hackathon build, tested on Android',
+    private: true,
+    piece: { id: 'athletevision' },
+    metrics: [
+      { value: '8 of 10', label: 'tests measured by the camera; the coach types or times the other two' },
+      { value: '2.7×', label: 'to 3.7× faster pose on native Android than in the WebView, on a Galaxy A17 5G' },
+      { value: '±0.6 cm', label: 'height on synthetic sequences, not yet on athletes' },
+      { value: '0', label: 'network calls: both pose models ship inside the app' },
+    ],
+    techStack: ['TypeScript', 'Next.js 15', 'React 19', 'Capacitor 8', 'MediaPipe', 'Java', 'CameraX', 'Android', 'IndexedDB'],
+  },
+
+  // Facts from the repo's README, CLAUDE.md, AI_USAGE.md and docs/handoff/.
+  // Credits are by role only: no student is named, here or anywhere on the
+  // site. Never quote a result, a submission, a team name or NASA's backing.
+  {
+    id: 'mission-builder-3d',
+    tier: 'large',
+    kind: 'Browser game',
+    title: 'Mission Builder 3D: Mars Lander Game',
+    short:
+      'A browser game for the NASA Space Apps Challenge 2026: design a Mars lander, pass six launch checks and keep it alive for 20 sols of dust, storms and slow radio signals.',
+    blurb: 'Design a Mars lander, then keep it alive for 20 sols.',
+    tags: ['three.js', 'Vite', 'Vitest', 'Blender'],
+    detail: {
+      problem: 'Dust, power and a radio that answers minutes late, for players of about 9 to 15.',
+      built: 'A pure rules engine under 281 tests, a three.js world, and a lander modelled by script in Blender.',
+      result: 'The real distance to Mars gives a 10 min 57 s signal delay, played as 11 seconds.',
+    },
+    year: '2026',
+    period: { from: '2026-11', to: '2026-11' },
+    role: 'Technical lead',
+    team: 'Team of four: two adults and two school students',
+    status: 'Student project, not endorsed by NASA',
+    private: true,
+    piece: { id: 'mission-builder-3d' },
+    metrics: [
+      { value: '281', label: 'unit tests on a rules engine with no 3D or page code in it' },
+      { value: '10:57', label: 'minutes of real signal delay to Mars on 15 Nov 2026, played as 11 seconds' },
+      { value: '20', label: 'sols to survive: dust, cleaning, power, battery and science' },
+      { value: '4', label: 'labels, one on every number: NASA, calculated, game or assumed' },
+    ],
+    techStack: ['JavaScript', 'three.js', 'Vite', 'Vitest', 'Blender', 'Python'],
+  },
+
   {
     id: 'courier',
-    tier: 'featured',
+    tier: 'large',
+    kind: 'Client software',
     title: 'Courier Management System',
     short:
       'Booking, billing and tracking software built for a courier franchise, with WhatsApp and SMS updates and printed PDF receipts.',
@@ -331,8 +442,7 @@ export const projects = [
     role: 'Main developer',
     team: 'Client project for a courier franchise in Tamil Nadu',
     private: true,
-    poster: '/posters/courier.webp',
-    video: '/project-video/courier',
+    piece: { id: 'courier' },
     metrics: [
       { value: '16', label: 'MVC controllers over 18 services' },
       { value: '4×', label: 'daily background sync with the courier network' },
@@ -347,25 +457,27 @@ export const projects = [
 
   {
     id: 'attendance',
-    tier: 'featured',
+    tier: 'large',
+    kind: 'Face recognition',
     title: 'Automated Attendance System',
     short:
-      'Face recognition attendance running on live CCTV, with separate entry and exit cameras and automatic Excel reports.',
+      'Face recognition attendance running on live CCTV: each sighting is matched to an enrolled face, logged as a check-in or a check-out, and exported to Excel.',
     blurb: 'Attendance taken from live CCTV, with no queue at the door.',
     tags: ['InsightFace', 'ArcFace', 'FastAPI', 'RTSP'],
     detail: {
       problem: 'Manual attendance is slow, and a proxy sign-in defeats it entirely.',
-      built: 'ArcFace embeddings over two RTSP streams, behind a JWT-secured FastAPI app.',
-      result: 'Entry and exit both recorded, exported to Excel every day.',
+      built: 'ArcFace embeddings over a live RTSP stream, behind a JWT-secured FastAPI app.',
+      result: 'Check-ins and check-outs logged per person, with working hours exported to Excel.',
     },
     year: '2025',
     role: 'Co-developer',
     team: 'Built with one teammate at Ethical Intelligence Technologies',
-    poster: '/posters/attendance.webp',
-    video: '/project-video/attendance',
-    repo: 'https://github.com/yaseen12376/EIT_FACE_PROJ',
+    // The repository is public, but it is not linked from here until it has
+    // been cleaned up (docs/dioramas-handoff.md, "Needs the owner").
+    private: true,
+    piece: { id: 'attendance' },
     metrics: [
-      { value: '2', label: 'CCTV streams, one for entry and one for exit' },
+      { value: '60 s', label: 'cooldown, so someone standing in frame is logged once' },
       { value: '0.4', label: 'cosine-similarity threshold on ArcFace embeddings' },
       { value: 'JWT', label: 'authenticated FastAPI app for enrolment and monitoring' },
       { value: 'TODO_', label: 'Recognition accuracy % on your enrolled set' },
@@ -375,7 +487,8 @@ export const projects = [
 
   {
     id: 'indoor-tracking',
-    tier: 'featured',
+    tier: 'large',
+    kind: 'Indoor positioning',
     title: 'Indoor Tracking System',
     short:
       'BLE and MQTT indoor positioning for real-time asset and personnel tracking where GPS cannot reach, accurate to roughly 3 metres.',
@@ -389,8 +502,7 @@ export const projects = [
     year: '2025',
     role: 'Internship project',
     team: 'Ethical Intelligence Technologies',
-    poster: '/posters/indoor-tracking.webp',
-    video: '/project-video/indoor-tracking',
+    piece: { id: 'indoor-tracking' },
     metrics: [
       { value: '±3 m', label: 'Positioning accuracy' },
       { value: 'BLE', label: 'RSSI trilateration' },
@@ -402,12 +514,13 @@ export const projects = [
 
   {
     id: 'kps-cleano',
-    tier: 'more',
+    tier: 'small',
+    kind: 'Storefront',
     title: 'KPS Clean-O: Bilingual Storefront',
     short:
       'An English and Tamil storefront for a cleaning-products brand: 165 products on 415 static pages, and a 3D doorstep you clean with the products.',
     blurb: 'An English and Tamil storefront, with a 3D doorstep to clean.',
-    tags: ['Astro 5', 'Tailwind CSS 4', 'three.js', 'Blender'],
+    tags: ['Astro 7', 'Tailwind CSS 4', 'three.js', 'Blender'],
     detail: {
       problem: 'A local brand’s catalogue needed to read as well in Tamil as in English.',
       built: 'A static Astro site rebuilt from the live catalogue, with cut-out product photos and a real-time 3D scene.',
@@ -417,8 +530,7 @@ export const projects = [
     role: 'Solo project',
     status: 'Redesign concept',
     private: true,
-    // The project's own Cycles render of its doorstep, until its diorama lands.
-    poster: '/posters/kps-cleano.webp',
+    piece: { id: 'kps-cleano' },
     metrics: [
       { value: '165', label: 'products across 11 ranges, rebuilt from the live catalogue' },
       { value: '415', label: 'static pages, every one with an English and a Tamil twin' },
@@ -426,14 +538,15 @@ export const projects = [
       { value: '68 KB', label: 'of gzipped JavaScript across the whole site' },
     ],
     techStack: [
-      'Astro 5', 'TypeScript', 'Tailwind CSS 4', 'nanostores', 'GSAP', 'Lenis', 'three.js',
+      'Astro 7', 'TypeScript', 'Tailwind CSS 4', 'nanostores', 'GSAP', 'Lenis', 'three.js',
       'Blender', 'Cycles', 'rembg', 'OpenCV', 'Playwright',
     ],
   },
 
   {
     id: 'observex',
-    tier: 'more',
+    tier: 'small',
+    kind: 'Product site',
     title: 'ObserveX: Behavioral Threat Detection',
     short:
       'Product site for an AI home security concept built around predicting intent, not replaying footage after a break-in.',
@@ -445,8 +558,7 @@ export const projects = [
       result: 'A pitch surface that reads as a funded startup, not a student project.',
     },
     year: '2026',
-    poster: '/posters/observex.webp',
-    video: '/project-video/observex',
+    piece: { id: 'observex' },
     repo: 'https://github.com/yaseen12376/observex',
     metrics: [
       { value: '12', label: 'Composed sections' },
@@ -458,7 +570,8 @@ export const projects = [
 
   {
     id: 'adraf',
-    tier: 'more',
+    tier: 'small',
+    kind: 'Deepfake detection',
     title: 'ADRAF: Deepfake Authentication',
     short:
       'Multi-stage deepfake detection combining facial landmark analysis, temporal consistency checking and CNN classification.',
@@ -470,8 +583,7 @@ export const projects = [
       result: 'Trained across FaceForensics++ and Celeb-DF, served through a Flask API.',
     },
     year: '2025',
-    poster: '/posters/adraf.webp',
-    video: '/project-video/adraf',
+    piece: { id: 'adraf' },
     metrics: [
       { value: '2', label: 'Benchmark datasets' },
       { value: '3', label: 'Independent detection signals' },
@@ -483,7 +595,8 @@ export const projects = [
 
   {
     id: 'airdraw',
-    tier: 'more',
+    tier: 'small',
+    kind: 'Hand tracking',
     title: 'AirDraw: Gesture Drawing',
     short:
       'Draw, erase and zoom in the air with one hand, tracked by MediaPipe in real time and rendered to a browser canvas.',
@@ -498,8 +611,7 @@ export const projects = [
     role: 'Solo project',
     status: 'In progress',
     private: true,
-    poster: '/posters/airdraw.webp',
-    video: '/project-video/airdraw',
+    piece: { id: 'airdraw' },
     metrics: [
       { value: '21', label: 'hand landmarks tracked every frame' },
       { value: '3', label: 'gestures: draw, erase and pinch to zoom' },

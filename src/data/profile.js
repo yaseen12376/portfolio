@@ -5,9 +5,7 @@ export const profile = {
   name: 'Sheik Ahmed Yaseen',
   initials: 'SAY',
   role: 'AI & Computer Vision Engineer',
-  email: 'yaseen12376@gmail.com',
-  phone: '+91 9150401402',
-  github: 'https://github.com/yaseen12376',
+  email: 'yaseen12376@gmail.com',  github: 'https://github.com/yaseen12376',
   githubLabel: 'github.com/yaseen12376',
   linkedin: 'https://www.linkedin.com/in/sheik-yaseen-96a83234a/',
   // The slug is unreadable as link text, so the UI shows "LinkedIn" instead.

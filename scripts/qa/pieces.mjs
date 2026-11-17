@@ -1,0 +1,155 @@
+/**
+ * The pieces under glass, as they ship in public/pieces/:
+ *
+ *   node scripts/qa/pieces.mjs [ids...]
+ *
+ *  1. every shelf project has its own piece built, and src/data/pieces.json
+ *     (what the page reads) agrees with public/pieces/manifest.json
+ *  2. every file the page asks for is there and within its budget (the
+ *     budgets are read from scripts/build-pieces.mjs, so there is one list)
+ *  3. a poster's backdrop is the page colour, #09090b, to within one level,
+ *     so the frameless tile has no visible edge
+ *  4. each loop, decoded as a browser decodes it (BT.709, limited range):
+ *     its backdrop is the page colour too, and its seam is invisible, the
+ *     step from the last frame to the first no bigger than an ordinary step
+ *     from one frame to the next
+ *
+ * (In the browser, a tile looks the same still and playing: scripts/qa/site.mjs.)
+ */
+import { spawn } from 'node:child_process';
+import { existsSync } from 'node:fs';
+import { readFile, stat } from 'node:fs/promises';
+import { join } from 'node:path';
+import sharp from 'sharp';
+
+import { projects } from '../../src/data/projects.js';
+import { ROOT, args } from './lib.mjs';
+
+const opts = args();
+const PAGE = [9, 9, 11];
+const PUBLIC = join(ROOT, 'public', 'pieces');
+const results = [];
+const check = (name, ok, detail = '') => {
+  results.push({ name, ok, detail });
+  console.log(`${ok ? 'ok  ' : 'FAIL'} ${name}${detail ? ` · ${detail}` : ''}`);
+};
+
+const src = await readFile(join(ROOT, 'scripts', 'build-pieces.mjs'), 'utf8');
+const BUDGET_KB = new Function(`return ${src.match(/const BUDGET_KB = (\{[^}]+\})/)[1]}`)();
+const manifest = JSON.parse(await readFile(join(PUBLIC, 'manifest.json'), 'utf8'));
+const site = JSON.parse(await readFile(join(ROOT, 'src', 'data', 'pieces.json'), 'utf8'));
+
+// ---------------------------------------------------------------- 1. built, and agreed
+const wanted = projects.filter((p) => p.piece?.id).map((p) => p.piece.id);
+const missing = wanted.filter((id) => !manifest[id]);
+check(`every shelf project has its piece (${wanted.length - missing.length} of ${wanted.length})`, missing.length === 0, missing.length ? `not built yet: ${missing.join(', ')}` : '');
+const disagree = [...new Set([...Object.keys(manifest), ...Object.keys(site)])].filter(
+  (id) => !manifest[id] || !site[id] || site[id].v !== manifest[id].v || site[id].loop !== manifest[id].frames > 0
+);
+check('src/data/pieces.json agrees with the manifest', disagree.length === 0, disagree.length ? `${disagree.join(', ')} (node scripts/build-pieces.mjs --stages none)` : '');
+
+/**
+ * Raw RGB frames from a video, as a browser shows them, at `size` px square.
+ * The colour is converted at full size with accurate rounding and only then
+ * scaled: swscale's combined scale-and-convert path is a level or two dark.
+ */
+function decode(file, picks, size) {
+  const select = picks.map((n) => `eq(n\\,${n})`).join('+');
+  const vf = `select='${select}',scale=flags=accurate_rnd+full_chroma_int:in_color_matrix=bt709:in_range=limited,format=rgb24,scale=${size}:${size}:flags=area`;
+  return new Promise((ok, fail) => {
+    const p = spawn('ffmpeg', ['-hide_banner', '-loglevel', 'error', '-i', file, '-vf', vf, '-fps_mode', 'passthrough', '-f', 'rawvideo', '-']);
+    const out = [];
+    let err = '';
+    p.stdout.on('data', (d) => out.push(d));
+    p.stderr.on('data', (d) => (err += d));
+    p.on('error', fail);
+    p.on('close', (code) => {
+      if (code) return fail(new Error(err.slice(-400)));
+      const all = Buffer.concat(out);
+      const n = size * size * 3;
+      ok(picks.map((_, i) => all.subarray(i * n, (i + 1) * n)));
+    });
+  });
+}
+
+/** Mean absolute difference between two frames, in levels. */
+const step = (a, b) => {
+  let s = 0;
+  for (let i = 0; i < a.length; i++) s += Math.abs(a[i] - b[i]);
+  return s / a.length;
+};
+
+/** The four corner patches of a square RGB frame: their mean, and the worst pixel's distance from the page. */
+function corners(px, size) {
+  const p = Math.max(4, Math.round(size * 0.03));
+  const o = Math.round(size * 0.01);
+  const sum = [0, 0, 0];
+  let worst = 0;
+  let k = 0;
+  for (const [x0, y0] of [[o, o], [size - o - p, o], [o, size - o - p], [size - o - p, size - o - p]]) {
+    for (let y = y0; y < y0 + p; y++) {
+      for (let x = x0; x < x0 + p; x++) {
+        const i = (y * size + x) * 3;
+        for (let c = 0; c < 3; c++) {
+          sum[c] += px[i + c];
+          worst = Math.max(worst, Math.abs(px[i + c] - PAGE[c]));
+        }
+        k++;
+      }
+    }
+  }
+  return { mean: sum.map((s) => s / k), worst };
+}
+const fmt = (c) => c.map((v) => v.toFixed(1)).join(',');
+const off = (mean) => Math.max(...mean.map((v, i) => Math.abs(v - PAGE[i])));
+
+// ---------------------------------------------------------------- 2-4. each piece
+const ids = opts._.length ? opts._ : Object.keys(manifest).sort();
+for (const id of ids) {
+  const m = manifest[id];
+  if (!m) {
+    check(`${id}: in the manifest`, false);
+    continue;
+  }
+  const dir = join(PUBLIC, id);
+  const files = ['poster-720.webp', 'poster-1080.webp', ...(m.frames > 0 ? ['loop-720.webm', 'loop-720.mp4', 'loop-1080.webm', 'loop-1080.mp4'] : [])];
+  const absent = files.filter((f) => !existsSync(join(dir, f)));
+  const over = [];
+  for (const f of files.filter((x) => !absent.includes(x))) {
+    const kb = (await stat(join(dir, f))).size / 1024;
+    if (kb > BUDGET_KB[f]) over.push(`${f} ${kb.toFixed(0)} KB > ${BUDGET_KB[f]}`);
+  }
+  check(`${id}: all ${files.length} files present and within budget`, absent.length === 0 && over.length === 0, [...absent.map((f) => `missing ${f}`), ...over].join(', '));
+
+  for (const f of ['poster-720.webp', 'poster-1080.webp'].filter((x) => !absent.includes(x))) {
+    const { data, info } = await sharp(join(dir, f)).removeAlpha().raw().toBuffer({ resolveWithObject: true });
+    const c = corners(data, info.width);
+    // (WebP's own rounding scatters a pixel here and there by a level or two.)
+    check(`${id}: ${f} backdrop is the page colour`, info.width === info.height && off(c.mean) <= 0.5 && c.worst <= 2, `mean ${fmt(c.mean)}, worst pixel ${c.worst} off`);
+  }
+
+  if (m.frames > 0) {
+    const N = m.frames;
+    const mid = Math.floor(N / 2);
+    const picks = [0, 1, mid, mid + 1, N - 2, N - 1];
+    for (const f of ['loop-720.webm', 'loop-720.mp4', 'loop-1080.webm', 'loop-1080.mp4'].filter((x) => !absent.includes(x))) {
+      const size = 240;
+      const fr = await decode(join(dir, f), picks, size).catch((e) => e);
+      if (fr instanceof Error || fr.some((x) => x.length !== size * size * 3)) {
+        check(`${id}: ${f} decodes`, false, fr instanceof Error ? fr.message : 'short read');
+        continue;
+      }
+      const c = corners(fr[0], size);
+      // (A browser decodes in floating point; ffmpeg's integers can land a level lower.)
+      check(`${id}: ${f} backdrop decodes to the page colour`, off(c.mean) <= 1.2 && c.worst <= 2, `mean ${fmt(c.mean)}, worst pixel ${c.worst} off`);
+      const steps = [step(fr[0], fr[1]), step(fr[2], fr[3]), step(fr[4], fr[5])];
+      const seam = step(fr[5], fr[0]);
+      const limit = Math.max(...steps) * 1.25 + 0.2;
+      check(`${id}: ${f} loops without a visible seam`, seam <= limit, `seam ${seam.toFixed(2)}, steps ${steps.map((s) => s.toFixed(2)).join('/')}`);
+    }
+  }
+}
+
+const failed = results.filter((r) => !r.ok).length;
+console.log(`\n${results.length - failed}/${results.length} passed`);
+process.exit(failed ? 1 : 0);

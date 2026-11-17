@@ -25,15 +25,18 @@ const DRAG_PX = 6;
 
 // Safe areas: a card keeps its top edge for the chapter caption chip; a case
 // study keeps every control outside the canvas, so only a breathing margin.
+// A stage has no chip (its stepper sits beside it) and its edges are
+// feathered into the page, so it keeps an even margin all round.
 const INSETS = {
   card: { t: 0.14, r: 0.03, b: 0.04, l: 0.03 },
   case: { t: 0.04, r: 0.04, b: 0.04, l: 0.04 },
+  stage: { t: 0.07, r: 0.07, b: 0.07, l: 0.07 },
 };
 
 export class Slot {
   /**
    * @param {HTMLElement} media  the .media box
-   * @param {{ id: string, base: string, context: 'card'|'case', tier: string, resume?: object,
+   * @param {{ id: string, base: string, context: 'stage'|'card'|'case', tier: string, resume?: object,
    *           meta?: { chapters?: object[], tour?: string[] }, onOpen?: (chapter?: string) => void,
    *           onLive?: (slot: Slot) => void }} opts
    */
@@ -101,7 +104,7 @@ export class Slot {
     const hasChapters = !!meta.chapters?.length;
     this.rig = new CameraRig(stage.data.view, {
       ...(context === 'case' ? { maxYaw: 0.9, maxPitch: 0.25 } : {}),
-      insets: this.opts.insets ?? (context === 'case' || !hasChapters ? INSETS.case : INSETS.card),
+      insets: this.opts.insets ?? (context === 'stage' ? INSETS.stage : context === 'case' || !hasChapters ? INSETS.case : INSETS.card),
     });
     this.camera = this.rig.camera;
     this.postParams = { ...stage.data.post, ...(context === 'case' ? stage.data.post?.case : null) };
@@ -142,9 +145,10 @@ export class Slot {
     this.opts.onLive?.(this);
   }
 
-  /** A card's chapter caption: what the tour is showing right now. */
+  /** A card's chapter caption: what the tour is showing right now. (A stage
+   *  shows it in its stepper instead, and a case study in its explorer.) */
   showCaption(info) {
-    if (this.opts.context === 'case' || !info?.title) return;
+    if (this.opts.context !== 'card' || !info?.title) return;
     if (!this.caption) {
       this.caption = document.createElement('div');
       this.caption.className = 'media-3d-caption';

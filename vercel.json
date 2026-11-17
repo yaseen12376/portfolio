@@ -9,7 +9,7 @@
   ],
   "headers": [
     {
-      "source": "/(hero|project-video|posters|3d)/(.*)",
+      "source": "/(hero|3d|pieces)/(.*)",
       "headers": [
         {
           "key": "Cache-Control",

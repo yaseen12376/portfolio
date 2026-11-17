@@ -1,9 +1,11 @@
 import { defineConfig } from 'vite';
-import { existsSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { projects, liveMetrics } from './src/data/projects.js';
 import { caseCopy } from './src/data/case-copy.js';
+import { resumeModel } from './src/resume/content.js';
+import { resumeHash } from './scripts/lib/resume.mjs';
 
 const SITE = 'https://sheikahmedyaseen.com';
 
@@ -75,7 +77,7 @@ function projectPages() {
         await writeFile(resolve(outDir, 'project', p.id, 'index.html'), out);
       }
 
-      const urls = ['', ...projects.map((p) => `project/${p.id}/`)]
+      const urls = ['', ...projects.map((p) => `project/${p.id}/`), 'resume/']
         .map((u) => `  <url><loc>${SITE}/${u}</loc><changefreq>monthly</changefreq></url>`)
         .join('\n');
       // writeFile, not this.emitFile: emitFile is a generateBundle-phase API
@@ -88,8 +90,36 @@ function projectPages() {
   };
 }
 
+/**
+ * Refuse to ship a résumé PDF that no longer matches the site's data.
+ *
+ * public/resume.pdf is printed by scripts/gen-resume.mjs (Vercel's build has
+ * no browser to print it), which records in public/resume.meta.json a hash of
+ * what it printed. If the data or the résumé's layout has changed since, the
+ * build stops; the dev server only warns. (The generator's own dev server
+ * skips the check: it is about to print a new one.)
+ */
+function resumeGuard() {
+  let command = 'serve';
+  return {
+    name: 'resume-guard',
+    configResolved(config) {
+      command = config.command;
+    },
+    buildStart() {
+      if (process.env.RESUME_GEN || !existsSync(resolve('public/resume.pdf'))) return;
+      const metaPath = resolve('public/resume.meta.json');
+      const meta = existsSync(metaPath) ? JSON.parse(readFileSync(metaPath, 'utf8')) : {};
+      if (meta.inputs === resumeHash(resolve('.'), resumeModel())) return;
+      const msg = 'public/resume.pdf no longer matches the site data: run `npm run gen:resume` and commit the new PDF.';
+      if (command === 'build') this.error(msg);
+      else this.warn(msg);
+    },
+  };
+}
+
 export default defineConfig({
-  plugins: [projectPages()],
+  plugins: [projectPages(), resumeGuard()],
   define: {
     // Résumé links are hidden until the PDF actually exists (see src/main.js).
     // Read when the dev server or build starts; restart after adding the file.
@@ -108,6 +138,11 @@ export default defineConfig({
     // The manifest lets scripts/qa check what the entry chunk pulls in.
     manifest: true,
     rollupOptions: {
+      // Two pages: the site, and the résumé the PDF is printed from.
+      input: {
+        main: resolve('index.html'),
+        resume: resolve('resume/index.html'),
+      },
       output: {
         // three.js in a chunk of its own: only the dioramas import it, lazily,
         // so it must never end up in the entry bundle.

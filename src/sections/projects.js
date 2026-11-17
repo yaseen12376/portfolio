@@ -1,45 +1,84 @@
 /**
- * Work: one flagship, a pinned stack of featured case studies, and a bento of
- * smaller builds. Placement comes from each project's `tier`.
+ * Work, hung as an exhibition. Each project's `tier` places it:
  *
- * Each project's media is a Blender still with, where one exists, a live
- * diorama on top (src/three/): it loads only once its card comes near, runs
- * only while its card is the active one, and phones get it on a tap. Projects
- * without a diorama keep their lazy video loop. Reduced motion gets stills.
+ *   stage           a diorama on a full-height stage of its own: the live
+ *                   scene (src/three/) beside its words, with a stepper that
+ *                   follows the diorama's tour and can drive it
+ *   large, small    a model under glass on the collection shelf, with a
+ *                   museum label. A still that turns while hovered (a loop
+ *                   rendered by scripts/build-pieces.mjs)
+ *
+ * and a plain catalogue of all of them after the shelf, for reading at a glance.
+ *
+ * A diorama loads only as its stage comes near and runs only while the stage
+ * is on screen; phones get it on a tap. A piece's loop is fetched on its first
+ * hover, and never on touch, under reduced motion or with Save-Data: those
+ * visitors see its poster, and the loop plays in the case study instead.
  */
-import { gsap, ScrollTrigger, EASE, revealOnScroll, countUp } from '../core/motion.js';
+import { gsap, ScrollTrigger, revealOnScroll, countUp } from '../core/motion.js';
 import { projects, liveMetrics } from '../data/projects.js';
+import pieces from '../data/pieces.json';
 import { esc, icons } from '../core/util.js';
 import { attach3d, sceneFor } from '../three/gate.js';
 
-const LOCK = '<span class="lock" aria-hidden="true"><i></i><i></i><i></i><i></i></span>';
-const WORDS = ['Zero', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine', 'Ten', 'Eleven', 'Twelve'];
+const WORDS = ['Zero', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine', 'Ten', 'Eleven', 'Twelve', 'Thirteen', 'Fourteen', 'Fifteen', 'Sixteen'];
+const word = (n) => WORDS[n] ?? String(n);
 
 /** Short name for tight spots: "ConstructSafe" rather than the full title. */
 export const shortTitle = (p) => p.title.split(':')[0];
 
 /**
- * Poster (or a typographic frame), an optional lazy loop, and lock brackets.
- * A diorama's poster comes from the build in three shapes; a phone gets the
- * square one where the media box turns square (`square`: the flagship and the
- * case study's hero; a stack card stays 16:9).
+ * A project's piece, as built (src/data/pieces.json, written by the piece
+ * build): its own files, or the empty jar while its own is not built yet, or
+ * null when neither exists (the media gets a typographic frame).
  */
-export function mediaMarkup(p, { eager = false, square: squareBox = false } = {}) {
-  const scene = sceneFor(p);
-  const img = p.poster && `<img src="${esc(p.poster)}" alt="" loading="${eager ? 'eager' : 'lazy'}" decoding="async" />`;
-  const square = squareBox && scene && p.poster?.startsWith('/3d/') ? p.poster.replace(/poster\.webp$/, 'poster-sq.webp') : null;
-  const still = p.poster
-    ? square
-      ? `<picture><source media="(max-width: 599.98px)" srcset="${esc(square)}" />${img}</picture>`
-      : img
-    : `<div class="media-fallback"><strong>${esc(shortTitle(p))}</strong>
-         <span class="chips">${p.tags.slice(0, 3).map((t) => `<span class="chip">${esc(t)}</span>`).join('')}</span>
-       </div>`;
-  const video = p.video && !sceneFor(p)
-    ? `<video data-src="${esc(p.video)}" ${p.poster ? `poster="${esc(p.poster)}"` : ''} muted loop playsinline
-              preload="none" aria-hidden="true" tabindex="-1" disablepictureinpicture disableremoteplayback></video>`
-    : '';
-  return `<div class="media" data-id="${esc(p.id)}"${scene ? ' data-scene' : ''}>${still}${video}${LOCK}</div>`;
+export function pieceFor(p) {
+  const id = p?.piece?.id;
+  if (!id) return null;
+  if (pieces[id]) return { id, v: pieces[id].v, loop: !!pieces[id].loop };
+  if (pieces._empty) return { id: '_empty', v: pieces._empty.v, loop: false };
+  return null;
+}
+
+const typeFrame = (p) => `
+  <div class="media-fallback"><strong>${esc(shortTitle(p))}</strong>
+    <span class="chips">${p.tags.slice(0, 3).map((t) => `<span class="chip">${esc(t)}</span>`).join('')}</span>
+  </div>`;
+
+/**
+ * A project's media box. Always a `.media[data-id]` with an <img>, which is
+ * where the case study's shared-element morph starts and ends.
+ *
+ *   a diorama   its Cycles poster, which the live scene fades in over. `shape`
+ *               'stage' is square; 'hero' is 16:9, and square on a phone
+ *   a piece     its poster at `size` (720 or 1080 px square) and its loop,
+ *               whose sources are attached on first play
+ *   neither     a typographic frame
+ */
+export function mediaMarkup(p, { eager = false, shape = 'hero', size = 720 } = {}) {
+  const loading = eager ? 'eager' : 'lazy';
+  const id = esc(p.id);
+  if (p.scene3d) {
+    const sq = p.poster?.startsWith('/3d/') ? p.poster.replace(/poster\.webp$/, 'poster-sq.webp') : null;
+    const still = !p.poster
+      ? typeFrame(p)
+      : shape === 'stage' && sq
+        ? `<img src="${esc(sq)}" alt="" width="1440" height="1440" loading="${loading}" decoding="async" />`
+        : `<picture>${sq ? `<source media="(max-width: 599.98px)" srcset="${esc(sq)}" />` : ''}<img src="${esc(p.poster)}" alt="" loading="${loading}" decoding="async" /></picture>`;
+    return `<div class="media media-diorama" data-id="${id}"${sceneFor(p) ? ' data-scene' : ''}>${still}</div>`;
+  }
+  const pc = pieceFor(p);
+  if (pc) {
+    const base = `/pieces/${pc.id}`;
+    const video = pc.loop
+      ? `<video data-src="${base}/loop-${size}" data-v="${esc(pc.v)}" muted loop playsinline preload="none"
+                aria-hidden="true" tabindex="-1" disablepictureinpicture disableremoteplayback></video>`
+      : '';
+    return `<div class="media media-piece" data-id="${id}" data-piece="${esc(pc.id)}">
+        <img src="${base}/poster-${size}.webp?v=${esc(pc.v)}" alt="" width="${size}" height="${size}" loading="${loading}" decoding="async" />${video}
+      </div>`;
+  }
+  return `<div class="media" data-id="${id}">${typeFrame(p)}</div>`;
 }
 
 export const metricMarkup = (m) =>
@@ -64,190 +103,114 @@ const codeNote = (p) =>
       ? `<span class="private-note">${icons.lock} Private repository</span>`
       : '';
 
+/* ────────────────────────── the stages ────────────────────────── */
+
 /**
- * Expandable detail. The button is the accessible base: it works by touch and
- * by keyboard, and it pins the panel open. On a fine pointer, hovering the card
- * opens the same panel. The panel animates on grid-template-rows, so nothing
- * has to be measured and no layout is thrashed.
+ * The chapters the stage's diorama tours, numbered as the case study numbers
+ * them. Plain text until the diorama is live; then each step becomes a button
+ * (bindTour) and its bar fills as the tour moves through it.
  */
-const detailsToggle = (p) => `
-  <button class="card-toggle" type="button" aria-expanded="false" aria-controls="detail-${esc(p.id)}">
-    <span class="card-toggle-label">Details</span>
-    <span class="card-toggle-icon" aria-hidden="true"></span>
-  </button>`;
-
-const detailPanel = (p, { metrics = [] } = {}) => {
-  const d = p.detail;
-  const rows = d
-    ? `<dl class="detail-rows">
-         <div><dt>Problem</dt><dd>${esc(d.problem)}</dd></div>
-         <div><dt>Built</dt><dd>${esc(d.built)}</dd></div>
-         <div><dt>Result</dt><dd>${esc(d.result)}</dd></div>
-       </dl>`
-    : '';
+function tourMarkup(p) {
+  const s = p.scene3d;
+  const steps = (s?.tour ?? [])
+    .map((id) => {
+      const i = s.chapters.findIndex((c) => c.id === id);
+      return i < 0
+        ? ''
+        : `<li class="tour-step" data-chapter="${esc(id)}"><span class="tour-n num">${String(i + 1).padStart(2, '0')}</span><span class="tour-t">${esc(s.chapters[i].title)}</span><i class="tour-fill" aria-hidden="true"></i></li>`;
+    })
+    .join('');
+  if (!steps) return '';
   return `
-    <div class="card-detail" id="detail-${esc(p.id)}">
-      <div class="card-detail-inner">
-        ${metrics.length ? `<div class="metrics">${metrics.map(metricMarkup).join('')}</div>` : ''}
-        ${rows}
+    <div class="tour">
+      <div class="tour-head">
+        <p class="tour-label">In the diorama</p>
+        <button class="tour-hold" type="button" hidden><span class="hold-icon" aria-hidden="true"></span><span class="tour-hold-label">Pause</span></button>
       </div>
+      <ol class="tour-steps">${steps}</ol>
+      <p class="tour-more">${s.chapters.length} features to try, one at a time, in the case study.</p>
     </div>`;
-};
+}
 
-function flagshipMarkup(p) {
+function stageMarkup(p, i) {
   return `
-    <article class="flagship" data-id="${esc(p.id)}">
-      <div class="shell flag-media" data-open="${esc(p.id)}" aria-hidden="true">
-        <div class="core">${mediaMarkup(p, { eager: true, square: true })}</div>
-      </div>
-      <div class="flagship-body">
-        <div>
+    <article class="stage${i === 0 ? ' flagship' : ''}${i % 2 ? ' is-flipped' : ''}" data-id="${esc(p.id)}" aria-labelledby="stage-${esc(p.id)}">
+      <div class="stage-inner">
+        <div class="stage-text">
           ${metaMarkup(p, { role: true })}
-          <h3 class="proj-title">${esc(p.title)}</h3>
-          <p class="proj-blurb">${esc(p.blurb ?? p.short)}</p>
-          <div class="proj-actions">${caseLink(p, 'btn btn-primary')}${detailsToggle(p)}${codeNote(p)}</div>
-          ${detailPanel(p)}
+          <h3 class="proj-title stage-title" id="stage-${esc(p.id)}">${esc(p.title)}</h3>
+          <p class="proj-blurb">${esc(p.short)}</p>
+          <div class="metrics">${liveMetrics(p).slice(0, 3).map(metricMarkup).join('')}</div>
+          ${tourMarkup(p)}
+          <div class="proj-actions">${caseLink(p, 'btn btn-primary')}${codeNote(p)}</div>
         </div>
-        <div class="metrics">${liveMetrics(p).slice(0, 3).map(metricMarkup).join('')}</div>
+        <div class="stage-media" data-open="${esc(p.id)}">${mediaMarkup(p, { eager: i === 0, shape: 'stage' })}</div>
       </div>
     </article>`;
 }
 
-function stackMarkup(p) {
-  const facts = [
-    p.role && `<dt>Role</dt><dd>${esc(p.role)}</dd>`,
-    p.team && `<dt>Team</dt><dd>${esc(p.team)}</dd>`,
-  ].filter(Boolean).join('');
+/* ────────────────────────── the shelf ────────────────────────── */
+
+// A museum label: number, title, a line on what it is, the medium (its
+// stack), the year and the role. The title's link covers the whole tile.
+function pieceMarkup(p) {
+  const meta = [p.year, p.role].filter(Boolean).map(esc).join(' · ');
   return `
-    <article class="stack-card" data-id="${esc(p.id)}" data-num="${p.num}">
-      <div class="container stack-inner">
-        <span class="card-scrim" aria-hidden="true"></span>
-        <div class="shell">
-          <div class="core card-core">
-            ${mediaMarkup(p)}
-            <div class="card-body">
-              ${metaMarkup(p)}
-              <h3 class="proj-title">${esc(p.title)}</h3>
-              <p class="proj-blurb">${esc(p.blurb ?? p.short)}</p>
-              ${facts ? `<dl class="card-facts">${facts}</dl>` : ''}
-              <!-- Figures stay on the resting card: they are numbers, not prose,
-                   and a pinned card's height is fixed, so a panel carrying them
-                   as well overflows and gets clipped. -->
-              <div class="metrics">${liveMetrics(p).slice(0, 2).map(metricMarkup).join('')}</div>
-              <div class="chips">${p.tags.map((t) => `<span class="chip">${esc(t)}</span>`).join('')}</div>
-              <div class="proj-actions">${caseLink(p)}${detailsToggle(p)}${codeNote(p)}</div>
-              ${detailPanel(p)}
-            </div>
-          </div>
+    <article class="piece piece-${p.tier === 'small' ? 'small' : 'large'}" data-id="${esc(p.id)}">
+      ${mediaMarkup(p)}
+      <div class="plate">
+        <span class="plate-num num">${p.num}</span>
+        <div class="plate-body">
+          <h4 class="plate-title"><a href="#/project/${esc(p.id)}">${esc(p.title)}</a></h4>
+          <p class="plate-note">${esc(p.blurb ?? p.short)}</p>
+          <p class="plate-medium">${esc(p.tags.join(', '))}</p>
+          <p class="plate-meta">${meta}</p>
         </div>
       </div>
     </article>`;
 }
 
-// An <article>, not an <a>: the card now carries its own Details button, and a
-// button inside a link is invalid and unusable by keyboard. The title and the
-// case-study link are the click targets instead.
-function moreMarkup(p) {
+/* ────────────────────────── the catalogue ────────────────────────── */
+
+function catalogueMarkup(list) {
+  const row = (p) => `
+    <li class="cat-row">
+      <a class="cat-link" href="#/project/${esc(p.id)}">
+        <span class="cat-num num">${p.num}</span>
+        <span class="cat-title">${esc(p.title)}</span>
+        <span class="cat-kind">${esc(p.kind ?? '')}</span>
+        <span class="cat-year num">${esc(p.year)}</span>
+        <span class="cat-role">${esc(p.role ?? '')}</span>
+        <span class="cat-go" aria-hidden="true">${icons.arrowRight}</span>
+      </a>
+    </li>`;
   return `
-    <article class="shell more-card" data-id="${esc(p.id)}">
-      <div class="core">
-        ${mediaMarkup(p)}
-        <div class="more-body">
-          ${metaMarkup(p)}
-          <h3 class="proj-title"><a href="#/project/${esc(p.id)}">${esc(p.title)}</a></h3>
-          <p class="proj-blurb">${esc(p.blurb ?? p.short)}</p>
-          <div class="chips">${p.tags.slice(0, 3).map((t) => `<span class="chip">${esc(t)}</span>`).join('')}</div>
-          <div class="proj-actions">
-            ${detailsToggle(p)}
-            <a class="card-link" href="#/project/${esc(p.id)}" aria-label="Read the ${esc(shortTitle(p))} case study">Read case study ${icons.arrowRight}</a>
-          </div>
-          ${detailPanel(p)}
-        </div>
-      </div>
-    </article>`;
+    <div class="cat-head" aria-hidden="true"><span>No.</span><span>Project</span><span>Kind</span><span>Year</span><span>Role</span><span></span></div>
+    <ol class="cat-list">${list.map(row).join('')}</ol>`;
 }
 
 export function renderProjects() {
-  const flagship = document.querySelector('#work-flagship');
-  const stack = document.querySelector('#work-stack');
-  const more = document.querySelector('#work-more');
+  const stages = document.querySelector('#work-stages');
+  const shelf = document.querySelector('#work-shelf');
+  const list = document.querySelector('#work-catalogue-list');
+  if (!stages || !shelf || !list) return;
+
+  const onStage = projects.filter((p) => p.tier === 'stage');
+  const shelved = projects.filter((p) => p.tier !== 'stage');
+  stages.innerHTML = onStage.map(stageMarkup).join('');
+  shelf.innerHTML = shelved.map(pieceMarkup).join('');
+  list.innerHTML = catalogueMarkup(projects);
+
   const lede = document.querySelector('#work-lede');
-  if (!flagship || !stack || !more) return;
-
-  const byTier = (t) => projects.filter((p) => p.tier === t);
-  const featured = byTier('featured');
-  flagship.innerHTML = byTier('flagship').map(flagshipMarkup).join('');
-  // The rail tells you where you are inside the pinned stack, where the usual
-  // cue (the page moving) is deliberately absent.
-  // The rail counts in project numbers, the same ones printed on the cards.
-  // Counting the stack's own position instead would put two different numbering
-  // systems on screen at the same time.
-  stack.innerHTML =
-    `<div class="stack-rail" aria-hidden="true">
-       <span class="rail-num">${featured[0]?.num ?? '01'}</span>
-       <span class="rail-track"><i></i></span>
-       <span class="rail-total">${String(projects.length).padStart(2, '0')}</span>
-     </div>` + featured.map(stackMarkup).join('');
-  more.innerHTML = byTier('more').map(moreMarkup).join('');
-
-  if (lede) {
-    const n = WORDS[projects.length] ?? String(projects.length);
-    lede.textContent = `${n} projects. Computer vision on real cameras, AI that shows its working, and the software around it.`;
-  }
-  // The hero's count reads from the same list, so it can never drift.
+  if (lede) lede.textContent = `${word(projects.length)} projects. Computer vision on real cameras, AI that shows its working, and the software around it.`;
+  const shelfLede = document.querySelector('#shelf-lede');
+  if (shelfLede) shelfLede.textContent = `${word(shelved.length)} more, each made into a small model under glass.`;
+  // The hero's count and the room labels read from the same list, so they can never drift.
   document.querySelectorAll('[data-project-count]').forEach((el) => {
     el.textContent = String(projects.length).padStart(2, '0');
   });
-
-}
-
-/**
- * Details: click pins the panel open, hover opens it on a fine pointer only.
- * A pinned panel ignores the pointer leaving, or the card would snap shut
- * under the cursor of someone who just asked to keep it open.
- */
-function initCardDetails({ reduced }) {
-  const fine = window.matchMedia('(hover: hover) and (pointer: fine)').matches;
-
-  document.querySelectorAll('#projects .card-toggle').forEach((btn) => {
-    const root = btn.closest('.flagship, .stack-card, .more-card');
-    const label = btn.querySelector('.card-toggle-label');
-    if (!root) return;
-    // initProjects re-runs whenever the breakpoint context changes, and these
-    // are plain DOM listeners on elements that survive it. Without this, one
-    // click would toggle twice after a resize.
-    if (btn.dataset.bound) return;
-    btn.dataset.bound = '1';
-
-    let pinned = false;
-    let timer;
-    const set = (open) => {
-      root.classList.toggle('is-detail-open', open);
-      btn.setAttribute('aria-expanded', String(open));
-      if (label) label.textContent = open ? 'Hide' : 'Details';
-    };
-
-    btn.addEventListener('click', () => {
-      pinned = !pinned;
-      set(pinned);
-    });
-
-    if (!fine || reduced) return;
-    // Hover belongs to the visible card, not the article. A pinned stack card
-    // is full-bleed and viewport-tall, so binding to it would mean the pointer
-    // being anywhere on screen counts as hovering it.
-    //
-    // And never over the media: that is where the diorama is played with, and
-    // Details springing open under a drag would fight it.
-    const hoverArea = root.querySelector('.card-body, .flagship-body, .more-body') ?? root;
-    hoverArea.addEventListener('pointerenter', (e) => {
-      if (e.pointerType !== 'mouse' || pinned) return;
-      timer = setTimeout(() => set(true), 130);
-    });
-    hoverArea.addEventListener('pointerleave', () => {
-      clearTimeout(timer);
-      if (!pinned) set(false);
-    });
+  document.querySelectorAll('[data-project-total]').forEach((el) => {
+    el.textContent = String(projects.length);
   });
 }
 
@@ -259,7 +222,8 @@ export function playMedia(media) {
   if (!v) return;
   if (!v.dataset.loaded) {
     const base = v.dataset.src;
-    v.innerHTML = `<source src="${base}.webm" type="video/webm"><source src="${base}.mp4" type="video/mp4">`;
+    const q = v.dataset.v ? `?v=${encodeURIComponent(v.dataset.v)}` : '';
+    v.innerHTML = `<source src="${base}.webm${q}" type='video/webm; codecs="vp9"'><source src="${base}.mp4${q}" type="video/mp4">`;
     v.dataset.loaded = '1';
     v.load();
   }
@@ -268,207 +232,202 @@ export function playMedia(media) {
   v.play().then(() => media.classList.add('is-playing')).catch(() => {});
 }
 
-export function stopMedia(media) {
-  const v = media?.querySelector('video');
-  if (!v) return;
-  v.pause();
-  media.classList.remove('is-playing');
+/** Pause where it is: a piece holds its pose rather than snapping back to the poster. */
+export function holdMedia(media) {
+  media?.querySelector('video')?.pause();
 }
 
+export function stopMedia(media) {
+  holdMedia(media);
+  media?.classList.remove('is-playing');
+}
 
-export function initProjects({ desktop, reduced, tier }) {
+/* ────────────────────────── the stepper ────────────────────────── */
+
+const released = new WeakMap();
+const releaseTour = (stage) => {
+  released.get(stage)?.();
+  released.delete(stage);
+};
+
+/**
+ * Bind a stage's stepper to its live diorama. Each step becomes a button that
+ * takes the diorama to its chapter; the step showing fills as the tour runs
+ * through it (the 'progress' event, four times a second, eased by CSS), and
+ * Pause holds the whole diorama still until Play. Undone by releaseTour,
+ * which puts the plain list back.
+ */
+function bindTour(stage, slot, { signal, onHold }) {
+  const tour = stage.querySelector('.tour');
+  const ch = slot.chapters;
+  if (!tour || !ch) return;
+  releaseTour(stage); // a restored WebGL context reloads the scene and binds again
+
+  const steps = [...tour.querySelectorAll('.tour-step')];
+  const order = steps.map((li) => li.dataset.chapter);
+  for (const li of steps) {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'tour-btn';
+    b.append(...li.childNodes);
+    li.append(b);
+  }
+  tour.classList.add('is-live');
+
+  let on = null;
+  const show = (id) => {
+    const at = order.indexOf(id);
+    on = steps[at] ?? null;
+    // The bars snap to their new state instead of running backwards.
+    tour.classList.add('is-jump');
+    steps.forEach((li, k) => {
+      li.classList.toggle('is-on', k === at);
+      li.style.setProperty('--p', k < at ? '1' : '0');
+      const b = li.querySelector('.tour-btn');
+      if (k === at) b?.setAttribute('aria-current', 'step');
+      else b?.removeAttribute('aria-current');
+    });
+    void tour.offsetWidth;
+    tour.classList.remove('is-jump');
+  };
+  const off = ch.on((type, data) => {
+    if (type === 'chapter') show(data.id);
+    else if (type === 'progress') on?.style.setProperty('--p', data.toFixed(3));
+  });
+  show(ch.current?.id);
+
+  const hold = tour.querySelector('.tour-hold');
+  const label = hold?.querySelector('.tour-hold-label');
+  let held = false;
+  const setHold = (v) => {
+    held = v;
+    tour.classList.toggle('is-held', v);
+    if (label) label.textContent = v ? 'Play' : 'Pause';
+    onHold(v);
+  };
+  if (hold) hold.hidden = false;
+
+  const ctl = new AbortController();
+  tour.addEventListener(
+    'click',
+    (e) => {
+      const b = e.target.closest('.tour-btn');
+      if (b) {
+        ch.go(b.parentElement.dataset.chapter);
+        if (held) setHold(false);
+      } else if (e.target.closest('.tour-hold')) setHold(!held);
+    },
+    { signal: ctl.signal }
+  );
+
+  released.set(stage, () => {
+    ctl.abort();
+    off();
+    for (const li of steps) {
+      const b = li.querySelector('.tour-btn');
+      if (b) {
+        li.append(...b.childNodes);
+        b.remove();
+      }
+      li.classList.remove('is-on');
+      li.style.removeProperty('--p');
+    }
+    tour.classList.remove('is-live', 'is-held');
+    if (hold) hold.hidden = true;
+    if (label) label.textContent = 'Pause';
+  });
+  signal.addEventListener('abort', () => releaseTour(stage), { once: true });
+}
+
+/* ────────────────────────── init ────────────────────────── */
+
+export function initProjects({ reduced, tier }) {
   const section = document.querySelector('#projects');
   if (!section) return;
 
-  const useVideo = desktop && !reduced;
-  const playing = new Set();
+  const listeners = new AbortController();
+  const { signal } = listeners;
   const openCase = (id) => () => {
     location.hash = `#/project/${id}`;
   };
 
-  // A diorama per project that has one. Each loads when its card comes near
-  // and draws only while setOn() says its card is the active one.
+  // Stages. A diorama draws while its stage is on screen, unless its visitor
+  // paused it.
   const dioramas = new Map();
-  section.querySelectorAll('.media[data-id]').forEach((media) => {
-    const p = projects.find((x) => x.id === media.dataset.id);
-    const h = p && attach3d(media, p, { context: 'card', tier, onOpen: openCase(p.id) });
+  const inView = new Set();
+  const held = new Set();
+  const apply = (media) => dioramas.get(media)?.setActive(inView.has(media) && !held.has(media));
+
+  section.querySelectorAll('.stage').forEach((stage) => {
+    const media = stage.querySelector('.media[data-scene]');
+    const p = projects.find((x) => x.id === stage.dataset.id);
+    if (!media || !p) return;
+    const h = attach3d(media, p, {
+      context: 'stage',
+      tier,
+      onOpen: openCase(p.id),
+      onLive: (slot) =>
+        bindTour(stage, slot, {
+          signal,
+          onHold: (v) => {
+            if (v) held.add(media);
+            else held.delete(media);
+            apply(media);
+          },
+        }),
+    });
     if (h) dioramas.set(media, h);
-  });
-  // The flagship's media box opens the case study when clicked as a picture
-  // (before its diorama is live, or where there is none). Clicks on a live
-  // diorama are handled, and swallowed, by the diorama itself.
-  const listeners = new AbortController();
-  section.querySelectorAll('.flag-media[data-open]').forEach((el) => {
-    el.addEventListener('click', () => openCase(el.dataset.open)(), { signal: listeners.signal });
-  });
-
-  const setOn = (media, on) => {
-    if (!media) return;
-    media.closest('.shell, .media')?.classList.toggle('is-locked', on);
-    media.classList.toggle('is-locked', on);
-    dioramas.get(media)?.setActive(on);
-    if (!useVideo || dioramas.has(media)) return;
-    if (on) {
-      playMedia(media);
-      playing.add(media);
-    } else {
-      stopMedia(media);
-      playing.delete(media);
-    }
-  };
-
-  // Flagship and bento: active while on screen.
-  gsap.utils.toArray('#work-flagship .media, #work-more .media').forEach((media) => {
     ScrollTrigger.create({
       trigger: media,
       start: 'top 80%',
       end: 'bottom 20%',
-      onToggle: (self) => setOn(media, self.isActive),
-    });
-  });
-
-  const cards = gsap.utils.toArray('#work-stack .stack-card');
-
-  // Paint order has to be explicit. A pinned card becomes position:fixed, and
-  // leaving every card on z-index auto lets the receding one show through the
-  // card arriving over it. Ascending z-index means later always covers earlier.
-  cards.forEach((card, i) => {
-    card.style.zIndex = String(i + 1);
-  });
-
-  // The rail's counter rolls over as each card takes the screen.
-  const railNum = section.querySelector('.rail-num');
-  const showNum = (next) => {
-    if (!railNum || !next || railNum.textContent === next) return;
-    if (reduced) {
-      railNum.textContent = next;
-      return;
-    }
-    gsap
-      .timeline()
-      .to(railNum, { yPercent: -100, autoAlpha: 0, duration: 0.18, ease: EASE.in })
-      // Set the text by hand: GSAP coerces a numeric-looking string, which
-      // turns "03" into 3.
-      .add(() => {
-        railNum.textContent = next;
-      })
-      .set(railNum, { yPercent: 100 })
-      .to(railNum, { yPercent: 0, autoAlpha: 1, duration: 0.3, ease: EASE.out });
-  };
-
-  // Stack: a card is active from when it reaches mid-screen until the next one
-  // does. With pinSpacing:false the card's natural bottom is the next card's
-  // top, so 'bottom 55%' is exactly that handover.
-  cards.forEach((card) => {
-    const media = card.querySelector('.media');
-    ScrollTrigger.create({
-      trigger: card,
-      start: 'top 55%',
-      end: 'bottom 55%',
       onToggle: (self) => {
-        setOn(media, self.isActive);
-        if (self.isActive) showNum(card.dataset.num);
+        if (self.isActive) inView.add(media);
+        else inView.delete(media);
+        apply(media);
       },
     });
   });
 
-  // Rail visibility and fill, driven by progress through the whole stack.
-  const stackEl = document.querySelector('#work-stack');
-  const rail = section.querySelector('.stack-rail');
-  const fill = section.querySelector('.rail-track i');
-  if (stackEl && rail && fill) {
-    const setFill = gsap.quickSetter(fill, 'scaleY');
-    ScrollTrigger.create({
-      trigger: stackEl,
-      start: 'top top',
-      end: 'bottom bottom',
-      onToggle: (self) => rail.classList.toggle('is-on', self.isActive),
-      onUpdate: (self) => setFill(self.progress),
-    });
-  }
+  // The picture opens the case study while it is a picture (before its
+  // diorama is live, or where there is none). A live diorama decides for
+  // itself: a click on its backdrop opens the case study, a drag turns it.
+  section.querySelectorAll('.stage-media[data-open]').forEach((el) => {
+    el.addEventListener('click', () => openCase(el.dataset.open)(), { signal });
+  });
 
-  // Pinned stack, desktop only. Every card but the last pins at the top; the
-  // one underneath recedes as the next slides over it.
-  if (desktop && !reduced && cards.length > 1) {
-    const last = cards[cards.length - 1];
-    cards.forEach((card, i) => {
-      if (card === last) return;
-      ScrollTrigger.create({
-        trigger: card,
-        start: 'top top',
-        endTrigger: last,
-        end: 'top top',
-        pin: true,
-        pinSpacing: false,
-      });
-      // The outgoing card recedes behind a scrim, then leaves entirely. It is
-      // pinned (position: fixed), so it paints above the card arriving over it:
-      // dimming alone leaves a slab of the old card floating on screen through
-      // the whole handover. The scrim does the first half, opacity the last.
-      gsap
-        .timeline({
-          scrollTrigger: { trigger: cards[i + 1], start: 'top bottom', end: 'top top', scrub: true },
-        })
-        .to(card.querySelector('.stack-inner'), { scale: 0.94, ease: 'none' }, 0)
-        .to(card.querySelector('.card-scrim'), { opacity: 0.72, ease: 'none', duration: 0.6 }, 0)
-        .to(card, { autoAlpha: 0, ease: 'none', duration: 0.4 }, 0.6);
+  // Pieces turn while the pointer rests on them, and hold their pose when it
+  // leaves. Only for a mouse or trackpad, with motion and data to spare.
+  const fine = window.matchMedia('(hover: hover) and (pointer: fine)').matches;
+  const saveData = navigator.connection?.saveData === true;
+  if (fine && !reduced && !saveData) {
+    // A loop scrolled out of sight under a resting pointer stops decoding.
+    const io = new IntersectionObserver((entries) => entries.forEach((e) => e.isIntersecting || holdMedia(e.target)));
+    section.querySelectorAll('.piece').forEach((piece) => {
+      const media = piece.querySelector('.media-piece');
+      if (!media?.querySelector('video')) return;
+      io.observe(media);
+      const play = () => playMedia(media);
+      const hold = () => holdMedia(media);
+      piece.addEventListener('pointerenter', (e) => e.pointerType === 'mouse' && play(), { signal });
+      piece.addEventListener('pointerleave', hold, { signal });
+      piece.addEventListener('focusin', play, { signal });
+      piece.addEventListener('focusout', hold, { signal });
     });
+    signal.addEventListener('abort', () => io.disconnect(), { once: true });
   }
-
-  if (!reduced) {
-    // Each card rises the last few pixels as it slides over the one before.
-    cards.forEach((card, i) => {
-      if (i === 0) return;
-      gsap.fromTo(
-        card.querySelector('.stack-inner'),
-        { yPercent: 5 },
-        {
-          yPercent: 0,
-          ease: 'none',
-          scrollTrigger: { trigger: card, start: 'top bottom', end: 'top top', scrub: true },
-        }
-      );
-    });
-
-    // Posters drift inside their frame, so a still has depth too. The stack is
-    // left out on purpose: a pinned card doesn't move, so its poster shouldn't.
-    gsap.utils.toArray('#work-flagship .media img, #work-more .media img').forEach((img) => {
-      gsap.fromTo(
-        img,
-        { yPercent: -3.5, scale: 1.09 },
-        {
-          yPercent: 3.5,
-          ease: 'none',
-          scrollTrigger: { trigger: img.closest('.media'), start: 'top bottom', end: 'bottom top', scrub: true },
-        }
-      );
-    });
-  }
+  document.addEventListener(
+    'visibilitychange',
+    () => document.hidden && section.querySelectorAll('.media.is-playing').forEach(holdMedia),
+    { signal }
+  );
 
   gsap.utils.toArray('#projects .metric-value').forEach((el) => countUp(el));
-  initCardDetails({ reduced });
-
-  revealOnScroll('#work-flagship .flagship, #work-more .more-card');
-
-  // Decoding loops nobody can see is wasted battery. Scoped to this init with
-  // an AbortController rather than bound once globally, so a breakpoint change
-  // tears it down with everything else instead of leaving it to outlive them.
-  if (useVideo) {
-    document.addEventListener(
-      'visibilitychange',
-      () => {
-        document
-          .querySelectorAll('#projects .media.is-playing, #projects .media.is-locked')
-          .forEach((m) => (document.hidden ? stopMedia(m) : m.classList.contains('is-locked') && playMedia(m)));
-      },
-      { signal: listeners.signal }
-    );
-  }
+  revealOnScroll('#work-stages .stage-text, #work-shelf .piece, #work-catalogue .cat-row');
 
   return () => {
     listeners.abort();
-    playing.forEach(stopMedia);
-    playing.clear();
+    section.querySelectorAll('.media.is-playing').forEach(stopMedia);
     dioramas.forEach((h) => h.destroy());
     dioramas.clear();
   };

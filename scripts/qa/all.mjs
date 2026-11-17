@@ -1,5 +1,5 @@
 /**
- * Every diorama check, in order, against a running dev server:
+ * Every check on the work, in order, against a running dev server:
  *
  *   npm run qa:3d            (npm run dev in another terminal first)
  *   node scripts/qa/all.mjs [--url http://localhost:3000] [--skip parity,gate]
@@ -9,10 +9,16 @@
  *   sim       the crowd in each scene: no pops, jumps or overlaps; limbs, arms,
  *             personal space, bumps and last resorts; the store keeps moving
  *   parity    the live frame against the Cycles poster it replaces
- *   framing   composition and safe areas at card, case, full-screen and phone sizes
- *   site      the real page end to end: live cards, orbit, the explorer, no leaks
- *   gate      who gets 3D (reduced motion, Save-Data, no WebGL2, phones) and the bundle
+ *   framing   composition and safe areas at stage, case, full-screen and phone sizes
+ *   site      the real page end to end: the exhibition, live stages and their
+ *             steppers, orbit, the explorer, no leaks, pieces on hover
+ *   gate      who gets 3D and moving pieces (reduced motion, Save-Data, no
+ *             WebGL2, phones) and the bundle
  *   perf      frame cost on the discrete and integrated GPUs
+ *   pieces    the pieces under glass as shipped: budgets, backdrops, seams (Node)
+ *   claims    nothing forbidden in the repo or the build, no dashes in the copy (Node)
+ *   resume    the résumé PDF as a parser reads it: two A4 pages printed from
+ *             the current data, in order, with working links and no phone (Node)
  *
  * Exits non-zero if any suite fails; prints one line per suite at the end.
  */
@@ -23,7 +29,7 @@ import { args } from './lib.mjs';
 
 const opts = args();
 const skip = new Set(String(opts.skip ?? '').split(',').filter(Boolean));
-const SUITES = ['crowd', 'features', 'sim', 'parity', 'framing', 'site', 'gate', 'perf'];
+const SUITES = ['crowd', 'features', 'sim', 'parity', 'framing', 'site', 'gate', 'perf', 'pieces', 'claims', 'resume'];
 const summary = [];
 
 for (const name of SUITES) {

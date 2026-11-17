@@ -12,16 +12,17 @@
  * `pip` asks for a picture-in-picture: the controller's pip() says which of
  * the scene's own cameras to show (the explorer gives it a canvas).
  *
- * On a card the runner tours a few chapters on its own, pausing while the
- * pointer is over the card: the whole island for a moment, then each
- * chapter's district in turn (the camera flies there), then the island again.
- * In a case study the explorer (project-detail.js) drives it.
+ * On the page (a stage, or a QA card) the runner tours a few chapters on its
+ * own, pausing while the pointer is over the diorama: the whole island for a
+ * moment, then each chapter's district in turn (the camera flies there), then
+ * the island again. The stage's stepper follows it through the 'chapter' and
+ * 'progress' events. In a case study the explorer (project-detail.js) drives it.
  *
  * `onEnter(id)` (optional) hears every chapter change: the scene's director
  * uses it to make the chapter's feature happen soon after it opens.
  */
-const TOUR_SECS = 6.5;
-const HOME_SECS = 1.5;
+export const TOUR_SECS = 6.5;
+export const HOME_SECS = 1.5;
 
 export class Chapters {
   /**
@@ -71,6 +72,9 @@ export class Chapters {
     this.current?.exit?.();
     this.current = next;
     this.clock = 0;
+    // The island time still to run before this step's district (the first
+    // step of a round has it), so `progress` counts it in.
+    this.stepHome = Math.max(0, this.home);
     next.enter?.();
     this.onEnter?.(next.id);
     if (shot && !(this.home > 0)) this.rig.setShot(next.shot ?? null);
@@ -93,6 +97,17 @@ export class Chapters {
 
   pauseTour(on) {
     this.paused = on;
+  }
+
+  /**
+   * How far the tour is through its current step, 0 to 1. The first step of
+   * a round includes the moment on the whole island before it.
+   */
+  get progress() {
+    if (this.context === 'case' || this.tour.length < 2 || !this.current) return 0;
+    const lead = this.stepHome ?? 0;
+    const done = lead - Math.max(0, this.home) + this.clock;
+    return Math.min(1, Math.max(0, done / (lead + TOUR_SECS)));
   }
 
   update(dt) {
@@ -124,6 +139,9 @@ export class Chapters {
     if (this.readClock > 0.25 && this.listeners.size) {
       this.readClock = 0;
       this.emit('readouts', this.current?.readouts?.() ?? []);
+      // Four times a second: the stepper eases between these with a CSS
+      // transition, so its bar moves smoothly without a frame loop of its own.
+      if (this.context !== 'case') this.emit('progress', this.progress);
       // Buttons that come and go with what happens (an evidence clip once
       // one is recorded, a review once an alert waits): redrawn when they change.
       const actions = this.current?.actions?.() ?? [];

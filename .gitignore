@@ -14,9 +14,14 @@ _source-frames/
 # source footage (kept locally, too large for git)
 *.mp4
 test_frame.webp
-# ...but the encoded panel loops are web assets: the MP4 is the fallback for
-# browsers without VP9, and without this it 404s in production.
-!public/project-video/*.mp4
+# ...but the collection's turntable loops are web assets (scripts/build-pieces.mjs):
+# the MP4 is the fallback for browsers without VP9, and without this it 404s in production.
+!public/pieces/**/*.mp4
+
+# Python bytecode from Blender runs. (The older ones under scripts/blender/ were
+# committed before this rule; they stay tracked, so restore them before a commit:
+# git checkout -- scripts/blender/**/__pycache__)
+__pycache__/
 
 # editor / os / tooling
 .DS_Store
@@ -26,3 +31,8 @@ Thumbs.db
 .env
 _incoming/
 .playwright-mcp/
+
+# Private résumé details (the phone number), for npm run gen:resume -- --private
+resume.local.json
+# Where the borrowed models are on this machine (scripts/build-pieces.mjs)
+scripts/blender/pieces/sources.local.json

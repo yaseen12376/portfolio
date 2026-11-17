@@ -1,0 +1,184 @@
+/* The résumé: two A4 sheets of plain, real text. On screen they sit on the
+   site's dark page; in print (and in the PDF) they are the page.
+
+   Type is set in pt and the sheets in mm, so the print is the same size on
+   every printer. --fit shrinks the body type a step at a time when the
+   content needs it (src/resume/main.js); --zoom scales the whole preview on
+   narrow screens without reflowing it. One thin violet rule, under the name. */
+
+:root {
+  --ink: #141418;
+  --ink-2: #474753;
+  --ink-3: #6c6c78;
+  --rule: #d8d8e0;
+  --accent: #6d28d9;
+  --sans: 'Geist Variable', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --mono: 'Geist Mono Variable', ui-monospace, 'SFMono-Regular', Menlo, Consolas, monospace;
+}
+
+*,
+*::before,
+*::after { box-sizing: border-box; }
+* { margin: 0; padding: 0; }
+
+html { background: #09090b; color-scheme: dark; }
+body {
+  font-family: var(--sans);
+  color: #e4e4e7;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+/* ─── the bar above the sheets ─── */
+.resume-bar {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 12px 16px;
+  background: rgba(9, 9, 11, 0.86);
+  backdrop-filter: blur(10px);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+.resume-bar a,
+.resume-bar button {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 0 18px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: none;
+  color: #d4d4d8;
+  font: 500 0.875rem/1 var(--sans);
+  text-decoration: none;
+  cursor: pointer;
+  transition: color 0.2s, border-color 0.2s, background 0.2s;
+}
+.resume-bar a:hover,
+.resume-bar button:hover { color: #fff; border-color: rgba(167, 139, 250, 0.5); background: rgba(255, 255, 255, 0.04); }
+.resume-bar .is-primary { background: #a78bfa; border-color: #a78bfa; color: #09090b; }
+.resume-bar .is-primary:hover { background: #b9a2fb; color: #09090b; }
+.resume-bar .bar-back { margin-right: auto; }
+.resume-bar :focus-visible { outline: 2px solid #a78bfa; outline-offset: 2px; }
+
+.r-picker {
+  max-width: 820px;
+  margin: 20px auto 0;
+  padding: 14px 18px 16px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 14px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 18px;
+  font-size: 0.875rem;
+  color: #d4d4d8;
+}
+.r-picker legend { padding: 0 6px; font: 500 0.75rem/1 var(--mono); letter-spacing: 0.1em; text-transform: uppercase; color: #a1a1aa; }
+.r-picker label { display: inline-flex; align-items: center; gap: 8px; min-height: 32px; cursor: pointer; }
+.r-picker input { accent-color: #a78bfa; width: 16px; height: 16px; }
+
+/* ─── the sheets ─── */
+.resume {
+  display: grid;
+  justify-content: center;
+  gap: 28px;
+  padding: 28px 12px 64px;
+  zoom: var(--zoom, 1);
+}
+.sheet {
+  width: 210mm;
+  height: 297mm;
+  display: flex;
+  flex-direction: column;
+  padding: 13mm 15mm 9mm;
+  background: #fff;
+  color: var(--ink);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 22px 60px rgba(0, 0, 0, 0.5);
+}
+.sheet-body {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  font-size: calc(9.3pt * var(--fit, 1));
+  line-height: 1.36;
+}
+.sheet-foot {
+  display: flex;
+  justify-content: space-between;
+  gap: 8mm;
+  padding-top: 2.6mm;
+  border-top: 0.5pt solid var(--rule);
+  font: 6.8pt/1 var(--mono);
+  color: var(--ink-3);
+}
+
+/* ─── type ─── */
+.r-top { padding-bottom: 3.4mm; border-bottom: 0.75pt solid var(--accent); }
+.r-name { font-size: 2.4em; font-weight: 650; letter-spacing: -0.02em; line-height: 1.05; }
+.r-role { margin-top: 1mm; font-size: 1.14em; color: var(--ink-2); }
+.r-contact { margin-top: 2.2mm; display: flex; flex-wrap: wrap; gap: 0.3mm 0.55em; font-size: 0.93em; color: var(--ink-2); }
+.r-contact a { color: inherit; text-decoration: none; }
+.r-sep { color: var(--ink-3); }
+.r-role .r-sep { margin: 0 0.45em; }
+
+/* No letter-spacing on the headings: tracked text comes out of a PDF as
+   "S U M M A R Y", which a résumé parser can't read as a section. The mono
+   face is spaced enough on its own. */
+.r-head {
+  margin: 4.4mm 0 1.6mm;
+  padding-bottom: 1.2mm;
+  border-bottom: 0.5pt solid var(--rule);
+  font: 600 0.8em/1 var(--mono);
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+
+.r-summary { color: var(--ink); }
+
+.r-skills { display: grid; gap: 0.7mm; }
+.r-skills div { display: grid; grid-template-columns: 34mm 1fr; gap: 3mm; }
+.r-skills dt { font-weight: 600; }
+.r-skills dd { color: var(--ink-2); }
+
+.r-entry + .r-entry { margin-top: 2.3mm; }
+.r-head + .r-entry { margin-top: 0; }
+.r-line { display: flex; justify-content: space-between; align-items: baseline; gap: 5mm; }
+.r-title { font-size: 1.02em; font-weight: 620; line-height: 1.3; }
+.r-title a { color: inherit; text-decoration: none; }
+.r-when { flex: none; font: 0.86em/1.3 var(--mono); color: var(--ink-2); font-variant-numeric: tabular-nums; }
+.r-meta { color: var(--ink-2); font-size: 0.94em; }
+.r-stack { color: var(--ink-3); }
+.r-made { margin-top: 0.4mm; }
+/* Bullets are drawn, not typed: Geist's bullet glyph prints as a small
+   triangle, and a drawn dot keeps the PDF's text free of stray symbols. */
+.r-points { margin-top: 0.5mm; padding-left: 3.6mm; list-style: none; }
+.r-points li { position: relative; }
+.r-points li::before {
+  content: '';
+  position: absolute;
+  left: -2.6mm;
+  top: 0.62em;
+  width: 0.26em;
+  height: 0.26em;
+  border-radius: 50%;
+  background: var(--ink-3);
+}
+.r-points li + li { margin-top: 0.35mm; }
+.r-langs { color: var(--ink); }
+
+/* ─── print, and the PDF ─── */
+@page { size: A4; margin: 0; }
+@media print {
+  html,
+  body { background: #fff; }
+  .resume-bar,
+  .r-picker { display: none !important; }
+  .resume { display: block; padding: 0; gap: 0; zoom: 1; }
+  .sheet { box-shadow: none; break-after: page; }
+  .sheet:last-child { break-after: auto; }
+}

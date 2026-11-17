@@ -1,5 +1,8 @@
 # Veo 3 briefs — input for an LLM
 
+> **Retired in November 2026**, with `image-prompts.md`: the site no longer
+> uses the Veo loops. Kept as a record only.
+
 `image-prompts.md` holds finished prompts. **This file holds the raw briefs** to
 hand to ChatGPT so it can write a fuller Veo 3 prompt for you.
 
