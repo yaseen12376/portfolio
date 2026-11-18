@@ -16,7 +16,7 @@
  * calibration scene), ?3d=off.
  */
 import { isCoarsePointer, prefersReducedMotion } from '../core/device.js';
-import { esc, icons } from '../core/util.js';
+import { icons } from '../core/util.js';
 
 const q = new URLSearchParams(location.search).get('3d');
 
@@ -71,24 +71,34 @@ export const sceneMeta = (project) => (cal ? null : project?.scene3d ?? null);
 /**
  * Attach a diorama to a project's media box. Returns a handle, or null when
  * this visitor gets stills only.
+ *
+ * `piece` attaches a project's jar instead (its case study only: the shelf
+ * never goes live): { id, v } names its live build (public/pieces/<id>/live/,
+ * versioned by src/data/pieces.json), and its chapters come from the
+ * project's piece.chapters.
  * @param {HTMLElement} media
  * @param {object} project
- * @param {{ context: 'stage'|'card'|'case', tier: string, onOpen?: () => void, onLive?: (slot) => void, resume?: object }} opts
+ * @param {{ context: 'stage'|'card'|'case', tier: string, onOpen?: () => void, onLive?: (slot) => void, resume?: object,
+ *           piece?: { id: string, v: string }, phase?: () => ({ t: number, d: number, playing: boolean } | null) }} opts
  */
 export function attach3d(media, project, opts) {
-  const id = sceneFor(project);
+  const piece = opts.piece ?? null;
+  const id = piece ? 'piece' : sceneFor(project);
   if (!id || !media) return null;
   const mode = mode3d(opts.tier);
   if (mode === 'off') return null;
 
   const h = { active: false, slot: null, destroyed: false, io: null, btn: null };
+  const where = piece
+    ? { base: `/pieces/${piece.id}/live/`, version: piece.v, meta: { chapters: project.piece?.chapters ?? [] } }
+    : { base: `/3d/${id}/`, meta: sceneMeta(project) };
 
   const start = async () => {
     if (h.slot || h.destroyed) return;
     await pageLoaded;
     const { Slot } = await loadSlot();
     if (h.destroyed) return;
-    h.slot = new Slot(media, { id, base: `/3d/${id}/`, meta: sceneMeta(project), ...opts });
+    h.slot = new Slot(media, { id, ...where, ...opts });
     h.slot.setActive(h.active);
     try {
       await h.slot.load();
@@ -113,8 +123,10 @@ export function attach3d(media, project, opts) {
     const btn = document.createElement('button');
     btn.type = 'button';
     btn.className = 'media-3d-play';
-    btn.setAttribute('aria-label', `Play the ${esc(project.title)} diorama in 3D`);
-    btn.innerHTML = `<span class="media-3d-play-icon" aria-hidden="true">${icons.cube}</span><span>Play in 3D</span>`;
+    // (setAttribute takes the title as text: no escaping, or an ampersand
+    // would be read out as "amp".)
+    btn.setAttribute('aria-label', piece ? `Turn the ${project.title} model in 3D` : `Play the ${project.title} diorama in 3D`);
+    btn.innerHTML = `<span class="media-3d-play-icon" aria-hidden="true">${icons.cube}</span><span>${piece ? 'Turn it in 3D' : 'Play in 3D'}</span>`;
     btn.addEventListener('click', (e) => {
       e.preventDefault();
       e.stopPropagation();

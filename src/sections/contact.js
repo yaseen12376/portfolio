@@ -6,12 +6,15 @@
  * success message and discarding what they wrote.
  */
 import { gsap, revealOnScroll } from '../core/motion.js';
+import { foldOnPhone } from '../core/fold.js';
 import { profile } from '../data/profile.js';
 import { esc, icons } from '../core/util.js';
 
 export function initContact() {
   const section = document.querySelector('#contact');
   if (!section) return;
+  // On a phone the form folds away under the email, the quicker way to write.
+  foldOnPhone(section);
   revealOnScroll('#contact .contact-copy, #contact .form-shell');
   initCopy(section);
   initForm(section);

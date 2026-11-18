@@ -29,7 +29,7 @@ const link = (c) => (c.href ? `<a href="${esc(c.href)}">${esc(c.label)}</a>` : `
 const points = (list) => (list.length ? `<ul class="r-points">${list.map((x) => `<li>${esc(x)}</li>`).join('')}</ul>` : '');
 
 const editing = new URLSearchParams(location.search).has('edit');
-const model = resumeModel({ phone: window.__RESUME_PRIVATE__?.phone ?? null });
+const model = resumeModel({ phone: window.__RESUME_PRINT__?.phone ?? null });
 const updated = new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
 
 /* ────────────────────────── blocks, in reading order ────────────────────────── */

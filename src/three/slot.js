@@ -10,7 +10,7 @@
  *   data-3d-chapter  the chapter showing
  *   data-3d-frames   frames drawn (QA: proves the canvas is being fed)
  */
-import { Raycaster, Vector2 } from 'three';
+import { MathUtils, Raycaster, Vector2 } from 'three';
 
 import { esc } from '../core/util.js';
 import { CameraRig } from './camera-rig.js';
@@ -84,13 +84,15 @@ export class Slot {
   }
 
   async load() {
-    const { id, base, context, tier } = this.opts;
+    const { id, base, context, tier, version } = this.opts;
+    const piece = !!this.opts.piece;
     const small = tier !== 'high' || context === 'card-small';
     const [stage, people, mod] = await Promise.all([
       // Live shadows where the view is big enough to show them; a card keeps the
       // baked light and each figure's contact shadow, at half the cost.
-      loadStage(this.engine.renderer, base, { small, signal: this.abort.signal, shadows: context === 'case' ? 2048 : 0 }),
-      loadPeople(),
+      loadStage(this.engine.renderer, base, { small, signal: this.abort.signal, shadows: context === 'case' ? 2048 : 0, piece, version }),
+      // A jar has no figures in it.
+      piece ? null : loadPeople(),
       (SCENES[id] ?? SCENES._default)(),
     ]);
     if (this.abort.signal.aborted) {
@@ -102,12 +104,19 @@ export class Slot {
     // A test fixture describes itself; a project's words come from its data.
     const meta = this.opts.meta ?? mod.meta ?? {};
     const hasChapters = !!meta.chapters?.length;
-    this.rig = new CameraRig(stage.data.view, {
-      ...(context === 'case' ? { maxYaw: 0.9, maxPitch: 0.25 } : {}),
-      insets: this.opts.insets ?? (context === 'stage' ? INSETS.stage : context === 'case' || !hasChapters ? INSETS.case : INSETS.card),
-    });
+    // A jar keeps its render camera: the turntable turns, not the view, which
+    // only tilts (a vertical drag, up to 10 degrees) and leans a little toward
+    // the cursor.
+    this.rig = piece
+      ? new CameraRig(stage.data.view, { fixed: true, maxYaw: 0, maxPitch: MathUtils.degToRad(10), parallax: 0.03 })
+      : new CameraRig(stage.data.view, {
+          ...(context === 'case' ? { maxYaw: 0.9, maxPitch: 0.25 } : {}),
+          insets: this.opts.insets ?? (context === 'stage' ? INSETS.stage : context === 'case' || !hasChapters ? INSETS.case : INSETS.card),
+        });
     this.camera = this.rig.camera;
     this.postParams = { ...stage.data.post, ...(context === 'case' ? stage.data.post?.case : null) };
+    // A jar's glass is reflection over the empty dark (piece-glass.js).
+    if (piece) this.postParams.premul = true;
     this.labels = new Labels(this.media);
     this.controller = await mod.create({
       stage,
@@ -202,7 +211,10 @@ export class Slot {
   }
 
   dpr() {
-    const cap = this.opts.context === 'case' ? 1.75 : 1.5;
+    // A jar is one model in a box, and its glass shows every pixel short:
+    // full density on a 2x screen (the quality loop takes it down where the
+    // GPU cannot keep up).
+    const cap = this.opts.context === 'case' ? (this.opts.piece ? 2 : 1.75) : 1.5;
     const q = this.engine.quality;
     const drop = q >= 3 ? 0.5 : q >= 1 ? 0.25 : 0;
     return Math.max(1, Math.min(devicePixelRatio || 1, cap) - drop);
@@ -244,9 +256,22 @@ export class Slot {
     this.controller?.update(dt, this.time);
     this.chapters?.update(dt);
     this.rig.update(dt);
+    // Anything the controller lays over the canvas, placed with this frame's camera.
+    this.controller?.afterRig?.(this.camera, this.css.w, this.css.h);
     this.labels?.end(this.camera, this.css.w, this.css.h);
     this.drawPip(dt);
+    this.hoverPick();
     this.media.dataset['3dFrames'] = String(this.frames);
+  }
+
+  /** A resting mouse's pick, once a frame at most (a model's thousands of triangles are not tested per event). */
+  hoverPick() {
+    const e = this.hoverAt;
+    if (!e || !this.pick) return;
+    this.hoverAt = null;
+    const h = this.pick(e);
+    this.canvas.style.cursor = h ? (h.kind === 'drag' ? 'grab' : 'pointer') : 'grab';
+    this.controller?.onHover?.(h, e);
   }
 
   /** The explorer's picture-in-picture canvas (null to stop). */
@@ -313,7 +338,11 @@ export class Slot {
       for (const h of hits) {
         let o = h.object;
         while (o && !o.userData?.pick) o = o.parent;
-        if (o) return { object: o, point: h.point, instanceId: h.instanceId, kind: o.userData.pick };
+        if (!o) continue;
+        const r = { object: o, point: h.point, instanceId: h.instanceId, kind: o.userData.pick };
+        // The nearest thing hit decides: a controller can say more about it
+        // (which part of a model) or that it opens nothing (null).
+        return this.controller?.refinePick ? this.controller.refinePick(r, h) : r;
       }
       return null;
     };
@@ -326,9 +355,7 @@ export class Slot {
       if (!p.down) {
         if (e.pointerType === 'mouse') {
           this.rig.setHover(ndc.x, ndc.y);
-          const h = pick(e);
-          c.style.cursor = h ? (h.kind === 'drag' ? 'grab' : 'pointer') : 'grab';
-          this.controller?.onHover?.(h);
+          this.hoverAt = e; // picked in the next frame (hoverPick)
         }
         this.engine.wake();
         return;
@@ -337,12 +364,14 @@ export class Slot {
       const dy = e.clientY - p.y;
       if (!p.dragging && Math.hypot(dx, dy) > DRAG_PX) {
         p.dragging = true;
-        if (p.hit?.kind === 'drag') this.controller?.onDrag?.('start', p.hit, e, ray);
+        // A controller can take every drag (a jar turns its turntable).
+        p.own = p.hit?.kind === 'drag' || !!this.controller?.dragAll;
+        if (p.own) this.controller?.onDrag?.('start', p.hit, e, ray);
         else this.rig.beginDrag();
         c.style.cursor = 'grabbing';
       }
       if (p.dragging) {
-        if (p.hit?.kind === 'drag') {
+        if (p.own) {
           toNdc(e);
           ray.setFromCamera(ndc, this.camera);
           this.controller?.onDrag?.('move', p.hit, e, ray);
@@ -361,6 +390,8 @@ export class Slot {
       p.y = e.clientY;
       p.dragging = false;
       p.hit = pick(e);
+      // (A move just before the press must not pick again after it: the tap may move the camera.)
+      this.hoverAt = null;
       try {
         c.setPointerCapture(e.pointerId);
       } catch {
@@ -382,7 +413,7 @@ export class Slot {
       c.addEventListener('click', swallow, { capture: true, once: true });
       setTimeout(() => c.removeEventListener('click', swallow, { capture: true }), 0);
       if (p.dragging) {
-        if (p.hit?.kind === 'drag') this.controller?.onDrag?.('end', p.hit, e, ray);
+        if (p.own) this.controller?.onDrag?.('end', p.hit, e, ray);
         else this.rig.endDrag();
       } else if (p.hit) {
         this.controller?.onClick?.(p.hit, e);
@@ -398,6 +429,7 @@ export class Slot {
     // The card's tour holds still while someone is looking closely.
     c.addEventListener('pointerenter', () => this.chapters?.pauseTour(true), sig);
     c.addEventListener('pointerleave', () => {
+      this.hoverAt = null;
       this.rig?.setHover(0, 0);
       this.controller?.onHover?.(null);
       this.chapters?.pauseTour(false);

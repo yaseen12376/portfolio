@@ -32,7 +32,8 @@ Thumbs.db
 _incoming/
 .playwright-mcp/
 
-# Private résumé details (the phone number), for npm run gen:resume -- --private
+# The résumé's phone number: npm run gen:resume prints it into public/resume.pdf
+# and nowhere else (copy resume.local.example.json)
 resume.local.json
 # Where the borrowed models are on this machine (scripts/build-pieces.mjs)
 scripts/blender/pieces/sources.local.json

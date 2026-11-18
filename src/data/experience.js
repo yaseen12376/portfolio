@@ -1,8 +1,13 @@
 /**
  * Experience and education timeline, rendered by src/sections/experience.js.
  * Points reflect contributions visible in the repositories' git history.
+ * A point whose project is hidden (projects.js `hidden: true`) is left out.
  */
-export const experience = [
+import { projects } from './projects.js';
+
+const shown = new Set(projects.map((p) => p.id));
+
+const allExperience = [
   {
     org: 'Ethical Intelligence Technologies',
     role: 'AI & Computer Vision Intern',
@@ -88,3 +93,8 @@ export const experience = [
     ],
   },
 ];
+
+export const experience = allExperience.map((e) => ({
+  ...e,
+  points: e.points.filter((pt) => !pt.project || shown.has(pt.project)),
+}));

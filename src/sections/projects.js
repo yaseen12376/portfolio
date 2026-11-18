@@ -30,12 +30,13 @@ export const shortTitle = (p) => p.title.split(':')[0];
 /**
  * A project's piece, as built (src/data/pieces.json, written by the piece
  * build): its own files, or the empty jar while its own is not built yet, or
- * null when neither exists (the media gets a typographic frame).
+ * null when neither exists (the media gets a typographic frame). `live` is
+ * the version of its live jar, where one is built (its case study turns it).
  */
 export function pieceFor(p) {
   const id = p?.piece?.id;
   if (!id) return null;
-  if (pieces[id]) return { id, v: pieces[id].v, loop: !!pieces[id].loop };
+  if (pieces[id]) return { id, v: pieces[id].v, loop: !!pieces[id].loop, live: pieces[id].live ?? null };
   if (pieces._empty) return { id: '_empty', v: pieces._empty.v, loop: false };
   return null;
 }
@@ -153,18 +154,23 @@ function stageMarkup(p, i) {
 
 // A museum label: number, title, a line on what it is, the medium (its
 // stack), the year and the role. The title's link covers the whole tile.
+// On a phone's rail the label is shorter: number, the title up to its colon
+// (.plate-rest hides the rest), and kind and year (.plate-kind).
 function pieceMarkup(p) {
   const meta = [p.year, p.role].filter(Boolean).map(esc).join(' · ');
+  const [head, ...rest] = p.title.split(':');
+  const tail = rest.length ? `<span class="plate-rest">:${esc(rest.join(':'))}</span>` : '';
   return `
     <article class="piece piece-${p.tier === 'small' ? 'small' : 'large'}" data-id="${esc(p.id)}">
       ${mediaMarkup(p)}
       <div class="plate">
         <span class="plate-num num">${p.num}</span>
         <div class="plate-body">
-          <h4 class="plate-title"><a href="#/project/${esc(p.id)}">${esc(p.title)}</a></h4>
+          <h4 class="plate-title"><a href="#/project/${esc(p.id)}">${esc(head)}${tail}</a></h4>
           <p class="plate-note">${esc(p.blurb ?? p.short)}</p>
           <p class="plate-medium">${esc(p.tags.join(', '))}</p>
           <p class="plate-meta">${meta}</p>
+          <p class="plate-kind">${[p.kind, p.year].filter(Boolean).map(esc).join(' · ')}</p>
         </div>
       </div>
     </article>`;

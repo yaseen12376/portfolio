@@ -1,5 +1,5 @@
 {
-  "about": "Third-party assets the Blender scenes use. All CC0 1.0 (public domain) from Poly Haven; no attribution required. scripts/fetch-assets.mjs downloads them into build/assets/ (git-ignored); the scenes bake them, and the page draws the set's photo tiles as 512 px copies normalised to their average (public/3d/_shared/tiles/).",
+  "about": "Third-party assets the Blender scenes use. All CC0 1.0 (public domain), from Poly Haven (textures) and ambientCG (materials); no attribution required. scripts/fetch-assets.mjs downloads them into build/assets/ (git-ignored); the scenes bake them, and the page draws the set's photo tiles as 512 px copies normalised to their average (public/3d/_shared/tiles/).",
   "source": "https://polyhaven.com",
   "license": "CC0 1.0",
   "res": "1k",
@@ -27,5 +27,13 @@
     "corrugated_iron": "site: the cabins, the hoarding",
     "rusty_metal_02": "site: rebar, steel, the skip",
     "concrete_wall_008": "site: the building frame"
+  },
+  "ambientcg": {
+    "source": "https://ambientcg.com",
+    "license": "CC0 1.0",
+    "materials": {
+      "SolarPanel003": { "use": "mission-builder-3d: the lander's solar cells", "res": "2K-JPG", "maps": ["Color", "Roughness", "Metalness", "NormalGL"] },
+      "SurfaceImperfections015": { "use": "mission-builder-3d: the dust on its arrays", "res": "1K-JPG", "maps": ["Color", "Roughness"] }
+    }
   }
 }

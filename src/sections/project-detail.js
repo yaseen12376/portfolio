@@ -10,8 +10,24 @@ import { gsap, ScrollTrigger, EASE, revealLines, countUp } from '../core/motion.
 import { getProject, projects, liveMetrics } from '../data/projects.js';
 import { scrollTo, stopScroll, startScroll, resizeScroll } from '../core/smooth-scroll.js';
 import { esc, icons, brandIcons } from '../core/util.js';
-import { mediaMarkup, metricMarkup, playMedia, holdMedia, stopMedia, shortTitle } from './projects.js';
+import { mediaMarkup, metricMarkup, playMedia, holdMedia, stopMedia, shortTitle, pieceFor } from './projects.js';
 import { attach3d, snapshot3d } from '../three/gate.js';
+
+/**
+ * A piece whose case study can turn it in 3D: it has a live build
+ * (src/data/pieces.json) and chapters to explore it by. { id, v } or null.
+ */
+const livePiece = (p) => {
+  if (p.scene3d || !p.piece?.chapters?.length) return null;
+  const pc = pieceFor(p);
+  return pc?.live ? { id: pc.id, v: pc.live } : null;
+};
+
+/** Where a piece's loop is, for the live jar to take over from: { t, d } seconds and whether it plays on, or null. */
+const loopPhase = (media) => {
+  const v = media?.querySelector('video');
+  return v && v.readyState >= 1 && Number.isFinite(v.duration) && v.duration > 0 ? { t: v.currentTime, d: v.duration, playing: !v.paused } : null;
+};
 
 // The feature explorer loads with the first case study that has one, not with the page.
 let explorerModule = null;
@@ -81,7 +97,8 @@ function detailMarkup(p) {
           ${mediaMarkup(p, { eager: true, size: desktop() ? 1080 : 720 })}
           <button class="pd-hold" type="button" hidden><span class="hold-icon" aria-hidden="true"></span><span class="pd-hold-label">Pause</span></button>
         </figure>
-      </header>`;
+      </header>
+      ${livePiece(p) ? '<div class="pd-explorer-mount"></div>' : ''}`;
   return `
     <article class="pd-inner">
       <div class="pd-bar">
@@ -125,22 +142,38 @@ const desktop = () => window.matchMedia('(min-width: 900px)').matches;
 /**
  * A piece's loop plays in its case study on every device (the shelf only
  * plays it under a mouse), with Pause beside it. Reduced motion and Save-Data
- * keep the poster.
+ * keep the poster. Once the jar is live, Pause holds the live jar instead
+ * (its loop is stopped under the canvas by then).
  */
+let pieceHeld = false;
 function playPiece(el, media) {
+  pieceHeld = false;
   const btn = el.querySelector('.pd-hold');
   if (!btn || !media?.querySelector('video') || reducedMotion() || navigator.connection?.saveData === true) return;
   const label = btn.querySelector('.pd-hold-label');
-  let held = false;
   btn.hidden = false;
   btn.addEventListener('click', () => {
-    held = !held;
-    btn.classList.toggle('is-held', held);
-    if (label) label.textContent = held ? 'Play' : 'Pause';
-    if (held) holdMedia(media);
+    pieceHeld = !pieceHeld;
+    btn.classList.toggle('is-held', pieceHeld);
+    if (label) label.textContent = pieceHeld ? 'Play' : 'Pause';
+    const jar = caseDiorama?.slot?.live ? caseDiorama.slot.controller : null;
+    if (jar?.hold) jar.hold(pieceHeld);
+    else if (pieceHeld) holdMedia(media);
     else playMedia(media);
   });
   playMedia(media);
+}
+
+/**
+ * The live jar took over from the loop at the loop's own pose (gate.js passes
+ * loopPhase). It keeps the Pause state, and once its canvas has faded in over
+ * the video (0.7 s in style.css) the video stops: nothing decodes unseen.
+ */
+function pieceWentLive(slot, media) {
+  slot.controller?.hold?.(pieceHeld);
+  setTimeout(() => {
+    if (slot.live && media.isConnected) holdMedia(media);
+  }, 1000);
 }
 
 const detail = () => document.querySelector('#project-detail');
@@ -170,17 +203,20 @@ async function explorerFor(el, p, slot) {
   if (explorer) return explorer;
   const chapters = p.scene3d?.chapters?.length
     ? p.scene3d.chapters
-    : slot?.chapters?.list.length
-      ? slot.chapters.list.map((c) => slot.chapters.info(c))
-      : null;
+    : livePiece(p)
+      ? p.piece.chapters
+      : slot?.chapters?.list.length
+        ? slot.chapters.list.map((c) => slot.chapters.info(c))
+        : null;
   if (!chapters) return null;
   const { bindExplorer, explorerMarkup } = await loadExplorer();
   if (explorer || !el.isConnected) return explorer;
   let root = el.querySelector('.pd-explorer');
   if (!root) {
+    const markup = explorerMarkup(chapters, { piece: !p.scene3d && !!p.piece });
     const mount = el.querySelector('.pd-explorer-mount');
-    if (mount) mount.outerHTML = explorerMarkup(chapters);
-    else el.querySelector('.pd-hero-media')?.insertAdjacentHTML('afterend', explorerMarkup(chapters));
+    if (mount) mount.outerHTML = markup;
+    else el.querySelector('.pd-hero-media')?.insertAdjacentHTML('afterend', markup);
     root = el.querySelector('.pd-explorer');
   }
   explorer = root ? bindExplorer(root, chapters) : null;
@@ -279,15 +315,21 @@ export function openProject(id, { push = true } = {}) {
     const morph = morphFrom(from, media);
 
     // The live diorama fades in over the poster once the morph has landed, so
-    // the two never move at once.
+    // the two never move at once. A piece's live jar fades in over its loop.
     explorerFor(el, p, null);
+    const jar = livePiece(p);
     const attach = () => {
-      if (!isOpen || !media?.isConnected || caseDiorama || !media.hasAttribute('data-scene')) return;
+      if (!isOpen || !media?.isConnected || caseDiorama) return;
+      if (jar ? !media.classList.contains('media-piece') : !media.hasAttribute('data-scene')) return;
       caseDiorama = attach3d(media, p, {
         context: 'case',
         tier: document.documentElement.dataset.tier || detectTier(),
         resume,
-        onLive: (slot) => explorerFor(el, p, slot).then((x) => x?.attach(slot)),
+        ...(jar ? { piece: jar, phase: () => loopPhase(media) } : {}),
+        onLive: (slot) => {
+          explorerFor(el, p, slot).then((x) => x?.attach(slot));
+          if (jar) pieceWentLive(slot, media);
+        },
       });
       caseDiorama?.setActive(true);
     };

@@ -13,6 +13,10 @@
  *     its backdrop is the page colour too, and its seam is invisible, the
  *     step from the last frame to the first no bigger than an ordinary step
  *     from one frame to the next
+ *  5. each live jar (the case study's): its files are there and within
+ *     budget, its scene.json is the version the page asks for and describes
+ *     the jar, and its spots and its project's chapters match one for one,
+ *     in words the site may use
  *
  * (In the browser, a tile looks the same still and playing: scripts/qa/site.mjs.)
  */
@@ -148,6 +152,64 @@ for (const id of ids) {
       check(`${id}: ${f} loops without a visible seam`, seam <= limit, `seam ${seam.toFixed(2)}, steps ${steps.map((s) => s.toFixed(2)).join('/')}`);
     }
   }
+}
+
+// ---------------------------------------------------------------- 5. each live jar
+const LIVE_BUDGET_KB = new Function(`return ${src.match(/const LIVE_BUDGET_KB = (\{[^}]+\})/)[1]}`)();
+const LIVE_TOTAL_KB = Number(src.match(/const LIVE_TOTAL_KB = (\d+)/)[1]);
+const LIVE_OWN_KB = Number(src.match(/const LIVE_OWN_KB = (\d+)/)[1]);
+for (const id of ids.filter((x) => site[x]?.live)) {
+  const dir = join(PUBLIC, id, 'live');
+  const scene = existsSync(join(dir, 'scene.json')) ? JSON.parse(await readFile(join(dir, 'scene.json'), 'utf8')) : null;
+  // A piece's own maps (its dust), each within LIVE_OWN_KB.
+  const own = Object.values(scene?.piece?.dust?.maps ?? {});
+  const files = [...Object.keys(LIVE_BUDGET_KB), ...own];
+  const absent = files.filter((f) => !existsSync(join(dir, f)));
+  const sizes = {};
+  const over = [];
+  for (const f of files.filter((x) => !absent.includes(x))) {
+    sizes[f] = (await stat(join(dir, f))).size / 1024;
+    const cap = LIVE_BUDGET_KB[f] ?? LIVE_OWN_KB;
+    if (sizes[f] > cap) over.push(`${f} ${sizes[f].toFixed(0)} KB > ${cap}`);
+  }
+  // What a computer downloads (a phone takes the 1k colour atlas instead).
+  const total = ['scene.glb', 'lightmap.webp', 'albedo.webp', 'env.webp', 'model_color.webp', 'model_orm.webp', ...own].reduce((n, f) => n + (sizes[f] ?? 0), 0);
+  if (total > LIVE_TOTAL_KB) over.push(`${total.toFixed(0)} KB in all > ${LIVE_TOTAL_KB}`);
+  check(`${id}: live jar's ${files.length} files present and within budget`, !absent.length && !over.length, [...absent.map((f) => `missing ${f}`), ...over].join(', ') || `${total.toFixed(0)} KB in all`);
+
+  check(`${id}: live scene.json is the version the page asks for`, !!scene && scene.hash === site[id].live, `${scene?.hash} vs src/data/pieces.json ${site[id].live}`);
+  const pc = scene?.piece ?? {};
+  const lacks = ['turntable', 'glass', 'jar', 'probe', 'room'].filter((k) => !pc[k]);
+  if ((pc.probe?.lights?.length ?? 0) < 3) lacks.push('probe.lights');
+  check(`${id}: live scene.json describes the jar`, lacks.length === 0, lacks.length ? `lacks ${lacks.join(', ')}` : `${pc.probe.lights.length} room lights${pc.sheen ? ', walnut sheen' : ''}`);
+  if (pc.dust) {
+    // Everything piece-dust.js reads: the two maps, a sheet and a brush per array, the cycle and the look.
+    const d = pc.dust;
+    const want = ['start', 'sweep', 'min', 'max', 'tile', 'brush'].filter((k) => typeof d[k] !== 'number');
+    if (!d.maps?.grain || !d.maps?.mottle) want.push('maps');
+    if (!(d.sheets?.length >= 1) || d.sheets.some((x) => !x.mesh || !x.pivot || typeof x.offset !== 'number' || x.shift?.length !== 2)) want.push('sheets');
+    const look = ['patch', 'grain', 'streak', 'rings', 'ridge', 'film', 'speck'].filter((k) => !Array.isArray(d.look?.[k]));
+    if (look.length) want.push(`look.${look.join(', look.')}`);
+    // Each sweep starts and ends on a key of the clip, so the brush is parked exactly while the dust says so.
+    const frames = pc.clip?.frames ?? 0;
+    const onKey = (x) => Math.abs(x * frames - Math.round(x * frames)) < 1e-6;
+    if (!frames || !onKey(d.start) || !onKey(d.start + d.sweep) || d.sheets.some((x) => !onKey(x.offset))) want.push("sweeps on the clip's keys");
+    check(`${id}: live dust described for the page`, want.length === 0, want.length ? `lacks ${want.join(', ')}` : `${d.sheets.length} sheets, sweep ${(d.sweep * (pc.clip?.seconds ?? 6)).toFixed(2)} s`);
+  }
+
+  const chapters = projects.find((p) => p.piece?.id === id)?.piece?.chapters ?? [];
+  const ids2 = chapters.map((c) => c.id);
+  const marks = Object.keys(pc.spots ?? {});
+  const unmarked = ids2.slice(1).filter((c) => !marks.includes(c));
+  const unused = marks.filter((m) => !ids2.includes(m));
+  check(
+    `${id}: the whole jar, then one chapter per spot the scene marks (${Math.max(0, ids2.length - 1)})`,
+    ids2.length >= 4 && !unmarked.length && !unused.length,
+    [unmarked.length && `no mark for ${unmarked.join(', ')}`, unused.length && `no chapter for ${unused.join(', ')}`, ids2.length < 4 && 'fewer than three spots'].filter(Boolean).join('; ')
+  );
+  const words = chapters.flatMap((c) => [c.title, c.caption, c.hint]).filter(Boolean).join(' ');
+  const bad = [/[–—]/.test(words) && 'an en or em dash', /TODO_/.test(words) && 'a TODO_ blank'].filter(Boolean);
+  check(`${id}: its chapters' words are the site's own`, bad.length === 0, bad.join(', '));
 }
 
 const failed = results.filter((r) => !r.ok).length;

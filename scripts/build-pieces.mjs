@@ -2,7 +2,7 @@
  * Build the collection: one small model under a glass bell jar per project,
  * rendered in Blender (headless) as a turntable loop and a poster.
  *
- *   node scripts/build-pieces.mjs [ids...] [--stages sheet,still,loop,encode] [--force]
+ *   node scripts/build-pieces.mjs [ids...] [--stages sheet,still,loop,encode,live] [--force]
  *                                 [--frames 144] [--fps 24] [--chunk 48]
  *
  *   sheet   four quick views of one turn on a contact sheet, for review
@@ -13,6 +13,11 @@
  *           is restarted every --chunk frames.
  *   encode  the page colour goes in, then VP9 + H.264 at 720 and 1080 and the
  *           WebP posters, into public/pieces/<id>/, checked against budgets.
+ *   live    the jar as a live scene for its case study (turn it, lift the
+ *           glass, tap its parts): Blender bakes it as the dioramas are baked
+ *           (bake_scene.py --scene piece:<id>, pieces/live.py), then the GLB is
+ *           optimised and the maps encoded into public/pieces/<id>/live/.
+ *           Not part of a default build.
  *
  * Why the page colour goes in here and not in Blender: the frames are opaque,
  * on black. The dioramas' tone curve maps anything near black to black, so a
@@ -29,6 +34,7 @@ import { join } from 'node:path';
 import sharp from 'sharp';
 
 import { ROOT, blender, hashFiles } from './lib/blender.mjs';
+import { optimise, stats, validate } from './lib/gltf.mjs';
 
 const PAGE = '#09090b';
 const SRC = 'scripts/blender/pieces';
@@ -42,6 +48,18 @@ const BUDGET_KB = { 'loop-720.webm': 600, 'loop-720.mp4': 600, 'loop-1080.webm':
 // file's URL changes too (vercel.json lets browsers keep the files for a week).
 // The renders' own hash leaves this out: a new encode never re-renders.
 const ENCODE_REV = 2;
+// The live jar's files (the case study only), per file. The 1k colour atlas
+// is what a phone or a slower machine gets.
+const LIVE_BUDGET_KB = { 'scene.glb': 600, 'lightmap.webp': 200, 'gloss.webp': 150, 'albedo.webp': 200, 'env.webp': 80, 'model_color.webp': 700, 'model_color-1k.webp': 250, 'model_orm.webp': 400 };
+const LIVE_TOTAL_KB = 2000;
+// Each of a piece's own maps (scene.json's piece.dust.maps).
+const LIVE_OWN_KB = 120;
+// Raise to re-bake every jar (Blender) after a change its hash cannot see.
+// The files' version is a hash of their bytes, so an encode change needs no bump.
+const LIVE_REV = 1;
+// The jar's meshes are simplified to within this fraction of each mesh's
+// radius: under half a pixel at the case study's largest view.
+const LIVE_SIMPLIFY = 1e-3;
 
 // ---------------------------------------------------------------- args
 
@@ -90,7 +108,8 @@ async function sources() {
   }
 }
 
-async function inputsHash(id) {
+/** What a piece's renders and its live jar read, besides the scripts that drive them. */
+async function pieceInputs(id) {
   const kit = (await readdir(join(ROOT, 'scripts/blender/kit'))).filter((f) => f.endsWith('.py')).map((f) => `scripts/blender/kit/${f}`);
   const own = await readFile(join(ROOT, SRC, `${id}.py`), 'utf8');
   // The shared parts and borrowed models count only for the pieces that use
@@ -99,7 +118,33 @@ async function inputsHash(id) {
   const models = [...own.matchAll(/K\.source\(\s*['"]([^'"]+)['"]/g)]
     .map((m) => `build/pieces/_src/${m[1]}`)
     .filter((f) => existsSync(join(ROOT, f)));
-  return hashFiles(['scripts/blender/common.py', 'scripts/blender/render_piece.py', `${SRC}/_kit.py`, ...parts, `${SRC}/${id}.py`, ...kit, ...models]);
+  // The scanned materials (ambientCG, scripts/fetch-assets.mjs) it names.
+  const manifest = join(ROOT, 'build/assets/manifest.json');
+  const scans = existsSync(manifest)
+    ? Object.entries(JSON.parse(await readFile(manifest, 'utf8')).materials ?? {})
+        .filter(([mid]) => new RegExp(`['"]${mid}['"]`).test(own))
+        .flatMap(([, m]) => Object.values(m.maps).map((p) => `build/assets/${p}`))
+        .filter((f) => existsSync(join(ROOT, f)))
+    : [];
+  return { own, files: ['scripts/blender/common.py', `${SRC}/_kit.py`, ...parts, ...kit, ...models, ...scans] };
+}
+
+/**
+ * The renders' inputs. A piece's own script counts up to its live jar's
+ * section (LIVE_MARK): the spots and hooks there are for the live scene only,
+ * and tuning them must not throw away a rendered loop.
+ */
+const LIVE_MARK = '# ---------------------------------------------------------------- the live jar';
+async function inputsHash(id) {
+  const { own, files } = await pieceInputs(id);
+  const i = own.indexOf(LIVE_MARK);
+  return hashFiles(['scripts/blender/render_piece.py', ...files], `${id}.py\n${i < 0 ? own : own.slice(0, i)}`);
+}
+
+/** The live jar's inputs: the whole piece script, the bake and its adapter. */
+async function liveHash(id) {
+  const { files } = await pieceInputs(id);
+  return hashFiles(['scripts/blender/bake_scene.py', `${SRC}/live.py`, `${SRC}/${id}.py`, ...files], `live:${LIVE_REV}`);
 }
 
 /** The lighter of the frame and the page colour: the background becomes the page. */
@@ -229,10 +274,84 @@ async function encode(id, hash) {
   return { v, frames: frames === FRAMES ? FRAMES : 0, fps: FPS, kb: sizes, over };
 }
 
+/**
+ * The jar as a live scene. Blender bakes it in three processes (the light on
+ * the set, the panorama inside the jar, then the model's atlas and the
+ * export), skipped while nothing it reads has changed; then the GLB is
+ * optimised (meshopt, the clip kept) and the maps encoded as WebP.
+ */
+async function live(id) {
+  const src = join(BUILD, id, 'live');
+  const dst = join(PUBLIC, id, 'live');
+  await mkdir(src, { recursive: true });
+  await mkdir(dst, { recursive: true });
+  const hash = await liveHash(id);
+  const mark = join(src, '.hash');
+  const was = existsSync(mark) ? (await readFile(mark, 'utf8')).trim() : '';
+  if (was !== hash || flag('force') || !existsSync(join(src, 'scene.glb'))) {
+    for (const stage of ['light', 'env', 'export']) {
+      const s = await blender('scripts/blender/bake_scene.py', ['--scene', `piece:${id}`, '--stage', stage], `live ${stage}`);
+      console.log(`  live    ${stage} ${s}s`);
+    }
+    await writeFile(mark, hash);
+  } else console.log('  live    bake unchanged');
+
+  const scene = JSON.parse(await readFile(join(src, 'scene.json'), 'utf8'));
+  const doc = await optimise(join(src, 'scene.glb'), join(dst, 'scene.glb'), { animations: true, simplify: LIVE_SIMPLIFY, level: 'high' });
+  const st = stats(doc);
+  const val = await validate(join(dst, 'scene.glb'));
+  const webp = (file, o) => sharp(join(src, file)).webp({ effort: 6, ...o });
+  await webp('lightmap.png', { quality: 92 }).toFile(join(dst, 'lightmap.webp'));
+  await webp('gloss.png', { quality: 92 }).toFile(join(dst, 'gloss.webp'));
+  await webp('albedo.png', { quality: 86, smartSubsample: true }).toFile(join(dst, 'albedo.webp'));
+  await sharp(join(src, 'env.png')).resize(512, 256).webp({ quality: 90, effort: 6 }).toFile(join(dst, 'env.webp'));
+  await webp('model_color.png', { quality: 86, smartSubsample: true }).toFile(join(dst, 'model_color.webp'));
+  await sharp(join(src, 'model_color.png')).resize(1024, 1024, { kernel: 'lanczos3' }).webp({ quality: 86, effort: 6, smartSubsample: true }).toFile(join(dst, 'model_color-1k.webp'));
+  // Three maps in one (occlusion, roughness, metalness). Lossy: every channel
+  // is finely graded (lossless costs 900 KB), and the chroma subsampling that
+  // lets one channel bleed into another only does so across a material's edge,
+  // which sits on an island's border, inside the bake margin.
+  await sharp(join(src, 'model_orm.png')).resize(1024, 1024, { kernel: 'lanczos3' }).webp({ quality: 85, effort: 6, smartSubsample: true }).toFile(join(dst, 'model_orm.webp'));
+  // A piece's own maps (Mission Builder's dust: its grain and its patches).
+  // Grey, so lossy WebP's half-size colour planes carry nothing.
+  const own = Object.values(scene.piece?.dust?.maps ?? {});
+  for (const f of own) await sharp(join(src, f.replace(/\.webp$/, '.png'))).grayscale().webp({ quality: 88, effort: 6 }).toFile(join(dst, f));
+  // The version is the files' own hash, so whatever changes them (a bake or
+  // an encode) changes every URL the page asks for.
+  const files = ['scene.glb', 'lightmap.webp', 'gloss.webp', 'albedo.webp', 'env.webp', 'model_color.webp', 'model_color-1k.webp', 'model_orm.webp', ...own];
+  const vh = createHash('sha256').update(JSON.stringify(scene));
+  for (const f of files) vh.update(f).update(await readFile(join(dst, f)));
+  const v = vh.digest('hex').slice(0, 8);
+  await writeFile(join(dst, 'scene.json'), JSON.stringify({ ...scene, hash: v }));
+
+  const sizes = {};
+  let over = 0;
+  for (const f of [...Object.keys(LIVE_BUDGET_KB), ...own]) {
+    sizes[f] = Math.round(await kb(join(dst, f)));
+    const cap = LIVE_BUDGET_KB[f] ?? LIVE_OWN_KB;
+    if (sizes[f] > cap) {
+      over++;
+      console.log(`  OVER    live/${f}: ${sizes[f]} KB (budget ${cap} KB)`);
+    }
+  }
+  const desktop = ['scene.glb', 'lightmap.webp', 'gloss.webp', 'albedo.webp', 'env.webp', 'model_color.webp', 'model_orm.webp', ...own].reduce((n, f) => n + sizes[f], 0);
+  if (desktop > LIVE_TOTAL_KB) {
+    over++;
+    console.log(`  OVER    live download ${desktop} KB (budget ${LIVE_TOTAL_KB} KB)`);
+  }
+  if (val.errors) {
+    over++;
+    console.log(`  INVALID live/scene.glb: ${val.errors} errors ${JSON.stringify(val.first)}`);
+  }
+  console.log(`  live    ${Object.entries(sizes).map(([f, n]) => `${f} ${n} KB`).join(', ')}`);
+  console.log(`  live    ${desktop} KB in all, ${st.triangles} triangles, ${st.drawCalls} draws, ${st.animations} clip, validator ${val.errors} errors / ${val.warnings} warnings`);
+  return { v, kb: sizes, triangles: st.triangles, drawCalls: st.drawCalls, over };
+}
+
 // ---------------------------------------------------------------- main
 
 // Every module here is a piece, except the shared ones (the jar and the small parts).
-const SHARED = new Set(['__init__.py', '_kit.py', '_parts.py']);
+const SHARED = new Set(['__init__.py', '_kit.py', '_parts.py', 'live.py']);
 const all = (await readdir(join(ROOT, SRC))).filter((f) => f.endsWith('.py') && !SHARED.has(f)).map((f) => f.slice(0, -3));
 const ids = asked.length ? asked : all;
 for (const id of ids) if (!all.includes(id)) throw new Error(`no piece "${id}" (have: ${all.join(', ')})`);
@@ -251,7 +370,14 @@ for (const id of ids) {
     if (stages.includes('encode')) {
       const m = await encode(id, hash);
       if (m.over) failed++;
-      manifest[id] = { v: m.v, frames: m.frames, fps: m.fps, kb: m.kb };
+      manifest[id] = { ...manifest[id], v: m.v, frames: m.frames, fps: m.fps, kb: m.kb };
+      await mkdir(PUBLIC, { recursive: true });
+      await writeFile(manifestPath, JSON.stringify(Object.fromEntries(Object.entries(manifest).sort()), null, 1) + '\n');
+    }
+    if (stages.includes('live')) {
+      const { over, ...m } = await live(id);
+      if (over) failed++;
+      manifest[id] = { ...manifest[id], live: m };
       await mkdir(PUBLIC, { recursive: true });
       await writeFile(manifestPath, JSON.stringify(Object.fromEntries(Object.entries(manifest).sort()), null, 1) + '\n');
     }
@@ -261,12 +387,13 @@ for (const id of ids) {
   }
 }
 // What the site needs to know, in src/ so Vite bundles it: the version that
-// busts the cache, and whether a loop exists (a piece with posters only shows
-// its poster). A piece not listed here shows the empty jar.
+// busts the cache, whether a loop exists (a piece with posters only shows its
+// poster), and the live jar's version where one is built (its case study can
+// turn it). A piece not listed here shows the empty jar.
 const site = Object.fromEntries(
   Object.entries(manifest)
     .sort()
-    .map(([id, m]) => [id, { v: m.v, loop: m.frames > 0 }])
+    .map(([id, m]) => [id, { v: m.v, loop: m.frames > 0, ...(m.live ? { live: m.live.v } : {}) }])
 );
 await writeFile(join(ROOT, 'src', 'data', 'pieces.json'), JSON.stringify(site) + '\n');
 if (failed) {

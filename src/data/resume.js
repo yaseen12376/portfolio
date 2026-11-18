@@ -68,8 +68,8 @@ export const resume = {
   },
 
   education: {
-    // Shown under the degree when filled in, e.g. '8.9 / 10'.
-    cgpa: 'TODO_',
+    // Printed after the school, with its scale.
+    cgpa: '7.7 / 10',
     coursework: 'Machine learning, data preprocessing and analysis, computer vision, databases.',
   },
 

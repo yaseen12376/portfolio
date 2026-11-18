@@ -36,8 +36,9 @@ export function when(p) {
 }
 
 /**
- * Everything the résumé prints. `phone` is only for the private copy: the
- * public PDF has none (scripts/gen-resume.mjs --private).
+ * Everything the résumé prints. `phone` exists only while it is printed:
+ * scripts/gen-resume.mjs reads it from the git-ignored resume.local.json and
+ * hands it to the page, so the PDF carries it and the site never does.
  */
 export function resumeModel({ phone = null } = {}) {
   const byId = new Map(projects.map((p) => [p.id, p]));

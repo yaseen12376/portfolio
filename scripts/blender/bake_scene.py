@@ -24,6 +24,10 @@ process per stage makes both harmless.
           the backdrop and the same blur/glow the page uses.
 
 Raw outputs go to build/3d/<id>/; build-3d.mjs turns them into public/3d/<id>/.
+
+A piece of the collection under glass takes the same stages as a live scene:
+--scene piece:<id> (pieces/live.py is its adapter; output in
+build/pieces/<id>/live/, for scripts/build-pieces.mjs's `live` stage).
 """
 
 from __future__ import annotations
@@ -45,6 +49,7 @@ import common as C  # noqa: E402
 from kit import geo, nav as NAV, people as P, plinth as PL  # noqa: E402
 
 LIGHT_SCALE = 5.0   # the lightmap stores light / 5 (p99.9 of the calibration bake is 5.25)
+GLOSS_SCALE = 2.0   # a piece's gloss map stores its light / 2
 ENV_SCALE = 2.0
 ASPECTS = {'16x9': (1920, 1080), 'sq': (1440, 1440), 'wide': (2340, 1080)}
 
@@ -52,7 +57,24 @@ ASPECTS = {'16x9': (1920, 1080), 'sq': (1440, 1440), 'wide': (2340, 1080)}
 # ---------------------------------------------------------------- scene assembly
 
 def load(scene_id):
+    if scene_id.startswith('piece:'):
+        from pieces import live
+        return live.load(scene_id.split(':', 1)[1])
     return importlib.import_module(f'scenes.{scene_id}')
+
+
+def out_for(scene_id):
+    if scene_id.startswith('piece:'):
+        from pieces import live
+        return live.out_dir(scene_id.split(':', 1)[1])
+    return C.out_dir(scene_id)
+
+
+def hide_glass():
+    """A piece's jar is drawn by the page, and passes light in Cycles: no
+    bake sees it."""
+    for o in objects('glass'):
+        o.hide_render = True
 
 
 def assemble(S, *, figures: bool):
@@ -142,10 +164,10 @@ def blur(a, sigma):
     return out
 
 
-def smooth_islands(a):
+def smooth_islands(a, scale=LIGHT_SCALE):
     """A light denoise for baked light: blur, but only where the blur does not
     cross a sharp change (a UV seam or a hard shadow edge)."""
-    orig = srgb(a / LIGHT_SCALE)
+    orig = srgb(a / scale)
     b = blur(orig, 1.2)
     diff = np.abs(b - orig).max(-1, keepdims=True)
     w = np.clip(1 - diff / 0.06, 0, 1)
@@ -476,11 +498,13 @@ def stage_light(S, out, samples, size):
     check_protos()
     data['bounds'] = scene_bounds()
     data['hull'] = scene_hull()
-    # The walkable floor, before joining and culling remove what the rays need.
-    pl = S.META['plinth']
-    data['nav'] = NAV.build(data['plinth'], pl['w'], pl['d'], pl.get('radius', 0.16))
-    data['footprints'] = NAV.footprints()
-    if data.get('spots'):
+    # The walkable floor, before joining and culling remove what the rays need
+    # (a diorama's; a piece has no floor to walk).
+    pl = S.META.get('plinth')
+    if pl:
+        data['nav'] = NAV.build(data['plinth'], pl['w'], pl['d'], pl.get('radius', 0.16))
+        data['footprints'] = NAV.footprints()
+    if pl and data.get('spots'):
         # Static fixtures only here; moving ones (rails) are checked on the page.
         starts = {f'cast_{i}_{c.get("role", "")}': {'at': c['at']} for i, c in enumerate(data.get('cast', [])) if 'at' in c and c.get('role') != 'cashier' and not c.get('fixed') and not c.get('lift')}
         data['nav_unreachable'] = NAV.check_reach(data['nav'], {**data['spots'], **starts}, 0.24, S.META.get('nav_start'), NAV.dyn_polys())
@@ -491,6 +515,7 @@ def stage_light(S, out, samples, size):
         o.hide_render = True
         for c in o.children_recursive:
             c.hide_render = True
+    hide_glass()
     set_objs = [o for o in objects('set') if o.type in ('MESH', 'CURVE')]
     for o in set_objs:
         C.apply_modifiers(geo.realize(o) if o.type == 'CURVE' else o)
@@ -499,15 +524,32 @@ def stage_light(S, out, samples, size):
     data['occluders'] = occluder_boxes(set_objs)
     if tiled:
         tile_uvs(set_objs)
+    # A set's glossy surfaces (a piece's walnut, marked `sheen`) keep their
+    # gloss on the page, which a diffuse light bake cannot hold: roughness
+    # and ten times F0 per vertex, in the first UVs (glTF flips v), zero on
+    # everything else. Every part gets the layer, so the join keeps it.
+    sheen = not tiled and any(o.get('sheen') for o in set_objs)
+    if sheen:
+        for o in set_objs:
+            rough, f0 = o.get('sheen', (0.0, 0.0))
+            uv = o.data.uv_layers.new(name='sheen')
+            uv.data.foreach_set('uv', [rough, 1.0 - 10.0 * f0] * len(uv.data))
+        data['sheen'] = True
+    if S.META.get('piece'):
+        # Which spot a tap on each part opens (the tag): pieces/live.py.
+        from pieces import live
+        live.part_attr(set_objs)
     s = C.join(set_objs, 'set_all')
     s['role'] = 'set'
     cull(s, view_dir(S))
     me = s.data
     for layer in list(me.uv_layers):
-        if not (tiled and layer.name == 'UVMap'):
+        if not (tiled and layer.name == 'UVMap') and layer.name != 'sheen':
             me.uv_layers.remove(layer)
+    if me.uv_layers.get('sheen'):
+        me.uv_layers['sheen'].name = 'UVMap'
     if not me.uv_layers.get('UVMap'):
-        me.uv_layers.new(name='UVMap')      # TEXCOORD_0: the tiles' UVs (tiled), else unused
+        me.uv_layers.new(name='UVMap')      # TEXCOORD_0: the tiles' UVs (tiled), a piece's sheen, else unused
     bake_uv = me.uv_layers.new(name='bake')  # TEXCOORD_1: the lightmap
     me.uv_layers.active = bake_uv
     C.select([s])
@@ -515,6 +557,11 @@ def stage_light(S, out, samples, size):
     bpy.ops.mesh.select_all(action='SELECT')
     bpy.ops.uv.smart_project(angle_limit=math.radians(60), island_margin=0.003, area_weight=0.0,
                              correct_aspect=True, scale_to_bounds=False)
+    if S.META.get('uv_scale'):
+        # A large surface that needs little light detail (a piece's pad)
+        # gives the rest more of the lightmap.
+        from pieces import live
+        live.uv_scale(s, S.META['uv_scale'])
     bpy.ops.uv.pack_islands(rotate=True, margin=0.004)
     bpy.ops.object.mode_set(mode='OBJECT')
     atlas = 0 if tiled else int(S.META.get('atlas', 0))
@@ -535,12 +582,52 @@ def stage_light(S, out, samples, size):
     np.save(os.path.join(out, 'light.npy'), raw.astype(np.float16))
     save_png(smooth_islands(raw), os.path.join(out, 'lightmap.png'))
     print('BAKED light', size, 'faces', len(me.polygons), 'max %.2f mean %.2f' % (raw.max(), raw.mean()))
+    if S.META.get('piece'):
+        bake_gloss(sc, s, size, samples, out, data)
     if tiled:
         data['materials'] = merge_tiled(s, out)
     elif atlas:
         merge_baked(s)
     C.write_json(os.path.join(out, 'build.json'), data)
     bpy.ops.wm.save_as_mainfile(filepath=os.path.join(out, 'set.blend'))
+
+
+def bake_gloss(sc, s, size, samples, out, data):
+    """A piece's set as its camera sees it shine: the lacquered walnut
+    catching the brass rim and the glass, the pad mirroring the lit base. The
+    glossy light, direct and reflected, from the poster's viewpoint, which the
+    diffuse light bake cannot hold; the page adds it to the set's colour x
+    light. Everything the render has is in view for it (the glass, and the
+    model as it stands at the loop's start), with the renders' own Cycles
+    settings (render_piece.py setup())."""
+    shown = []
+    for o in objects('dyn') + objects('glass'):
+        for x in [o, *o.children_recursive]:
+            if x.hide_render:
+                x.hide_render = False
+                shown.append(x)
+    cy = sc.cycles
+    keep = {k: getattr(cy, k) for k in ('samples', 'max_bounces', 'diffuse_bounces', 'glossy_bounces', 'transmission_bounces',
+                                         'transparent_max_bounces', 'caustics_reflective', 'caustics_refractive',
+                                         'sample_clamp_indirect', 'blur_glossy')}
+    cy.samples = samples * 2
+    cy.max_bounces, cy.diffuse_bounces, cy.glossy_bounces = 16, 3, 6
+    cy.transmission_bounces, cy.transparent_max_bounces = 12, 16
+    cy.caustics_reflective = cy.caustics_refractive = False
+    cy.sample_clamp_indirect = 6.0
+    cy.blur_glossy = 0.5
+    sc.render.bake.view_from = 'ACTIVE_CAMERA'
+    img = bpy.data.images.new('gloss', size, size, alpha=False, float_buffer=True)
+    bake_into([s], img, kind='GLOSSY', passes=('DIRECT', 'INDIRECT', 'COLOR'))
+    raw = pixels(img)[..., :3]
+    save_png(smooth_islands(raw, GLOSS_SCALE), os.path.join(out, 'gloss.png'))
+    data['gloss'] = GLOSS_SCALE
+    print('BAKED gloss', size, 'max %.2f p99.9 %.3f mean %.4f' % (raw.max(), float(np.percentile(raw, 99.9)), raw.mean()))
+    sc.render.bake.view_from = 'ABOVE_SURFACE'
+    for k, val in keep.items():
+        setattr(cy, k, val)
+    for x in shown:
+        x.hide_render = True
 
 
 def check_protos():
@@ -594,7 +681,9 @@ def stage_env(S, out, samples):
     sc, data, key = assemble(S, figures=False)
     for o in objects('dyn'):
         o.hide_render = True
-    cam = C.camera(sc, (0.0, 0.0, 0.9), (0.0, 1.0, 0.9))
+    hide_glass()
+    at = tuple(S.META.get('env_at', (0.0, 0.0, 0.9)))
+    cam = C.camera(sc, at, (at[0], at[1] + 1.0, at[2]))
     cam.rotation_euler = (math.radians(90), 0, 0)
     cam.data.type = 'PANO'
     for holder in (cam.data, getattr(cam.data, 'cycles', None)):
@@ -648,12 +737,19 @@ def bake_ao(sc, objs):
     print('BAKED ao', len(by_data), 'meshes')
 
 
-def gltf(path, objs):
+def gltf(path, objs, animations=False):
     C.select(objs)
     kw = dict(filepath=path, export_format='GLB', use_selection=True, export_apply=True, export_yup=True,
               export_extras=True, export_texcoords=True, export_normals=True, export_materials='EXPORT',
-              export_image_format='AUTO', export_cameras=False, export_lights=False, export_animations=False,
-              export_vertex_color='ACTIVE', export_gpu_instances=False)
+              export_image_format='AUTO', export_cameras=False, export_lights=False, export_animations=animations,
+              export_vertex_color='ACTIVE', export_gpu_instances=False,
+              # Attributes named with an underscore (a piece's '_part').
+              export_attributes=True)
+    if animations:
+        # One clip of every action the scene holds (a piece's animate(),
+        # sampled by pieces/live.py), over the scene's frame range.
+        kw.update(export_animation_mode='ACTIVE_ACTIONS', export_force_sampling=True, export_frame_range=True,
+                  export_anim_slide_to_zero=True, export_bake_animation=False)
     while True:
         try:
             bpy.ops.export_scene.gltf(**kw)
@@ -666,7 +762,34 @@ def gltf(path, objs):
             kw.pop(bad)
 
 
+def stage_export_piece(S, out):
+    """A piece's live scene: the model's atlas (pieces/live.py), AO for the
+    brass, and scene.glb with the set, the brass, the glass, the turntable and
+    all it carries (the clip with it), and the spots."""
+    from pieces import live
+    bpy.ops.wm.open_mainfile(filepath=os.path.join(out, 'set.blend'))
+    sc = bpy.context.scene
+    C.engine(sc, 'CYCLES')  # the GPU (a saved file keeps the device, not the preference)
+    bake_setup(sc, 128)
+    data = json.load(open(os.path.join(out, 'build.json')))
+    model = live.model_atlas(out, int(S.META.get('model_atlas', 1024)), S.META.get('model_uv_scale'))
+    props = [o for o in objects('prop') if o.type == 'MESH']
+    for o in props:
+        o.hide_render = False
+    bake_ao(sc, props)
+    glass = [o for o in objects('glass') if o.type == 'MESH']
+    for o in glass:
+        o.hide_render = False
+    anchors = [o for o in bpy.data.objects if o.type == 'EMPTY' and o.get('anchor')]
+    exported = list(dict.fromkeys([bpy.data.objects['set_all'], *props, *glass, *model, *anchors]))
+    gltf(os.path.join(out, 'scene.glb'), exported, animations=bool(data.get('clip')))
+    write_scene_json(S, sc, data, out)
+    print('EXPORTED', len(exported), 'objects')
+
+
 def stage_export(S, out):
+    if S.META.get('piece'):
+        return stage_export_piece(S, out)
     bpy.ops.wm.open_mainfile(filepath=os.path.join(out, 'set.blend'))
     sc = bpy.context.scene
     bake_setup(sc, 128)
@@ -742,7 +865,8 @@ def write_scene_json(S, sc, data, out):
     key = bpy.data.objects.get('key')
     d = Vector(key.matrix_world.to_3x3() @ Vector((0, 0, -1))).normalized() if key else Vector((0, 0, -1))
     v = S.META['view']
-    lights = live_lights(data['bounds'])
+    piece = bool(S.META.get('piece'))
+    lights = [] if piece else live_lights(data['bounds'])
     meta = {
         'id': S.META['id'],
         'label': S.META['label'],
@@ -751,6 +875,9 @@ def write_scene_json(S, sc, data, out):
         'lightmap': 'lightmap.webp',
         # Colour atlas for the set's 'baked' material (on the lightmap's UVs).
         'albedo': 'albedo.webp' if data.get('albedo') else None,
+        # A piece's: the set's gloss as the camera sees it, added to colour x
+        # light (stored / scale, on the lightmap's UVs).
+        **({'gloss': {'file': 'gloss.webp', 'scale': data['gloss']}} if data.get('gloss') else {}),
         'env': {'file': 'env.webp', 'scale': ENV_SCALE},
         # The key light, for everything lit live: direction it travels, colour,
         # strength (tuned per scene so live pieces sit in the baked light).
@@ -787,6 +914,9 @@ def write_scene_json(S, sc, data, out):
                   **({'at': C.y_up((m['at'][0], m['at'][1], 0.0)), 'face': m.get('face', 0.0)} if 'at' in m else {})}
                  for m in data.get('cast', [])],
     }
+    if piece:
+        from pieces import live
+        meta.update(live.scene_json(S, data))
     C.write_json(os.path.join(out, 'scene.json'), meta)
 
 
@@ -904,7 +1034,7 @@ if __name__ == '__main__':
     sid = str(a['scene'])
     stage = str(a.get('stage', 'light'))
     S = load(sid)
-    out = C.out_dir(sid)
+    out = out_for(sid)
     samples = int(a.get('samples', 256))
     if stage == 'light':
         stage_light(S, out, samples, int(a.get('size', S.META.get('lightmap', 2048))))

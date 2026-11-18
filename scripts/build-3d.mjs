@@ -24,15 +24,12 @@ import { copyFile, mkdir, readFile, readdir, stat, unlink, writeFile } from 'nod
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { NodeIO, PropertyType } from '@gltf-transform/core';
-import { ALL_EXTENSIONS } from '@gltf-transform/extensions';
-import { dedup, instance, meshopt, prune, resample, weld } from '@gltf-transform/functions';
-import validator from 'gltf-validator';
-import { MeshoptDecoder, MeshoptEncoder } from 'meshoptimizer';
 import sharp from 'sharp';
 
-// Running Blender and hashing inputs are shared with scripts/build-pieces.mjs.
+// Running Blender, hashing inputs and the glTF steps are shared with
+// scripts/build-pieces.mjs.
 import { blender, hashFiles } from './lib/blender.mjs';
+import { optimise, stats, validate } from './lib/gltf.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const BUILD = join(ROOT, 'build', '3d');
@@ -84,95 +81,6 @@ async function hashInputs(id) {
     `scripts/blender/scenes/${id}.py`,
   ];
   return hashFiles(files, JSON.stringify({ samples, stages }));
-}
-
-// ---------------------------------------------------------------- glTF
-
-const io = () =>
-  new NodeIO()
-    .registerExtensions(ALL_EXTENSIONS)
-    .registerDependencies({ 'meshopt.decoder': MeshoptDecoder, 'meshopt.encoder': MeshoptEncoder });
-
-/**
- * Drop animation channels that never move: bones never scale, most never
- * translate, and a clip keys every bone. Each channel costs a sampler, two
- * accessors and their buffer views in the glTF JSON, which for a cast of
- * twenty clips was most of the file. A channel is static when every keyframe
- * equals the node's rest value.
- */
-function dropStaticChannels(eps = 1e-4) {
-  return (doc) => {
-    let dropped = 0;
-    for (const anim of doc.getRoot().listAnimations()) {
-      for (const ch of anim.listChannels()) {
-        const node = ch.getTargetNode();
-        const path = ch.getTargetPath();
-        const out = ch.getSampler()?.getOutput();
-        if (!node || !out || !['translation', 'rotation', 'scale'].includes(path)) continue;
-        const rest = path === 'translation' ? node.getTranslation() : path === 'rotation' ? node.getRotation() : node.getScale();
-        const n = out.getElementSize();
-        const arr = out.getArray();
-        let still = true;
-        for (let i = 0; i < arr.length && still; i += n) {
-          // q and -q are the same rotation.
-          const same = (sgn) => rest.every((r, k) => Math.abs(arr[i + k] * sgn - r) < eps);
-          still = same(1) || (path === 'rotation' && same(-1));
-        }
-        if (still) {
-          const sampler = ch.getSampler();
-          ch.dispose();
-          if (!sampler.listParents().some((p) => p.propertyType === 'AnimationChannel')) sampler.dispose();
-          dropped++;
-        }
-      }
-    }
-    console.log(`  animation: dropped ${dropped} static channels`);
-  };
-}
-
-async function optimise(src, dst, { animations = false, quantize = {} } = {}) {
-  await MeshoptEncoder.ready;
-  await MeshoptDecoder.ready;
-  const doc = await io().read(src);
-  // No prune of attributes or empty nodes: the lightmap UV (TEXCOORD_1) is
-  // referenced by no material, and anchors are empty nodes the page reads.
-  // Materials are never merged: in the tiled era their names say which photo
-  // tile the page draws (Blender exports them with identical defaults).
-  const steps = [dedup({ propertyTypes: [PropertyType.ACCESSOR, PropertyType.MESH, PropertyType.TEXTURE] }), weld()];
-  if (!animations) steps.push(instance({ min: 2 }));
-  if (animations) steps.push(resample(), dropStaticChannels());
-  steps.push(prune({ propertyTypes: ['accessor', 'material', 'texture', 'animation'], keepAttributes: true, keepLeaves: true }));
-  // 8-bit normals are invisible at diorama scale and halve their bytes.
-  steps.push(meshopt({ encoder: MeshoptEncoder, level: 'medium', quantizeNormal: 8, ...quantize }));
-  await doc.transform(...steps);
-  await io().write(dst, doc);
-  return doc;
-}
-
-function stats(doc) {
-  const root = doc.getRoot();
-  let triangles = 0;
-  let drawCalls = 0;
-  for (const node of root.listNodes()) {
-    const mesh = node.getMesh();
-    if (!mesh) continue;
-    const inst = node.getExtension('EXT_mesh_gpu_instancing');
-    const count = inst ? inst.getAttribute('TRANSLATION')?.getCount() ?? 1 : 1;
-    for (const prim of mesh.listPrimitives()) {
-      const idx = prim.getIndices();
-      const tris = (idx ? idx.getCount() : prim.getAttribute('POSITION').getCount()) / 3;
-      triangles += tris * count;
-      drawCalls += 1; // an instanced primitive is still one draw
-    }
-  }
-  return { triangles: Math.round(triangles), drawCalls, nodes: root.listNodes().length, animations: root.listAnimations().length };
-}
-
-async function validate(path) {
-  const r = await validator.validateBytes(new Uint8Array(await readFile(path)), {
-    externalResourceFunction: () => Promise.reject(new Error('no external resources')),
-  });
-  return { errors: r.issues.numErrors, warnings: r.issues.numWarnings, first: r.issues.messages.filter((m) => m.severity === 0).slice(0, 3) };
 }
 
 // ---------------------------------------------------------------- images

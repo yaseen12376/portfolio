@@ -83,36 +83,60 @@ export function revealOnScroll(selector, { start = 'top 88%' } = {}) {
  * Only the leading number moves; any prefix or suffix is preserved, so "2.4×",
  * "143 FPS", "±3 m" and "+8.1%" all survive. Values with no digits at all
  * ("JWT", "ArcFace") are left alone. The real value stays in the DOM until the
- * tween actually starts, so a figure that is never scrolled to still reads
+ * count actually starts, so a figure that is never scrolled to still reads
  * correctly, and so does the crawler's copy.
+ *
+ * The true value is kept in data-value, so a second call (a breakpoint change
+ * re-runs every section) never reads a half-counted "0.0×" as its target. The
+ * count is its own rAF loop, not a GSAP tween: a scroll-triggered tween could
+ * be left at its first frame (showing 0) when the page restored its scroll
+ * position on reload. Whatever happens, the last frame writes the real text.
  */
+const counting = new WeakMap();
+
 export function countUp(el, { start = 'top 90%', immediate = false } = {}) {
+  el.dataset.value ??= el.textContent.trim();
+  const value = el.dataset.value;
+  counting.get(el)?.();
+  el.textContent = value;
   if (reducedMotion()) return;
-  const match = el.textContent.trim().match(/^(\D*?)(-?[\d.]+)(\D*)$/);
+  const match = value.match(/^(\D*?)(-?[\d.]+)(\D*)$/);
   if (!match) return;
   const [, pre, digits, post] = match;
   const target = parseFloat(digits);
   if (!isFinite(target)) return;
   const decimals = (digits.split('.')[1] ?? '').length;
-  const obj = { v: 0 };
+  const ease = gsap.parseEase(EASE.expo);
+  const DURATION = 1300;
 
-  gsap.fromTo(
-    obj,
-    { v: 0 },
-    {
-      v: target,
-      duration: 1.3,
-      ease: EASE.expo,
-      immediateRender: false,
-      // The case study builds its figures inside a view that is swapped in
-      // wholesale, so there is nothing to scroll into: those run on a delay.
-      delay: immediate ? 0.35 : 0,
-      onUpdate: () => {
-        el.textContent = `${pre}${obj.v.toFixed(decimals)}${post}`;
-      },
-      scrollTrigger: immediate ? undefined : { trigger: el, start, once: true },
-    }
-  );
+  let raf = 0;
+  let timer = 0;
+  let trigger = null;
+  const stop = () => {
+    cancelAnimationFrame(raf);
+    clearTimeout(timer);
+    trigger?.kill();
+    el.textContent = value;
+    counting.delete(el);
+  };
+  counting.set(el, stop);
+
+  const run = () => {
+    let t0 = 0;
+    const frame = (now) => {
+      t0 ||= now;
+      const p = Math.min(1, Math.max(0, (now - t0) / DURATION));
+      if (p >= 1) return stop();
+      el.textContent = `${pre}${(target * ease(p)).toFixed(decimals)}${post}`;
+      raf = requestAnimationFrame(frame);
+    };
+    raf = requestAnimationFrame(frame);
+  };
+
+  // The case study builds its figures inside a view that is swapped in
+  // wholesale, so there is nothing to scroll into: those run on a delay.
+  if (immediate) timer = setTimeout(run, 350);
+  else trigger = ScrollTrigger.create({ trigger: el, start, once: true, onEnter: run });
 }
 
 /** Line-masked reveal for every section heading plus its lede. */

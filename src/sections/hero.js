@@ -23,7 +23,12 @@ import { FrameSequence } from '../media/frame-sequence.js';
 // This is really a frame-density setting: 180 frames over 4x a 980px viewport
 // is ~22px of scroll per frame, which reads as stepped. At 3.2x it is ~17px,
 // and the hero also stops feeling like a slog to scroll past.
-const SCROLL_VH = { high: 3.2, mid: 2.5 };
+//
+// A phone gets the shortest run. Its first two screens get three quarters of
+// the attention a page gets (NN/g), so the hero should not spend them, and the
+// mobile sequence still advances only every few pixels of scroll.
+const SCROLL_VH = { high: 3.2, mid: 2.5, phone: 1.4 };
+const isPhone = () => matchMedia('(max-width: 599.98px)').matches;
 
 export function initHero({ tier, reduced }) {
   const section = document.querySelector('#hero');
@@ -81,7 +86,7 @@ export function initHero({ tier, reduced }) {
     scrollTrigger: {
       trigger: section,
       start: 'top top',
-      end: () => '+=' + window.innerHeight * (SCROLL_VH[tier] ?? 4),
+      end: () => '+=' + window.innerHeight * (isPhone() ? SCROLL_VH.phone : SCROLL_VH[tier] ?? 4),
       pin: stage,
       pinSpacing: true,
       anticipatePin: 1,
@@ -110,8 +115,12 @@ export function initHero({ tier, reduced }) {
   tl.fromTo(progress, { autoAlpha: 0 }, { autoAlpha: 1, duration: 0.04 }, 0.06)
     .to(progress, { autoAlpha: 0, duration: 0.04 }, 0.9);
 
+  // Blur is the costliest thing to animate, worst on a phone's GPU: there the
+  // copy and statements fade and move without it.
+  const soft = isPhone() ? () => ({}) : (px) => ({ filter: `blur(${px}px)` });
+
   // 0.28 - 0.40  copy exits on blur
-  tl.to(frame0, { yPercent: -14, autoAlpha: 0, filter: 'blur(9px)', duration: 0.12, ease: EASE.in, stagger: 0.015 }, 0.28);
+  tl.to(frame0, { yPercent: -14, autoAlpha: 0, ...soft(9), duration: 0.12, ease: EASE.in, stagger: 0.015 }, 0.28);
 
   // 0.34 - 0.76  the figure gets "detected": brackets lock on, hold, release
   tl.fromTo(lock, { autoAlpha: 0, scale: 1.2 }, { autoAlpha: 1, scale: 1, duration: 0.08, ease: EASE.out }, 0.34)
@@ -122,10 +131,10 @@ export function initHero({ tier, reduced }) {
     const at = 0.44 + i * 0.14;
     tl.fromTo(
       el,
-      { autoAlpha: 0, y: 26, filter: 'blur(8px)' },
-      { autoAlpha: 1, y: 0, filter: 'blur(0px)', duration: 0.05, ease: EASE.out },
+      { autoAlpha: 0, y: 26, ...soft(8) },
+      { autoAlpha: 1, y: 0, ...soft(0), duration: 0.05, ease: EASE.out },
       at
-    ).to(el, { autoAlpha: 0, y: -22, filter: 'blur(8px)', duration: 0.04, ease: EASE.in }, at + 0.09);
+    ).to(el, { autoAlpha: 0, y: -22, ...soft(8), duration: 0.04, ease: EASE.in }, at + 0.09);
   });
 
   // 0.68 - 0.96  slow push in, vignette closes, handoff title arrives

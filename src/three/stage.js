@@ -15,21 +15,30 @@
  *
  * The renderer is shared by every diorama on the page; this module never sizes
  * or disposes it.
+ *
+ * A piece (a model under glass, scripts/build-pieces.mjs --stages live) loads
+ * the same way, from public/pieces/<id>/live/, with three differences: its
+ * model is one atlas (colour, and occlusion, roughness and metalness in one
+ * map) lit live; its glass is left for the piece controller to draw; and its
+ * shadow is fitted to the room inside the jar.
  */
 import {
   Color,
   DirectionalLight,
+  DoubleSide,
   Mesh,
   Shape,
   ShapeGeometry,
   ShadowMaterial,
   EquirectangularReflectionMapping,
   MeshBasicMaterial,
+  MeshStandardMaterial,
   NoColorSpace,
   PMREMGenerator,
   RepeatWrapping,
   SRGBColorSpace,
   Scene,
+  ShaderChunk,
   TextureLoader,
   Vector3,
 } from 'three';
@@ -54,6 +63,114 @@ async function texture(url, srgb, gltfUV = true) {
 }
 
 /**
+ * A piece's set shines as well as taking light: its gloss as the poster's
+ * camera saw it (the lacquer catching the brass, the pad mirroring the lit
+ * base), baked on the lightmap's UVs and added on top of colour x light.
+ */
+function addGloss(material, map, scale) {
+  material.onBeforeCompile = (shader) => {
+    shader.uniforms.glossMap = { value: map };
+    shader.uniforms.glossScale = { value: scale };
+    shader.fragmentShader = shader.fragmentShader
+      .replace('#include <common>', '#include <common>\nuniform sampler2D glossMap;\nuniform float glossScale;')
+      .replace('#include <opaque_fragment>', 'outgoingLight += texture2D( glossMap, vLightMapUv ).rgb * glossScale;\n#include <opaque_fragment>');
+  };
+  material.customProgramCacheKey = () => 'gloss';
+}
+
+// The directional lights' loop, each light's highlight kept or dropped (dirGlossy, in three's order).
+const DIR_BLOCK = '#if ( NUM_DIR_LIGHTS > 0 ) && defined( RE_Direct )';
+const RE_CALL = 'RE_Direct( directLight, geometryPosition, geometryNormal, geometryViewDir, geometryClearcoatNormal, material, reflectedLight );';
+const LIGHTS_BEGIN = (() => {
+  const src = ShaderChunk.lights_fragment_begin;
+  const at = src.indexOf(DIR_BLOCK);
+  const k = at < 0 ? -1 : src.indexOf(RE_CALL, at);
+  if (k < 0) {
+    console.warn('stage: the lights loop has changed; every light leaves its highlight');
+    return null;
+  }
+  // In braces: three unrolls the loop into one scope.
+  const keep = `{\n\t\tvec3 glossBefore = reflectedLight.directSpecular;\n\t\t${RE_CALL}\n\t\treflectedLight.directSpecular = mix( glossBefore, reflectedLight.directSpecular, dirGlossy[ i ] );\n\t\t}`;
+  return src.slice(0, k) + keep + src.slice(k + RE_CALL.length);
+})();
+
+/** Drop the highlight of the directional lights `mask` marks 0 (after any patch the material has). */
+function diffuseOnly(material, mask) {
+  if (!LIGHTS_BEGIN) return;
+  const before = material.onBeforeCompile;
+  const beforeKey = material.customProgramCacheKey;
+  material.onBeforeCompile = (shader, renderer) => {
+    before.call(material, shader, renderer);
+    shader.uniforms.dirGlossy = { value: mask };
+    shader.fragmentShader = shader.fragmentShader
+      .replace('#include <common>', '#include <common>\n#if NUM_DIR_LIGHTS > 0\nuniform float dirGlossy[ NUM_DIR_LIGHTS ];\n#endif')
+      .replace('#include <lights_fragment_begin>', LIGHTS_BEGIN);
+  };
+  material.customProgramCacheKey = () => `${beforeKey.call(material)}|diffuse-only`;
+}
+
+/**
+ * A model's faces its baked occlusion says are shut in (nothing open within
+ * the bake's reach, live.py AO_DISTANCE: two skins of one part laid face to
+ * face, a dish's white front on its dark back) take no direct light either,
+ * as in Cycles, where each skin shadows the other. A shadow map is far too
+ * coarse to tell them apart, so without this the live lights would light
+ * what the render shows dark.
+ */
+function shutIn(material) {
+  const before = material.onBeforeCompile;
+  const beforeKey = material.customProgramCacheKey;
+  material.onBeforeCompile = (shader, renderer) => {
+    before.call(material, shader, renderer);
+    shader.fragmentShader = shader.fragmentShader.replace(
+      '#include <aomap_fragment>',
+      `#include <aomap_fragment>
+	#ifdef USE_AOMAP
+	{
+		float open = smoothstep( 0.02, 0.15, texture2D( aoMap, vAoMapUv ).r );
+		reflectedLight.directDiffuse *= open;
+		reflectedLight.directSpecular *= open;
+	}
+	#endif`
+    );
+  };
+  material.customProgramCacheKey = () => `${beforeKey.call(material)}|shut-in`;
+}
+
+/**
+ * The key light's shadow edged as softly as the render's (Cycles' spot has a
+ * size, so a deck a hand above the ground blurs its shadow over a few
+ * millimetres): a fixed 4 x 4 grid of filtered taps over shadow.radius
+ * texels each way, in place of three's five, turned by a noise per pixel,
+ * which at that width leave a dither that nothing here averages away.
+ */
+const PCF_TAPS = /float phi = interleavedGradientNoise\( gl_FragCoord\.xy \) \* PI2;\s*shadow = \([\s\S]*?\) \* 0\.2;/;
+export function softShadow(material) {
+  if (!PCF_TAPS.test(ShaderChunk.shadowmap_pars_fragment)) {
+    console.warn("stage: three's shadow chunk has changed; its own filter stays");
+    return;
+  }
+  const chunk = ShaderChunk.shadowmap_pars_fragment.replace(
+    PCF_TAPS,
+    `shadow = 0.0;
+				for ( int i = 0; i < 4; i ++ ) {
+					for ( int j = 0; j < 4; j ++ ) {
+						vec2 o = ( vec2( float( i ), float( j ) ) - 1.5 ) / 1.5;
+						shadow += texture( shadowMap, vec3( shadowCoord.xy + o * radius, shadowCoord.z ) );
+					}
+				}
+				shadow *= 1.0 / 16.0;`
+  );
+  const before = material.onBeforeCompile;
+  const beforeKey = material.customProgramCacheKey;
+  material.onBeforeCompile = (shader, renderer) => {
+    before.call(material, shader, renderer);
+    shader.fragmentShader = shader.fragmentShader.replace('#include <shadowmap_pars_fragment>', chunk);
+  };
+  material.customProgramCacheKey = () => `${beforeKey.call(material)}|soft-shadow`;
+}
+
+/**
  * A mesh with several materials arrives as a group of one child mesh per
  * material, and Blender's custom properties (the role) sit on the group.
  */
@@ -65,20 +182,34 @@ function roleOf(o) {
 /**
  * @param {import('three').WebGLRenderer} renderer
  * @param {string} base  e.g. '/3d/retail-analytics/'
- * @param {{ small?: boolean, signal?: AbortSignal, shadows?: number }} opts  shadows: map size, 0 for none
+ * @param {{ small?: boolean, signal?: AbortSignal, shadows?: number, piece?: boolean, version?: string }} opts
+ *   shadows: map size, 0 for none. version: busts the cache of scene.json itself
+ *   (a piece's, which vercel.json lets browsers keep for a week like its files).
  */
-export async function loadStage(renderer, base, { small = false, signal, shadows = 2048 } = {}) {
-  const data = await fetchJSON(`${base}scene.json`, signal);
+export async function loadStage(renderer, base, { small = false, signal, shadows = 2048, piece = false, version } = {}) {
+  const data = await fetchJSON(`${base}scene.json${version ? `?v=${encodeURIComponent(version)}` : ''}`, signal);
   const v = `?v=${data.hash ?? '0'}`;
+  const pc = piece ? data.piece : null;
   // The tiled era's photo tiles (shared across scenes, named by content).
   const tileNames = Object.entries(data.materials ?? {}).filter(([, m]) => m.map);
-  const [gltf, lightmap, envTex, albedo, ...tileTex] = await Promise.all([
+  // A piece's set maps are 1k already; only its model's colour has a small one.
+  const lightmapFile = pc || !small ? 'lightmap.webp' : data.materials ? 'lightmap-small.webp' : 'lightmap-1k.webp';
+  // A piece's own maps (Mission Builder's dust: its grain and its patches),
+  // grey data on the piece's own coordinates (row 0 at the bottom, as Blender reads it).
+  const ownMaps = Object.entries(pc?.dust?.maps ?? {});
+  const [gltf, lightmap, envTex, albedo, modelColor, modelOrm, gloss, ...rest] = await Promise.all([
     loader.loadAsync(`${base}scene.glb${v}`),
-    texture(`${base}${small ? (data.materials ? 'lightmap-small.webp' : 'lightmap-1k.webp') : 'lightmap.webp'}${v}`, true),
+    texture(`${base}${lightmapFile}${v}`, true),
     texture(`${base}env.webp${v}`, true, false),
-    data.albedo ? texture(`${base}${small ? 'albedo-2k.webp' : data.albedo}${v}`, true) : null,
+    data.albedo ? texture(`${base}${small && !pc ? 'albedo-2k.webp' : data.albedo}${v}`, true) : null,
+    pc ? texture(`${base}${small ? pc.model.color.replace(/\.webp$/, '-1k.webp') : pc.model.color}${v}`, true) : null,
+    pc ? texture(`${base}${pc.model.orm}${v}`, false) : null,
+    pc && data.gloss ? texture(`${base}${data.gloss.file}${v}`, true) : null,
     ...tileNames.map(([, m]) => texture(m.map, true)),
+    ...ownMaps.map(([, f]) => texture(`${base}${f}${v}`, false, false)),
   ]);
+  const tileTex = rest.slice(0, tileNames.length);
+  const maps = Object.fromEntries(ownMaps.map(([k], i) => [k, rest[tileNames.length + i]]));
   if (signal?.aborted) throw new DOMException('aborted', 'AbortError');
 
   const scene = new Scene();
@@ -95,6 +226,7 @@ export async function loadStage(renderer, base, { small = false, signal, shadows
   const envScale = data.env?.scale ?? 2;
 
   lightmap.channel = 1;
+  if (gloss) gloss.channel = 1;
   if (albedo) {
     albedo.channel = 1; // the atlas shares the lightmap's UVs
     albedo.anisotropy = Math.min(8, renderer.capabilities.getMaxAnisotropy());
@@ -104,9 +236,13 @@ export async function loadStage(renderer, base, { small = false, signal, shadows
   const root = gltf.scene;
   const byName = new Map();
   const anchors = new Map();
-  const disposables = new Set([lightmap, envRT, albedo, ...tileTex]);
+  const disposables = new Set([lightmap, envRT, albedo, modelColor, modelOrm, gloss, ...tileTex, ...Object.values(maps)]);
   // Every diffuse surface of the set shares one material in the atlas era.
   let bakedMat = null;
+  // A piece's model: colour, and occlusion (R), roughness (G) and metalness
+  // (B) from one map, the way glTF packs them, all on the model's one UV.
+  let atlasMat = null;
+  if (modelColor) modelColor.anisotropy = Math.min(8, renderer.capabilities.getMaxAnisotropy());
   // In the tiled era: flat colour (vertex colours) and one material per photo
   // tile (tint in the vertex colours, the tile on UV 0), all x the light on UV 1.
   const aniso = Math.min(8, renderer.capabilities.getMaxAnisotropy());
@@ -131,6 +267,30 @@ export async function loadStage(renderer, base, { small = false, signal, shadows
       const metal = (src.metalness ?? 0) > 0.5;
       const glassy = src.transparent || (src.opacity ?? 1) < 1;
       if (tiled.has(src.name)) return tiled.get(src.name);
+      if (modelColor && src.userData?.atlas) {
+        atlasMat ??= new MeshStandardMaterial({
+          name: 'atlas',
+          map: modelColor,
+          aoMap: modelOrm,
+          roughnessMap: modelOrm,
+          metalnessMap: modelOrm,
+          // A little rougher than the atlas: it leaves out the borrowed
+          // materials' normal maps (a brushed deck's grain), whose fine
+          // bumps spread a highlight in Cycles as roughness would. (At 1 the
+          // lander's deck takes four fifths of the spot's light the render
+          // gives it.)
+          roughness: 1.3,
+          metalness: 1,
+          // A model's thin sheets (a solar array's panel) cast whole
+          // shadows, as in Cycles; drawn by their back faces only (three's
+          // default) a sheet casts none and only its ribs would.
+          shadowSide: DoubleSide,
+        });
+        shutIn(atlasMat);
+        softShadow(atlasMat);
+        disposables.add(atlasMat);
+        return atlasMat;
+      }
       if (data.materials && src.name === 'flat') {
         flatMat ??= new MeshBasicMaterial({ name: 'flat', vertexColors: true, lightMap: lightmap, lightMapIntensity: lightIntensity });
         disposables.add(flatMat);
@@ -138,7 +298,10 @@ export async function loadStage(renderer, base, { small = false, signal, shadows
       }
       if (albedo && (src.name === 'baked' || src.userData?.baked)) {
         // Colour from the atlas (photo detail and all) x Cycles' light.
-        bakedMat ??= new MeshBasicMaterial({ name: 'baked', map: albedo, lightMap: lightmap, lightMapIntensity: lightIntensity });
+        if (!bakedMat) {
+          bakedMat = new MeshBasicMaterial({ name: 'baked', map: albedo, lightMap: lightmap, lightMapIntensity: lightIntensity });
+          if (gloss) addGloss(bakedMat, gloss, data.gloss.scale);
+        }
         disposables.add(bakedMat);
         return bakedMat;
       }
@@ -161,7 +324,12 @@ export async function loadStage(renderer, base, { small = false, signal, shadows
     o.material = Array.isArray(o.material) ? o.material.map(convert) : convert(o.material);
     o.userData.role = role;
     // Moving pieces cast live shadows; live-lit props catch the figures'.
-    o.castShadow = role === 'dyn';
+    // Nothing clear or glowing casts one (a piece's dust, its signal beads),
+    // as in Blender, and its glass neither casts nor takes any.
+    const mats = Array.isArray(o.material) ? o.material : [o.material];
+    const clear = mats.some((m) => m.transparent || (m.opacity ?? 1) < 1);
+    const glow = mats.some((m) => m.emissive && (m.emissiveIntensity ?? 1) * Math.max(m.emissive.r, m.emissive.g, m.emissive.b) > 0.5);
+    o.castShadow = role === 'dyn' && !(pc && (clear || glow));
     o.receiveShadow = role === 'prop' || role === 'dyn';
     disposables.add(o.geometry);
   });
@@ -177,14 +345,30 @@ export async function loadStage(renderer, base, { small = false, signal, shadows
   const specs = (data.lights?.length ? data.lights : [data.key ?? { dir: [0, -1, 0], color: '#ffffff', power: 2.2 }]).slice(0, 3);
   const lights = specs.map((l) => {
     const light = new DirectionalLight(new Color(l.color ?? '#ffffff'), l.power ?? 1);
+    light.name = l.name ?? '';
     light.position.copy(new Vector3(...l.dir).normalize().multiplyScalar(-10));
     light.target.position.set(0, 0, 0);
+    light.userData.glossy = l.glossy !== false;
     scene.add(light, light.target);
     return light;
   });
   const key = lights[0];
   let catcher = null;
-  if (shadows && key) catcher = shadowRig(scene, key, data, shadows);
+  if (shadows && key && pc) {
+    roomShadow(key, pc.room, shadows);
+    disposables.add(key.shadow);
+  } else if (shadows && key) catcher = shadowRig(scene, key, data, shadows);
+  // A light that only lights (Blender's fill, never seen in a reflection)
+  // leaves no highlight on what is lit live. three orders its directional
+  // lights with the shadow casters first.
+  if (lights.some((l) => !l.userData.glossy)) {
+    const mask = [...lights].sort((a, b) => Number(b.castShadow) - Number(a.castShadow)).map((l) => (l.userData.glossy ? 1 : 0));
+    const lit = new Set();
+    root.traverse((o) => {
+      if (o.isMesh) for (const m of [o.material].flat()) if (m?.isMeshStandardMaterial) lit.add(m);
+    });
+    for (const m of lit) diffuseOnly(m, mask);
+  }
   // The shadow map is a render target (colour and depth) the light owns.
   if (catcher) disposables.add(catcher.geometry).add(catcher.material).add(key.shadow);
 
@@ -193,7 +377,36 @@ export async function loadStage(renderer, base, { small = false, signal, shadows
     scene.clear();
   };
 
-  return { scene, root, data, byName, anchors, envMap, key, dispose };
+  return { scene, root, data, byName, anchors, envMap, key, animations: gltf.animations ?? [], maps, dispose };
+}
+
+/**
+ * A piece's key-light shadow: the orthographic frustum wraps the room inside
+ * the jar (the turntable's radius, the clear height above it), whichever way
+ * the model is turned, so its texels are spent on the model and nothing else.
+ * No catcher: the set under the turntable is out of sight, and the model's
+ * own shadow falls on the turntable, which takes it live.
+ */
+function roomShadow(key, room, size) {
+  const c = new Vector3(0, room.y + room.h / 2, 0);
+  const radius = Math.hypot(room.r, room.h / 2) + 0.04;
+  const dir = key.position.clone().normalize().negate();
+  key.position.copy(c).addScaledVector(dir, -6);
+  key.target.position.copy(c);
+  key.target.updateMatrixWorld();
+  key.updateMatrixWorld();
+  const cam = key.shadow.camera;
+  cam.left = cam.bottom = -radius;
+  cam.right = cam.top = radius;
+  cam.near = 6 - radius - 0.1;
+  cam.far = 6 + radius + 0.1;
+  cam.updateProjectionMatrix();
+  key.castShadow = true;
+  key.shadow.mapSize.set(size, size);
+  key.shadow.bias = -0.0004;
+  key.shadow.normalBias = 0.008;
+  // Texels each way the edge is spread over (softShadow): about 2 mm.
+  key.shadow.radius = 4;
 }
 
 /** A rounded rectangle as a three.js Shape in the floor plane (x, -z). */

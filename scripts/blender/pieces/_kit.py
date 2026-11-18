@@ -45,17 +45,17 @@ FONT = os.path.join(C.FONTS, 'geist-mono-latin-wght-normal.woff2')
 
 
 def source(name: str) -> str:
-    """A model borrowed from another project (pieces/sources.json): the copy
-    in build/pieces/_src/ when the builder has made one, else the original."""
-    import json
+    """A model borrowed from another project (pieces/sources.json), as the copy
+    scripts/build-pieces.mjs keeps in build/pieces/_src/. Blender only ever
+    reads that copy, never the other repo, so where the original lives on this
+    machine is the builder's business (its env variable or the git-ignored
+    sources.local.json) and is never written into a script."""
     cached = os.path.join(C.ROOT, 'build', 'pieces', '_src', name)
     if os.path.exists(cached):
         return cached
-    cfg = json.load(open(os.path.join(os.path.dirname(__file__), 'sources.json'), encoding='utf-8'))[name]
-    path = os.environ.get(cfg.get('env', ''), cfg['from'])
-    if not os.path.exists(path):
-        raise FileNotFoundError(f'{name}: not at {path} (set {cfg.get("env")})')
-    return path
+    raise FileNotFoundError(
+        f'{name}: no copy in build/pieces/_src/. Run npm run build:pieces with its path in '
+        f'scripts/blender/pieces/sources.local.json (or its env variable in sources.json) to make one.')
 
 
 def room(r: float) -> float:

@@ -1,15 +1,19 @@
 /**
  * Shared helpers for the diorama QA scripts: a Chromium with a real GPU, the
- * bench page, and image maths (CIE76 colour difference on downscaled frames).
+ * bench page, a case study's live jar, and image maths (CIE76 colour
+ * difference on downscaled frames).
  *
  * The scripts expect the dev server running (npm run dev) and take
  * --url http://localhost:3000 to point elsewhere.
  */
+import { readFileSync } from 'node:fs';
 import { mkdir } from 'node:fs/promises';
 import { resolve } from 'node:path';
 
 import { chromium } from 'playwright';
 import sharp from 'sharp';
+
+import { projects } from '../../src/data/projects.js';
 
 export const ROOT = resolve(import.meta.dirname, '..', '..');
 export const OUT = resolve(ROOT, 'build', 'qa');
@@ -99,6 +103,74 @@ export async function ensureOut(...parts) {
   const dir = resolve(OUT, ...parts);
   await mkdir(dir, { recursive: true });
   return dir;
+}
+
+// ---------------------------------------------------------------- live jars
+
+/** A case study's jar: its box, the poster and loop in it, and the canvas once live. */
+export const JAR = '#project-detail .media-piece';
+
+/** The projects whose jar turns in 3D in their case study: the live files built (src/data/pieces.json) and its parts written. */
+export function liveJarIds() {
+  const built = JSON.parse(readFileSync(resolve(ROOT, 'src', 'data', 'pieces.json'), 'utf8'));
+  return projects.filter((p) => !p.scene3d && p.piece?.chapters?.length && built[p.piece.id]?.live).map((p) => p.id);
+}
+
+/** Open a project's case study and wait for its jar to go live (on a computer it does so by itself). */
+export async function openJar(page, base, id, { timeout = 90000 } = {}) {
+  await page.goto(`${base}/?3d=force&qa#/project/${id}`);
+  await page.waitForFunction((s) => document.querySelector(s)?.dataset['3d'] === 'live', JAR, { timeout });
+  await page.evaluate((s) => document.querySelector(s).scrollIntoView({ block: 'center' }), JAR);
+}
+
+/**
+ * Run fn(slot, arg, engine) in the page, on the jar's slot. fn travels as
+ * source, so it can use nothing from around it here: pass what it needs as arg.
+ */
+export const onJar = (page, fn, arg = null) =>
+  page.evaluate(
+    ([src, a, sel]) => {
+      const m = document.querySelector(sel);
+      const slot = m && [...window.__three.slots].find((x) => x.media === m);
+      return new Function(`return (${src})`)()(slot, a, window.__three);
+    },
+    [String(fn), arg, JAR]
+  );
+
+/**
+ * The jar as the poster shows it: held (it neither turns by itself nor plays
+ * the model's motion), at turn 0 and clip time 0, the glass down, and only
+ * its canvas showing (no feathered edge, dots, hint, caption or Pause, and
+ * not the poster or loop under it). Returns the box as a PNG.
+ */
+export async function jarAtPoster(page) {
+  await page.mouse.move(2, 2); // the view leans toward a pointer resting on it
+  await onJar(page, (slot) => {
+    const whole = slot.chapters?.list[0];
+    if (whole && slot.chapters.current !== whole) slot.chapters.go(whole.id);
+    slot.reset();
+    slot.controller.hold(true);
+  });
+  // Until it stands still (a pose set while it still turns back to the
+  // front, or coasts, is carried on from) with the glass down, and the view
+  // is home.
+  await page.waitForFunction(
+    (s) => {
+      const m = document.querySelector(s);
+      const st = [...window.__three.slots].find((x) => x.media === m)?.controller?.state();
+      return !!st && (st.mode === 'rest' || st.mode === 'idle') && Math.abs(st.speed) < 0.05 && st.lift < 1e-3;
+    },
+    JAR,
+    { timeout: 15000 }
+  );
+  await page.waitForTimeout(800);
+  await onJar(page, (slot) => slot.controller.resume({ turn: 0, time: 0 }));
+  await page.addStyleTag({
+    content: `${JAR}::after { display: none !important; }
+      ${JAR} > :not(canvas.media-3d), #project-detail .pd-hold { visibility: hidden !important; }`,
+  });
+  await page.waitForTimeout(400);
+  return page.locator(JAR).screenshot();
 }
 
 // ---------------------------------------------------------------- image maths

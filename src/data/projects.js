@@ -25,9 +25,12 @@
  * - `repo` is only set for repositories that return 200 to a logged-out
  *   visitor. `private: true` shows a "Private repository" note instead.
  * - `num` is derived from array order below; do not set it by hand.
+ * - `hidden: true` takes a project off the site and the résumé (no card, no
+ *   case study page, no experience link) while keeping its entry here. Delete
+ *   the flag to bring it back, then run `npm run gen:resume`.
  * - No em or en dashes in any string here. The renderers escape everything.
  */
-export const projects = [
+const allProjects = [
   {
     id: 'retail-analytics',
     tier: 'stage',
@@ -327,6 +330,8 @@ export const projects = [
   // on real claims, fraud findings, savings, or an approved methodology.
   {
     id: 'claims-workbench',
+    // Off the site for now; delete this line to show it again.
+    hidden: true,
     tier: 'large',
     kind: 'Document AI',
     title: 'Property Claim Review & Settlement Workbench',
@@ -414,7 +419,47 @@ export const projects = [
     team: 'Team of four: two adults and two school students',
     status: 'Student project, not endorsed by NASA',
     private: true,
-    piece: { id: 'mission-builder-3d' },
+    piece: {
+      id: 'mission-builder-3d',
+      // The live jar's chapters (its case study): the whole jar, then one for
+      // each spot its export marks (scripts/blender/pieces/<id>.py spots()).
+      chapters: [
+        {
+          id: 'jar',
+          title: 'The lander',
+          caption:
+            'The game’s own lander model, on a patch of Mars with the Earth hanging overhead. Beads of light climb from its dish toward home.',
+          hint: 'Drag to turn it. Tap the glass to lift it off, then tap a part.',
+        },
+        {
+          id: 'checks',
+          title: 'Launch checks',
+          caption:
+            'Before launch a design must pass six checks: rocket, instruments, mass, budget, power and antenna. A check that fails says what to change.',
+        },
+        {
+          id: 'dust',
+          title: 'Dust',
+          // With the glass off the camera comes in over the array (a quarter of
+          // the home distance, looking down more), to watch its brush sweep.
+          view: { zoom: 0.24, pitch: 0.5 },
+          caption:
+            'In the game dust settles on the solar arrays at 3% a sol (sped up, and labelled ASSUMED) and a storm adds 25%. The cleaner starts above 30%, sweeps down to 5% and costs 150 Wh. Three sols in a row on an empty battery and the mission is lost.',
+        },
+        {
+          id: 'signal',
+          title: 'Radio delay',
+          caption:
+            'On 15 Nov 2026 Mars is 196,860,092 km away (NASA/JPL Horizons), so a signal takes 10 min 57 s to arrive. The game plays it as 11 seconds: one for each bead on the model.',
+        },
+        {
+          id: 'tag',
+          title: 'Rules engine',
+          caption:
+            'The rules are a pure engine under 281 unit tests, with no 3D or page code in it. Every number in the game carries one of four labels: NASA, CALC, GAME or ASSUMED.',
+        },
+      ],
+    },
     metrics: [
       { value: '281', label: 'unit tests on a rules engine with no 3D or page code in it' },
       { value: '10:57', label: 'minutes of real signal delay to Mars on 15 Nov 2026, played as 11 seconds' },
@@ -620,6 +665,8 @@ export const projects = [
     techStack: ['Python', 'MediaPipe', 'OpenCV', 'C++', 'Bazel', 'ONNX', 'Flask-SocketIO', 'JavaScript', 'Canvas API'],
   },
 ];
+
+export const projects = allProjects.filter((p) => !p.hidden);
 
 projects.forEach((p, i) => {
   p.num = String(i + 1).padStart(2, '0');

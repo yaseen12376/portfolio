@@ -9,5 +9,7 @@ export const SCENES = {
   'retail-analytics': () => import('./retail-analytics.js'),
   constructsafe: () => import('./constructsafe.js'),
   finmind: () => import('./finmind.js'),
+  // Every jar (a piece's case study): one controller, the piece's words from its data.
+  piece: () => import('./piece.js'),
   _default: () => import('./_default.js'),
 };

@@ -1,8 +1,8 @@
-# Handoff: portfolio dioramas and pieces, revision 7
+# Handoff: portfolio dioramas and pieces, revision 8
 
 ## 1. Where things stand
 
-**Repo:** `yaseen12376/portfolio`, branch **`3D_miniatures`**. The last commit is `3285e01` ("finmind done"). Everything revision 7 added (below) is **uncommitted** in the working tree: nothing is committed or pushed until you say so.
+**Repo:** `yaseen12376/portfolio`, branch **`3D_miniatures`**. The last commit is `462f92f`, revision 7 (below). Revision 8 is **uncommitted** in the working tree: the phone layout, the résumé's phone number (on the PDF only) and CGPA, and Mission Builder 3D's live jar (§3b). Nothing is committed or pushed until you say so.
 
 | Commit | What |
 |---|---|
@@ -11,7 +11,8 @@
 | `7b36168` | Bug fixes: stuck errands, stale slips, stray fire timers, and QA tooling fixes |
 | `982c19a` | Revision 6 of this file |
 | `3285e01` | "finmind done": the FinMind diorama |
-| (uncommitted) | Revision 7, below |
+| `462f92f` | Revision 7: the exhibition layout, ten pieces under glass, three new projects, the résumé |
+| (uncommitted) | Revision 8: the phone layout, the résumé's phone number and CGPA, the live jar (§3b) |
 
 **Revision 7 changed the plan.** Three dioramas stay live: Retail Analytics, ConstructSafe and FinMind. The other ten projects (the seven r6 scenes still to come, and three new projects) each get a **piece under glass** instead: a small model of the project under a bell jar, rendered in Blender as a turntable loop (§3a). The site was rehung around them as an exhibition:
 
@@ -185,7 +186,32 @@ Raise `ENCODE_REV` whenever the encode changes what a visitor gets: it is part o
 
 **QA:** `npm run qa:pieces` (Node): every piece built, `pieces.json` matching the manifest, files within budget, poster and loop corners equal to the page colour, and a last-to-first step no bigger than a normal frame step. `site.mjs` checks hover-play in the browser and that the backdrop matches the page, still and playing.
 
-## 4. Last QA results (r7, on this laptop: Intel UHD for the page, RTX 3050 Ti for perf)
+## 3b. The live jar (revision 8)
+
+Mission Builder 3D's jar runs live in its case study; the other nine follow the same way once each has its spots.
+
+**Export.** `npm run build:pieces -- <id> --stages live` runs `bake_scene.py --scene piece:<id>`, which loads the piece through an adapter (`scripts/blender/pieces/live.py`) that gives the bake stages what a diorama module gives them. Roles: the walnut, pad and tag are `set` (baked light); the brass rim is `prop`; the turntable and model are `dyn` (live light, AO in vertex colours); the dome and knob are `glass`. Spots are empties under the model (`anchor`), each with the objects that make it up (`parts`). Every object of a spot carries its number in a `_part` vertex attribute (n / 8; `export_attributes` keeps names that start with an underscore), so a tap on any triangle knows its part. Output in `public/pieces/<id>/live/`: `scene.glb`, the light and albedo maps and `scene.json`.
+
+**Page.** `src/three/scenes/piece.js`, one controller for every jar:
+- drag turns the turntable (it carries on when let go); the jar, base and tag hold still;
+- a tap on the glass lifts it on an eased tween (1.2 s up, 1.4 s down), leaning back on a hinge at the back of the rim, half as high again as leaving the top of the frame takes, so it goes out still moving; out of the frame it is not drawn at all;
+- lifted, the camera frames the model as it turns, the base and the tag (`keepInView` and the rig's `fit`), clear of the pill at the top and the hint at the bottom; the model holds still; a resting pointer names the part under it (`.piece-tip`), a tap opens that part's chapter; "Put the glass back" (`.piece-back`) sets the glass down and goes back to the whole jar;
+- what hangs from the knob (the Earth) stays where it hangs while the glass is off; only its thread goes;
+- everything moves by the frame's step, the drag's carry included, so a film stepped frame by frame moves exactly as the page does.
+
+**Smoothness.** The engine steps by the browser's frame time (gsap hands its listeners the rAF timestamp) and adapts to late frames, not to measured cost: on this laptop the RTX 3050 Ti's GPU timer reads 3 ms or 15 ms for the same frame depending on its clocks. Measured at 1440 x 1080 and 1440 x 900, pixel ratio 2 (`npm run qa:perf` checks it: the page's own loop, from its eighth second): the RTX stays at the best quality, 240 frames in 4 s with none late; the Intel UHD runs about 44 frames a second at the best, steps to quality 2 (density 1.75, a coarser march through the glass) within about 4 s, then holds 60 with none late, glass on or off. Stepped cost on the RTX: 3.1 ms a frame turning, 1.6 ms lifted (budget 8). The dioramas adapt the same way now; before, their loop looked at CPU time only and never stepped down on the Intel GPU.
+
+**Recovery.** Quality also steps back up, a step at a time, after 40 windows (about 30 s) with at most one late frame in each. Without it, a visit kept its worst moment: the preview pane's jar, on the Intel GPU beside a recording, fell to quality 3 and stayed there. A step up is on trial for two windows. More than one frame in twenty late, and it is undone, after 0.9 s on the Intel going from quality 2 to 1. That, or any step down after a step up, ends recovery for the visit, so it never see-saws. A steady judder also steps down now: more than one frame in twelve late over the last three seconds. Before, the Intel at quality 1 sat at 10% late, because no single window reached the quarter that steps. Forced to quality 3 and watched for 100 s (`build/recover-check.mjs`, scratch): the RTX climbs back to 0 at 30 s a step, with no late frames in 6,001; the Intel climbs to 2 and stays.
+
+**Panels and dust (Mission Builder 3D).** The lander's two round arrays wear a scanned panel of monocrystalline cells (ambientCG `SolarPanel003`, CC0), laid on each gore's own UVs: 12 cm cells in rows out from the hub, a gap down each gore's middle, the busbars running outward, the scan's white gaps toned down so the cells read as cells at the jar's size. Their dust is a sheet a hair above the cells (0.7 mm in the jar) whose patches and grain come from a grime scan (`SurfaceImperfections015`, CC0): `_dust_maps()` makes two tiling grey maps of it, the grain (384 px, high-passed) and the patches (128 px, blurred). It follows the game's own rule (its cleaner starts above 30% and stops at 5): each brush waits while the dust builds, then sweeps once round in 2.25 s, eased, leaving the cells nearly clean behind it with the bristles' arcs, a ridge of pushed dust just ahead of it; then the dust settles again. The right array runs half a loop behind the left, so the poster catches it mid-sweep. Each sweep starts and ends on a key of the live clip (`DUST_START` 14/48, `DUST_SWEEP` 18/48), so the page's brush is parked exactly when its dust says so. Live, `src/three/piece-dust.js` runs the same formula on the same sheets from the same two maps (`dust_grain.webp`, `dust_mottle.webp`), every number from `scene.json`'s `piece.dust` (`page()` in the piece script), and reads each brush's turn off its pivot every frame, so the clean edge is always under the bristles. With the glass off, the Dust chapter brings the camera in over the left array to watch it (its `view` in `src/data/projects.js`: a quarter of the home distance, looking down 0.5 rad more), once the glass is clear of the way in (`GLASS_CLEAR` in `src/three/scenes/piece.js`); with the glass on, a chapter keeps to its usual view, as close up the glass smears. `npm run assets:3d` fetches the scans (into the git-ignored `build/assets/`; `scripts/blender/assets.json` lists them).
+
+**Films.** `node scripts/qa/record.mjs --project <id>` films the jar with `scripts/qa/smooth.mjs`: the engine held, each frame's input sent as real input, `engine.frame(1/60)`, the page's CSS transitions stepped by the same 1/60 s, then a PNG of the clip into ffmpeg (H.264, BT.709). Don't edit `src/` while it runs: Vite reloads the page under it.
+
+## 4. Last QA results
+
+**r8, 18 November 2026** (the live jar's full lift, its parts, the engine's pacing and recovery): site 197/197 (the jar's lift out of the frame, every part pointed at and named, a part tapped, the pill; the same on a phone), gate 24/24 (entry 82.0 of 90 KB gzip), perf 16/16 (the jar's own loop: RTX 241 frames in 4 s, none late, quality 0; Intel 239, one late, quality 2), parity for the jar (tone dE 1.12, pixels 12.83 against 16), pieces 120/120, and crowd, features, sim, framing, claims and resume (12/12) green. Diorama parity was not re-run: nothing it measures changed. Run perf with nothing else drawing on the same GPU. One run beside the preview pane, which had the jar live on the Intel UHD, failed on the Intel: 191 frames in 4 s, 50 late.
+
+**r7** (on this laptop: Intel UHD for the page, RTX 3050 Ti for perf)
 
 `npm run qa:3d` against the dev server, 17 November 2026, every suite green:
 
@@ -209,7 +235,7 @@ Raise `ENCODE_REV` whenever the encode changes what a visitor gets: it is part o
 
 ## 5. Local session: first steps
 
-1. `npm ci` (r7 added `pdfjs-dist` for the résumé check), then `npm run assets:3d` (the Poly Haven textures, needed before any diorama bake; the pieces don't use them).
+1. `npm ci` (r7 added `pdfjs-dist` for the résumé check), then `npm run assets:3d` (the Poly Haven textures, needed before any diorama bake, and the ambientCG scans Mission Builder 3D's arrays wear).
 2. `npm run dev`, then look at the exhibition at 1440, 1024 and 390 px wide, a diorama's case study, a piece's case study, and `/resume/`.
 3. `npm run qa:3d` (everything, including perf on your GPU and the résumé PDF).
 4. To change a piece: edit `scripts/blender/pieces/<id>.py`, then `npm run build:pieces -- <id>` (still, loop and encode; about 25 minutes). `--stages sheet` gives four quick views of the turn first.
@@ -355,7 +381,7 @@ The r6 plan's table:
 - **Found in r7:**
   - `yaseen12376/EIT_FACE_PROJ` is a public repo, and it tracks a camera login with a public IP address (`cctv_attendance_system.py`) and photos of people's faces named after them. Change that camera's password, and take the login and the photos out of the repo and its history. Until then the Attendance project is marked private, with no repo link.
   - `EIT_ASSET TRACKER/asset_tracker/README.md` holds MQTT broker credentials: rotate them if that repo was ever pushed.
-  - Your phone number used to be in `src/data/profile.js`, so it is in this repo's git history. The code no longer has it (the private résumé reads it from the git-ignored `resume.local.json`), but the history does, wherever the repo is visible.
+  - Your phone number used to be in `src/data/profile.js`, so it is in this repo's git history. The code no longer has it (`gen:resume` reads it from the git-ignored `resume.local.json` and prints it on `public/resume.pdf`, by your choice, and nowhere else), but the history does, wherever the repo is visible.
 - **Blanks only you can fill** (hidden until then): the list is in the README, under "Still needed from you".
 - `canonical_face_model.obj` is no longer needed: no piece uses a face model.
 - **Review ConstructSafe.** The cloud review material (the walkthrough board, the tour and case films, the spread map, parity, the phone card) was sent in chat. To regenerate it locally:

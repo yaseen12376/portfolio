@@ -83,8 +83,12 @@ export class CameraRig {
    * @param {{ bounds, dir, fov, margin? }} view  from scene.json
    * @param {{ maxYaw?: number, maxPitch?: number, parallax?: number, insets?: {t,r,b,l} }} o
    */
-  constructor(view, { maxYaw = 0.6, maxPitch = 0.18, parallax = 0.05, insets = NONE } = {}) {
+  constructor(view, { maxYaw = 0.6, maxPitch = 0.18, parallax = 0.05, insets = NONE, fixed = false } = {}) {
     this.view = view;
+    // A piece's view is its render camera's, exactly (view.target, distance
+    // and frame height): no fitting, so the live jar sits where the poster's
+    // does. A box narrower than square keeps the frame's width instead.
+    this.fixed = fixed && !!view.frame;
     this.camera = new PerspectiveCamera(view.fov, 1, 0.05, 200);
     this.camera.layers.enable(1); // overlays (overlays/lines.js OVERLAY_LAYER)
     this.home = { target: new Vector3(), distance: 1 };
@@ -105,7 +109,9 @@ export class CameraRig {
 
   frame(aspect, snap = false) {
     this.aspect = aspect;
-    const { target, distance } = fit(this.view.bounds, this.view.dir, this.view.fov, aspect, this.view.margin ?? 1.06, this.insets, this.view.hull);
+    const { target, distance } = this.fixed
+      ? { target: new Vector3(...this.view.target), distance: this.view.distance * Math.max(1, 1 / aspect) }
+      : fit(this.view.bounds, this.view.dir, this.view.fov, aspect, this.view.margin ?? 1.06, this.insets, this.view.hull);
     this.home.target.copy(target);
     this.home.distance = distance;
     const c = this.camera;
@@ -170,10 +176,26 @@ export class CameraRig {
   /** dx, dy: pointer travel as a fraction of the card's width/height. */
   dragBy(dx, dy) {
     if (!this.drag) return;
-    const { maxYaw, maxPitch } = this.limits;
+    const { maxYaw, maxPitch, minPitch = -maxPitch } = this.limits;
     const s = this.shot;
     this.want.yaw = MathUtils.clamp(this.drag.yaw - dx * 2.4, s.yaw - maxYaw, s.yaw + maxYaw);
-    this.want.pitch = MathUtils.clamp(this.drag.pitch + dy * 1.2, s.pitch - maxPitch, s.pitch + maxPitch);
+    this.want.pitch = MathUtils.clamp(this.drag.pitch + dy * 1.2, s.pitch + minPitch, s.pitch + maxPitch);
+  }
+
+  /**
+   * How far a drag tilts the view, below and above the shot (radians; a
+   * positive pitch looks down from higher up). Without arguments, back to
+   * the rig's own, the same either way.
+   */
+  setPitchLimits(lo, hi) {
+    if (this.limits.basePitch == null) this.limits.basePitch = this.limits.maxPitch;
+    if (lo == null) {
+      this.limits.maxPitch = this.limits.basePitch;
+      delete this.limits.minPitch;
+    } else {
+      this.limits.minPitch = lo;
+      this.limits.maxPitch = hi;
+    }
   }
 
   endDrag() {

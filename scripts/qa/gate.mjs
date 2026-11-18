@@ -4,12 +4,15 @@
  *   node scripts/qa/gate.mjs [--url http://localhost:3000] [--no-build]
  *
  *  1. reduced motion, Save-Data and no WebGL2: the whole page scrolled, every
- *     piece on the shelf hovered, and a case study of each diorama and of a
- *     piece opened, with zero requests for /3d/ assets or three.js; under
- *     reduced motion and Save-Data, zero requests for a piece's loop too
+ *     piece on the shelf hovered, and a case study of each diorama, of a
+ *     piece and of each live jar opened, with zero requests for /3d/ assets,
+ *     a jar's live files or three.js, and nothing offering 3D; under reduced
+ *     motion and Save-Data, zero requests for a piece's loop too
  *  2. a phone (390 px, touch): nothing 3D loads until "Play in 3D" is tapped,
  *     the button is at least 44 px, and a tap brings the diorama live; the
- *     shelf shows posters only, and a piece's loop plays in its case study
+ *     shelf shows posters only, and a piece's loop plays in its case study;
+ *     a live jar's case study loads nothing of the jar until "Turn it in 3D"
+ *     (44 px or more) is tapped, and the tap brings the jar live
  *  3. the production bundle: three.js is never in the entry or anything it
  *     imports up front, and those together stay within the gzip budget
  */
@@ -19,7 +22,7 @@ import { join } from 'node:path';
 import { gzipSync } from 'node:zlib';
 
 import { projects } from '../../src/data/projects.js';
-import { OUT, ROOT, SOFTWARE_GL, args, launch, watchConsole } from './lib.mjs';
+import { JAR, OUT, ROOT, SOFTWARE_GL, args, launch, liveJarIds, watchConsole } from './lib.mjs';
 
 const opts = args();
 const ENTRY_GZIP_KB = 90;
@@ -29,13 +32,14 @@ const check = (name, ok, detail = '') => {
   console.log(`${ok ? 'ok  ' : 'FAIL'} ${name}${detail ? ` · ${detail}` : ''}`);
 };
 
-// What a diorama costs: its scene files and the three.js code. Not the gate
-// (part of the entry by design) and not the posters, the stills everyone gets.
+// What a diorama or a live jar costs: its scene files and the three.js code.
+// Not the gate (part of the entry by design) and not the posters, the stills
+// everyone gets.
 const is3d = (u) => {
   const path = new URL(u).pathname;
   if (/\/src\/three\/gate\.js$|\/poster[^/]*\.webp$/.test(path)) return false;
   // (Built, each scene's controller is a chunk named after it, with the shared kit's.)
-  return /\/3d\/|[/.]three[./@-]|\/src\/three\/|\/assets\/(three|slot|base|floor|kit|util|cctv|staff|spread|director|alerts|living|party|retail|constructsafe|finmind|kps-cleano|courier|attendance|indoor-tracking|observex|adraf|airdraw|_calibration)[-.]/.test(path);
+  return /\/3d\/|\/pieces\/[^/]+\/live\/|[/.]three[./@-]|\/src\/three\/|\/assets\/(three|slot|base|floor|kit|util|cctv|staff|spread|director|alerts|living|party|retail|constructsafe|finmind|kps-cleano|courier|attendance|indoor-tracking|observex|adraf|airdraw|piece|room-sheen|_default|_calibration)[-.]/.test(path);
 };
 // What a moving piece costs: its loop (the poster is the still everyone gets).
 const isLoop = (u) => /\/pieces\/[^/]+\/loop-/.test(new URL(u).pathname);
@@ -43,6 +47,7 @@ const isLoop = (u) => /\/pieces\/[^/]+\/loop-/.test(new URL(u).pathname);
 const pieces = JSON.parse(await readFile(join(ROOT, 'src', 'data', 'pieces.json'), 'utf8'));
 const dioramaIds = projects.filter((p) => p.scene3d).map((p) => p.id);
 const loopIds = projects.filter((p) => pieces[p.piece?.id]?.loop).map((p) => p.id);
+const liveIds = liveJarIds();
 
 const { browser } = await launch();
 
@@ -57,7 +62,8 @@ const bringIn = (page, sel) =>
 
 /**
  * Scroll the whole page slowly (so every observer fires), rest the pointer on
- * every piece, then open each diorama's case study and one piece's.
+ * every piece, then open each diorama's case study, one piece's and each live
+ * jar's. Returns how many case studies offered 3D anyway.
  */
 async function tour(page) {
   await page.waitForFunction(() => window.__portfolio, null, { timeout: 15000 });
@@ -83,12 +89,15 @@ async function tour(page) {
     await page.waitForTimeout(500);
   }
   await page.mouse.move(2, 2);
-  for (const id of [...dioramaIds, ...loopIds.slice(0, 1)]) {
+  let offers = 0;
+  for (const id of new Set([...dioramaIds, ...loopIds.slice(0, 1), ...liveIds])) {
     await page.evaluate((pid) => (location.hash = `#/project/${pid}`), id);
     await page.waitForTimeout(2500);
+    offers += await page.$$eval('#project-detail .media-3d-play', (b) => b.length);
     await page.keyboard.press('Escape');
     await page.waitForTimeout(600);
   }
+  return offers;
 }
 
 async function stillsOnly(name, setup) {
@@ -103,9 +112,8 @@ async function stillsOnly(name, setup) {
     if (isLoop(r.url())) loops.push(new URL(r.url()).pathname);
   });
   await page.goto(opts.url);
-  await tour(page);
-  const plays = await page.$$eval('.media-3d-play', (b) => b.length);
-  check(`${name}: no 3D requested`, hits.length === 0 && plays === 0, hits.slice(0, 3).join(', ') || `${plays} play buttons`);
+  const plays = (await tour(page)) + (await page.$$eval('.media-3d-play', (b) => b.length));
+  check(`${name}: no 3D requested or offered`, hits.length === 0 && plays === 0, hits.slice(0, 3).join(', ') || `${plays} play buttons`);
   if (setup.noLoops) check(`${name}: no piece's loop requested`, loops.length === 0, loops.slice(0, 3).join(', '));
   const stills = await page.$$eval('#main-content .media img, #project-detail .media img', (is) => is.filter((i) => i.complete && i.naturalWidth > 0).length);
   check(`${name}: posters shown instead`, stills > 0, `${stills} stills`);
@@ -176,6 +184,25 @@ await stillsOnly('no WebGL2', {
       .catch(() => false);
     const hold = await page.$eval('#project-detail .pd-hold', (b) => (b.hidden ? null : [b.offsetWidth, b.offsetHeight])).catch(() => null);
     check(`phone: ${id}'s case study plays its loop, with Pause`, plays && loops.some((u) => u.includes('/loop-720.')) && !!hold && hold[0] >= 44 && hold[1] >= 44, `${[...new Set(loops)].join(', ')}; pause ${hold ? hold.join(' x ') : 'none'}`);
+  }
+  // A live jar: its loop plays as any piece's does, and nothing of the jar
+  // itself loads until it is asked for.
+  for (const id of liveIds.slice(0, 1)) {
+    const own = `/pieces/${projects.find((p) => p.id === id).piece.id}/live/`;
+    const jarHits = () => hits.filter((u) => u.startsWith(own));
+    await page.evaluate((pid) => (location.hash = `#/project/${pid}`), id);
+    await page.waitForTimeout(2500);
+    const btn = `${JAR} .media-3d-play`;
+    const size = await page.$eval(btn, (b) => (b.scrollIntoView({ block: 'center' }), [b.offsetWidth, b.offsetHeight])).catch(() => null);
+    check(`phone: ${id}'s jar loads nothing before "Turn it in 3D"`, jarHits().length === 0 && !!size && size[0] >= 44 && size[1] >= 44, `${jarHits().length} of its files; button ${size ? size.join(' x ') : 'none'}`);
+    if (size) {
+      await page.tap(btn);
+      const live = await page
+        .waitForFunction((s) => ['live', 'paused'].includes(document.querySelector(s)?.dataset['3d']), JAR, { timeout: 90000 })
+        .then(() => true)
+        .catch(() => false);
+      check(`phone: a tap brings ${id}'s jar live`, live && jarHits().length > 0, `${jarHits().length} of its files after the tap`);
+    }
   }
   check('phone: no console errors', errors.length === 0, errors.slice(0, 3).join(' | '));
   await context.close();

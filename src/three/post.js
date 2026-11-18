@@ -17,6 +17,7 @@
 import {
   BufferAttribute,
   BufferGeometry,
+  DepthTexture,
   HalfFloatType,
   LinearFilter,
   Mesh,
@@ -80,6 +81,8 @@ const COMPOSITE = /* glsl */ `
   uniform float time;
   uniform vec3 backdropA;
   uniform vec3 backdropB;
+  uniform float premul;
+  uniform vec3 floorColor;
   varying vec2 vUv;
 
   float hash(vec2 p) { return fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453); }
@@ -97,7 +100,11 @@ const COMPOSITE = /* glsl */ `
     // The backdrop the posters are composited on, behind everything.
     float r = distance(vUv, vec2(0.5, 0.54));
     vec3 bg = mix(backdropA, backdropB, smoothstep(0.0, 0.75, r));
-    vec3 col = mix(bg, c.rgb, c.a);
+    // The target holds premultiplied colour (three blends into a cleared
+    // target that way). A piece composites it as such, so its glass, which
+    // is all reflection and no body, keeps its highlights over the empty
+    // dark; a diorama keeps the mix its posters were matched against.
+    vec3 col = premul > 0.5 ? bg * (1.0 - c.a) + c.rgb : mix(bg, c.rgb, c.a);
     float lum = dot(col, vec3(0.2126, 0.7152, 0.0722));
     col = mix(vec3(lum), col, mix(sat, 0.35, cctv));
     // A store camera's picture: flatter colour, a touch of green, sensor grain.
@@ -109,6 +116,9 @@ const COMPOSITE = /* glsl */ `
     float v = smoothstep(0.55, 1.05, distance(vUv, vec2(0.5)) * 1.3);
     gl_FragColor.rgb *= 1.0 - v * vignette;
     gl_FragColor.rgb += (hash(gl_FragCoord.xy) - 0.5) / 255.0;
+    // A piece is rendered on black and lightened against the page colour,
+    // as its loop is (scripts/build-pieces.mjs): its dark is the page exactly.
+    gl_FragColor.rgb = max(gl_FragColor.rgb, floorColor);
   }`;
 
 function fullscreenTriangle() {
@@ -118,6 +128,15 @@ function fullscreenTriangle() {
 }
 
 const bucket = (n) => Math.ceil(n / 64) * 64;
+
+const BACKDROP_A = [0.0116, 0.0103, 0.0159];
+const BACKDROP_B = [0.0027, 0.0027, 0.0033];
+
+/** '#rrggbb' as 0..1 display values, or as linear light (parsed once each). */
+const parsed = new Map();
+const memo = (k, f) => parsed.get(k) ?? parsed.set(k, f()).get(k);
+const hex = (h) => memo(`d${h}`, () => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16) / 255));
+const linear = (h) => memo(`l${h}`, () => hex(h).map((c) => (c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4)));
 
 export class Post {
   /** @param {import('three').WebGLRenderer} renderer */
@@ -165,20 +184,33 @@ export class Post {
         cctv: { value: 0 },
         time: { value: 0 },
         // Linear versions of the posters' backdrop (#1b1a22 centre, #09090b edge).
-        backdropA: { value: [0.0116, 0.0103, 0.0159] },
-        backdropB: { value: [0.0027, 0.0027, 0.0033] },
+        backdropA: { value: [...BACKDROP_A] },
+        backdropB: { value: [...BACKDROP_B] },
+        premul: { value: 0 },
+        floorColor: { value: [0, 0, 0] },
       },
       toneMapped: true,
     });
   }
 
-  ensure(w, h) {
-    if (w <= this.size.x && h <= this.size.y) return;
+  ensure(w, h, depth = false) {
+    if (w <= this.size.x && h <= this.size.y && (!depth || this.rtScene.depthTexture)) return;
     const W = bucket(Math.max(w, this.size.x));
     const H = bucket(Math.max(h, this.size.y));
     this.disposeTargets();
+    // Once something has looked through the scene (an overlay), its depth is kept.
+    this.depth ||= depth;
     const opts = { type: HalfFloatType, minFilter: LinearFilter, magFilter: LinearFilter, depthBuffer: false };
-    this.rtScene = new WebGLRenderTarget(W, H, { type: HalfFloatType, samples: this.msaa, depthBuffer: true });
+    this.rtScene = new WebGLRenderTarget(W, H, {
+      type: HalfFloatType,
+      samples: this.msaa,
+      depthBuffer: true,
+      depthTexture: this.depth ? new DepthTexture(W, H) : null,
+    });
+    // An overlay reads the scene's resolved colour while drawing into its
+    // multisampled buffers; drawn straight into the texture (a browser that
+    // renders multisampled to textures) that would be a feedback loop.
+    if (this.depth) this.renderer.properties.get(this.rtScene).__useRenderToTexture = false;
     this.rtA = new WebGLRenderTarget(W / 2, H / 2, opts);
     this.rtB = new WebGLRenderTarget(W / 2, H / 2, opts);
     this.size.set(W, H);
@@ -207,7 +239,8 @@ export class Post {
    */
   render(scene, camera, w, h, params = {}) {
     const r = this.renderer;
-    this.ensure(w, h);
+    const over = params.overlay;
+    this.ensure(w, h, !!over);
     const { x: W, y: H } = this.size;
     const hw = Math.ceil(w / 2);
     const hh = Math.ceil(h / 2);
@@ -220,6 +253,20 @@ export class Post {
     r.setClearColor(0x000000, 0);
     r.clear(true, true, false);
     r.render(scene, camera);
+
+    // 1b. What looks through the finished scene (a jar's glass): its own
+    // layer, drawn into the same buffers over it, given the scene's colour
+    // and depth as they stand (resolved), so the scene is drawn only once.
+    if (over) {
+      over.prepare(this.rtScene.texture, this.rtScene.depthTexture, camera, w, h, W, H);
+      const mask = camera.layers.mask;
+      const auto = r.autoClear;
+      camera.layers.set(over.layer);
+      r.autoClear = false;
+      r.render(scene, camera);
+      r.autoClear = auto;
+      camera.layers.mask = mask;
+    }
 
     const blur = params.blur !== false && (params.blurAmount ?? 1) > 0;
     if (blur) {
@@ -255,11 +302,17 @@ export class Post {
     c.bloom.value = blur ? params.bloom ?? 0 : 0;
     c.bloomThreshold.value = params.bloomThreshold ?? 1;
     c.cctv.value = params.cctv ?? 0;
+    c.premul.value = params.premul ? 1 : 0;
+    // A scene can name its own backdrop (one colour) and a floor (the page).
+    c.backdropA.value = params.backdrop ? linear(params.backdrop) : BACKDROP_A;
+    c.backdropB.value = params.backdrop ? linear(params.backdrop) : BACKDROP_B;
+    c.floorColor.value = params.floor ? hex(params.floor) : [0, 0, 0];
     c.time.value = (performance.now() / 1000) % 100;
     this.pass(this.compMat, null, w, h);
   }
 
   disposeTargets() {
+    this.rtScene?.depthTexture?.dispose();
     this.rtScene?.dispose();
     this.rtA?.dispose();
     this.rtB?.dispose();

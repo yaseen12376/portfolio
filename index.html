@@ -185,7 +185,7 @@
         <header class="section-head">
           <p class="eyebrow" aria-hidden="true"><span class="eyebrow-n">III</span><span class="eyebrow-t">Toolkit</span></p>
           <h2 class="section-title" id="skills-title">Toolkit</h2>
-          <p class="section-lede">Every tool here is used in at least one project above. Hover or focus one to see where.</p>
+          <p class="section-lede">Every tool here is used in at least one project above. <span class="hint-hover">Hover or focus one to see where.</span><span class="hint-touch">Tap one to see where.</span></p>
         </header>
         <div class="toolkit" id="skills-grid"></div>
       </div>
@@ -227,6 +227,9 @@
 
         <div class="form-wrap">
           <p class="form-title">Or write here</p>
+          <!-- Folds away on a phone, where the email above is the quicker way (src/core/fold.js). -->
+          <details class="fold form-fold" data-fold open>
+          <summary class="fold-sum fold-sum-btn"><span data-icon="pencil"></span><span>Write a message here</span></summary>
           <form class="contact-form" id="contact-form" method="post" novalidate>
             <div class="field">
               <label for="form-name">Name</label>
@@ -249,6 +252,7 @@
             </button>
             <p class="form-feedback" id="form-feedback" role="status"></p>
           </form>
+          </details>
         </div>
       </div>
     </section>

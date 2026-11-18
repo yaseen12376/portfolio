@@ -18,6 +18,15 @@
       ]
     },
     {
+      "source": "/resume.pdf",
+      "headers": [
+        {
+          "key": "X-Robots-Tag",
+          "value": "noindex"
+        }
+      ]
+    },
+    {
       "source": "/(favicon.svg|favicon-32.png|favicon-180.png|og-image.png)",
       "headers": [
         {

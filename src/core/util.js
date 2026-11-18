@@ -9,6 +9,8 @@ import check from '@phosphor-icons/core/assets/light/check-light.svg?raw';
 import lock from '@phosphor-icons/core/assets/light/lock-light.svg?raw';
 import download from '@phosphor-icons/core/assets/light/download-light.svg?raw';
 import cube from '@phosphor-icons/core/assets/light/cube-light.svg?raw';
+import caretDown from '@phosphor-icons/core/assets/light/caret-down-light.svg?raw';
+import pencil from '@phosphor-icons/core/assets/light/pencil-simple-light.svg?raw';
 
 /**
  * Escape text for insertion into innerHTML. Every data string goes through
@@ -39,6 +41,8 @@ export const icons = {
   lock: prep(lock),
   download: prep(download),
   cube: prep(cube),
+  caretDown: prep(caretDown),
+  pencil: prep(pencil),
 };
 
 /** Brand marks for the two social links (single-path, from the brands' kits). */

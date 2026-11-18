@@ -18,14 +18,17 @@ const icons = { ...shared, resetView: prep(resetView), expand: prep(expand), col
 
 const pad = (i) => String(i + 1).padStart(2, '0');
 
-/** @param {{ id: string, title: string, caption: string, hint?: string }[]} chapters */
-export function explorerMarkup(chapters) {
+/**
+ * @param {{ id: string, title: string, caption: string, hint?: string }[]} chapters
+ * @param {{ piece?: boolean }} [o]  a model under glass rather than a diorama: its spots are parts
+ */
+export function explorerMarkup(chapters, { piece = false } = {}) {
   if (!chapters?.length) return '';
   const first = chapters[0];
   return `
-    <section class="pd-explorer" aria-label="Features in the diorama">
+    <section class="pd-explorer${piece ? ' is-piece' : ''}" aria-label="${piece ? 'Parts of the model' : 'Features in the diorama'}">
       <div class="pd-explorer-bar">
-        <div class="pd-chapters" role="tablist" aria-label="Features">
+        <div class="pd-chapters" role="tablist" aria-label="${piece ? 'Parts' : 'Features'}">
           ${chapters
             .map(
               (c, i) => `<button type="button" role="tab" class="pd-chapter" id="pd-ch-${esc(c.id)}" data-chapter="${esc(c.id)}"
@@ -37,7 +40,7 @@ export function explorerMarkup(chapters) {
         <div class="pd-explorer-tools">
           <button type="button" class="pd-tool" data-tool="prev" aria-label="Previous feature">${icons.arrowLeft}</button>
           <button type="button" class="pd-tool" data-tool="next" aria-label="Next feature">${icons.arrowRight}</button>
-          <button type="button" class="pd-tool" data-tool="reset" aria-label="Reset the diorama" disabled>${icons.resetView}</button>
+          <button type="button" class="pd-tool" data-tool="reset" aria-label="Reset the ${piece ? 'model' : 'diorama'}" disabled>${icons.resetView}</button>
           ${document.fullscreenEnabled ? `<button type="button" class="pd-tool" data-tool="full" aria-label="Full screen" disabled>${icons.expand}</button>` : ''}
         </div>
       </div>
@@ -178,6 +181,20 @@ export function bindExplorer(root, chapters) {
   };
 
   const renderActions = (list) => {
+    // The same buttons as before (a toggle flipped, a label changed): change
+    // them where they are, so the one just pressed keeps the keyboard's focus.
+    const have = [...acts.querySelectorAll('.pd-act')];
+    const same =
+      have.length === list.length && have.every((b, i) => b.dataset.act === list[i].id && b.classList.contains('is-toggle') === (list[i].pressed != null));
+    if (same) {
+      list.forEach((a, i) => {
+        const b = have[i];
+        if (b.textContent !== a.label) b.textContent = a.label;
+        if (a.pressed != null) b.setAttribute('aria-pressed', String(!!a.pressed));
+        if (b.disabled !== !!a.disabled) b.disabled = !!a.disabled;
+      });
+      return;
+    }
     acts.innerHTML = list
       .map(
         (a) => `<button type="button" class="pd-act${a.pressed != null ? ' is-toggle' : ''}" data-act="${esc(a.id)}"${
