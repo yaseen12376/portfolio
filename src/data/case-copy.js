@@ -161,7 +161,7 @@ export const caseCopy = {
 
   'neernaadi': {
     overview:
-      'NeerNaadi is an open report network for floods and water problems in Chennai. A resident reports on WhatsApp, Telegram or the web, and the report becomes a public ticket on a city map with a tamper-evident history. Ten open reports within 500 m raise a red zone, and ward engineers get an advice card that says what to check and fix first, citing past floods and the city’s drain survey. Built by a team for the 36-hour BUILDX Hackathon. I built the data pipeline, the advisor’s evidence and guards, the local AI, and the 3D.',
+      'NeerNaadi is an open report network for floods and water problems in Chennai; its web app was renamed Aroli during the event. A resident reports on WhatsApp, Telegram or the web, and the report becomes a public ticket on a city map with a tamper-evident history. Ten open reports within 500 m raise a red zone, and ward engineers get an advice card that says what to check and fix first, citing past floods and the city’s drain survey. Built by a team for the 36-hour BUILDX Hackathon. I built the data pipeline, the advisor’s evidence and guards, the local AI, and the 3D.',
     problem:
       'In a Chennai monsoon, reports of waterlogged streets, blocked drains and closed subways arrive through separate helplines and posts. Nobody sees one street collecting reports at once, and the engineer sent out starts with no history: which drains run under that road, whether it flooded in the last cyclone, and what was done about it then.',
     solution:
