@@ -38,6 +38,10 @@ export const resume = {
       'Wrote the test analyzers, the capture stack and the native Android pose engine of an offline app that runs a ten-test fitness battery on one phone.',
       'Native pose ran 2.7× to 3.7× faster than the WebView on a Galaxy A17 5G; the camera measures 8 of the 10 tests, with no network calls.',
     ],
+    neernaadi: [
+      'Built the data pipeline and AI advisor of a flood report network for Chennai: 272 news flood reports from 10 events and 19,947 surveyed drain segments, cited on every advice card.',
+      'Guarded model rewrites so a number not in the sources falls back to the template; both local models (Qwen 3.5 4B, Gemma 4 12B) passed every guard on a 4 GB laptop GPU.',
+    ],
     'mission-builder-3d': [
       'Technical lead of a Mars lander game for the NASA Space Apps Challenge 2026: design a lander, pass six launch checks and keep it alive for 20 sols.',
       'Directed the AI-assisted build and reviewed it with the other adult on the team: a pure rules engine under 281 unit tests, and the real signal delay to Mars (10 min 57 s on 15 Nov 2026, from NASA/JPL Horizons).',

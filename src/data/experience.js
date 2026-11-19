@@ -73,6 +73,11 @@ const allExperience = [
         body: 'Wrote the test analyzers, the capture stack and the native Android pose engine for an offline app that runs a ten-test fitness battery on one phone, in a team of three.',
         project: 'athletevision',
       },
+      {
+        title: 'NeerNaadi',
+        body: 'Built the data pipeline, the cited AI advisor and its local models, and the Blender 3D for an open flood report network for Chennai, in a hackathon team.',
+        project: 'neernaadi',
+      },
     ],
   },
   {

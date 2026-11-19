@@ -396,6 +396,49 @@ const allProjects = [
     techStack: ['TypeScript', 'Next.js 15', 'React 19', 'Capacitor 8', 'MediaPipe', 'Java', 'CameraX', 'Android', 'IndexedDB'],
   },
 
+  // Facts from the repo's PRD.md, docs/HANDOFF.md, docs/research/ground-truth.md,
+  // docs/handoff/local-ai.md, the pipeline's DATA_REPORT.md and app/lib/ai/; the
+  // event's name from pitch/DECK_CONTENT.md (its result is in no file).
+  // Credit by part, from the commit history: the data pipeline, the advisor's
+  // evidence, template and guards, local AI and the Blender work are the
+  // owner's; the app screens, the officials' desk, WhatsApp, Telegram, tickets
+  // and red zones are teammates'. The web app was renamed Aroli late in the
+  // event; the docs and the pitch say NeerNaadi. Never quote: an event result,
+  // real complaint counts (the app's tickets are seeded demo data), how precise
+  // the team's geocoded cases are, or the local AI worker as run end to end.
+  {
+    id: 'neernaadi',
+    tier: 'large',
+    kind: 'Civic AI',
+    title: 'NeerNaadi: Water & Flood Report Network',
+    short:
+      'An open map of Chennai where every flood or water complaint is a public ticket, ten in one place raise a red zone, and an AI advisor cites past floods and the drain survey to say what to fix first.',
+    blurb: 'Flood complaints as public tickets, and an advisor that cites its sources.',
+    tags: ['GeoPandas', 'Convex', 'Ollama', 'Blender'],
+    detail: {
+      problem: 'Flood complaints go to separate helplines, so nobody sees one street going under all at once.',
+      built: 'A data pipeline over the city’s drain survey and news from ten floods, and an advisor that cites only what it was given.',
+      result: 'On the benchmark red-zone card, both local models passed every guard and invented no number.',
+    },
+    year: '2026',
+    period: { from: '2026-11', to: '2026-11' },
+    role: 'Data, AI advisor and 3D',
+    team: 'Hackathon team. My part: the data pipeline, the AI advisor and the 3D',
+    status: 'Hackathon build, seeded with demo tickets',
+    private: true,
+    piece: { id: 'neernaadi' },
+    metrics: [
+      { value: '272', label: 'dated, place-named flood reports from the news across 10 events, 2016 to 2026, each with its link' },
+      { value: '19,947', label: 'surveyed drain segments behind the advice, each defect cited by its GCC record number' },
+      { value: '10', label: 'open reports within 500 m in one 6 hour window raise an area red zone' },
+      { value: '0', label: 'figures a model may add: a rewrite with a number not in its sources falls back to the template' },
+    ],
+    techStack: [
+      'Python', 'GeoPandas', 'H3', 'scikit-learn', 'TypeScript', 'Next.js 16', 'React 19', 'Convex', 'MapLibre GL',
+      'Ollama', 'Qwen 3.5', 'Gemma 4', 'Gemini', 'Twilio', 'Blender', 'Cycles', 'Playwright',
+    ],
+  },
+
   // Facts from the repo's README, CLAUDE.md, AI_USAGE.md and docs/handoff/.
   // Credits are by role only: no student is named, here or anywhere on the
   // site. Never quote a result, a submission, a team name or NASA's backing.

@@ -159,6 +159,37 @@ export const caseCopy = {
     ],
   },
 
+  'neernaadi': {
+    overview:
+      'NeerNaadi is an open report network for floods and water problems in Chennai. A resident reports on WhatsApp, Telegram or the web, and the report becomes a public ticket on a city map with a tamper-evident history. Ten open reports within 500 m raise a red zone, and ward engineers get an advice card that says what to check and fix first, citing past floods and the city’s drain survey. Built by a team for the 36-hour BUILDX Hackathon. I built the data pipeline, the advisor’s evidence and guards, the local AI, and the 3D.',
+    problem:
+      'In a Chennai monsoon, reports of waterlogged streets, blocked drains and closed subways arrive through separate helplines and posts. Nobody sees one street collecting reports at once, and the engineer sent out starts with no history: which drains run under that road, whether it flooded in the last cyclone, and what was done about it then.',
+    solution:
+      'Make every report a public ticket, and give the people who fix things evidence instead of guesses. The pipeline joins the GCC stormwater drain survey, the city’s official lists of vulnerable points and dated news from ten floods into one data contract. The advisor writes each card from that evidence first, as a template with a citation on every line. A language model may only rewrite it: a rewritten line that brings in a new number or loses a drain record falls back to the template, and citations to sources it was not given are dropped.',
+    implementation: [
+      'Built a ground-truth table of 272 dated, place-named flood reports from the news, Cyclone Vardah in 2016 to Cyclone Murasu in 2026: one row per place, day and source, each with its link, a severity and a confidence',
+      'Cleaned the GCC drain survey from 10,276 records into 19,947 segments of at most 150 m and a network graph, with plain facts per segment: no mapped outfall, dead ends, adverse slope, flat gradient, recorded obstacles and condition',
+      'Placed news reports through a gazetteer of OSM names (Tamil included), drain street names, wards and subways; a weak or ambiguous match is held for review and never put on the map',
+      'Found repeat-flooding hotspots with DBSCAN at 150 m, computed strictly as of a cutoff date so a backtest never sees a later flood, and gridded the city into H3 cells with ground height, population and tree cover',
+      'Wrote the advisor’s evidence pack and template card: past cases nearby, standard fixes, the drains within reach with their defects by record number, and open tickets within 500 m, in English and Tamil',
+      'Guarded every model rewrite: citations limited to the supplied ids, every number checked against the sources (Tamil digits too), drain numbers and required steps kept, and phone numbers removed before any text reaches a model',
+      'Ran the AI locally on a 4 GB laptop GPU through Ollama: Qwen 3.5 4B for quick drafts, a tuned Gemma 4 12B for red-zone cards and Tamil when idle, and bge-m3 embeddings on the CPU, with Gemini as a hosted backup and a job queue in Convex',
+      'Modelled the 3D by script in Blender: a cutaway of a 14 m Chennai street showing the box drain, water main and sewer in seven fault states, and a city diorama with a cyclone coming in, as a seamless loop',
+    ],
+    outcomes: [
+      'A public ticket map of Chennai with red zones, where each ticket and zone gets an advice card in English and Tamil that cites its sources',
+      'The template card needs no model at all: the advisor’s end-to-end tests pass 4 of 4 without one',
+      'On the benchmark red-zone card both local models passed every guard, citing only the given sources and inventing no number: Qwen 3.5 4B at 16.2 tokens a second, Gemma 4 12B at 6.4',
+      'Behind the advice: 272 news reports, 19,947 drain segments, 6,907 official vulnerable points and 28 subways',
+    ],
+    limitations: [
+      'The tickets in the demo are seeded, not real complaints, so nothing here measures use in a real monsoon.',
+      'The local AI worker is written but has not yet been run end to end. Without it, cards come from the template or the Gemini backup.',
+      'The news comes mostly from English-language outlets, one of which supplied 181 of the 272 reports, so places named only in the Tamil press are missing.',
+      'The Tamil wording has not yet been reviewed by a native speaker.',
+    ],
+  },
+
   'mission-builder-3d': {
     overview:
       'A browser game for the NASA Space Apps Challenge 2026, for the challenge "Space Mission Design Game". The player is the mission manager of a Mars lander: choose the rocket, the science tools, the power source and the antenna, pass six launch checks, fly to Mars and keep the lander alive for 20 sols. Built by a team of four, two adults and two school students, with me as technical lead. As the project’s own AI-use statement says, most of the code and the Blender scripts were written with an AI coding assistant, working from the team’s requirements document and reviewed by the adults. It is a student project and is not endorsed by NASA.',

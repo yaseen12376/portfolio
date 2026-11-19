@@ -35,6 +35,7 @@
 - **Property Claim Review & Settlement Workbench:** the client is never named, and its documents, screenshots, repo and deployment names and real claim numbers appear nowhere. `npm run qa:claims` fails on any of them, and it stores only hashes, so the check names nothing itself. Never claim production use, accuracy on real claims, fraud findings, savings or an approved methodology.
 - **Mission Builder 3D:** students are never named; credits are by role only. Never claim a win, a submission, a team name or place, or NASA endorsement. Never push, deploy or change that repo's remote without the adult technical lead saying so.
 - **AthleteVision:** never claim accuracy on real athletes, an iOS build, national percentiles, or the event's name or result.
+- **NeerNaadi** (the 404 repo; the web app was renamed Aroli late in the event): credit by part only, the data pipeline, the advisor's evidence, template and guards, local AI and the Blender work; the app screens, the officials' desk, WhatsApp, Telegram, tickets and red zones are teammates', and no teammate is named. Never claim a BUILDX Hackathon result, real complaint counts (the app's tickets are seeded demo data), how precise the team's geocoded past cases are, a confidence percentage, the local AI worker as run end to end, or a native speaker's review of the Tamil.
 - For any project whose repo isn't on the machine, use only what the site already says (Indoor Tracking and ADRAF in r7).
 
 ## 2. The per-scene pipeline (repeat for each scene)

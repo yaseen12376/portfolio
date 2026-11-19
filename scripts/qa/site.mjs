@@ -943,9 +943,8 @@ async function liveJar(id, full) {
 
 /**
  * The engine's counts once the page's own dioramas near where it is have all
- * come (closing a case study, the page is back by the shelf and the stages
- * above it go live a moment later): the same slots for 1.5 s. Counted before
- * that, a stage still coming in reads as something left behind.
+ * come (by the shelf, the stages above it go live a moment after the page
+ * gets there): the same slots for 1.5 s.
  */
 async function quietSlots() {
   const key = () => page.evaluate(() => [...window.__three.slots].map((s) => `${s.opts.context}:${s.media?.dataset?.id}`).join());
@@ -970,6 +969,13 @@ async function liveJars() {
   await page.mouse.move(2, 450);
   // Each one twice: every check the first time, then what closing leaves behind.
   for (const id of liveIds) await liveJar(id, true);
+  // Counted from where the next round opens each one, once the page's own
+  // dioramas near there have come: a stage that goes live as the page passes
+  // it is the page's, not something a jar left behind.
+  for (const id of liveIds) {
+    await scrollTo(`#work-shelf .piece:has(.media[data-id="${id}"]) .plate-title a`, -300);
+    await quietSlots();
+  }
   const warm = await quietSlots();
   for (const id of liveIds) await liveJar(id, false);
   const after = await quietSlots();

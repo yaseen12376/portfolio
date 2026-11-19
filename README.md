@@ -27,7 +27,7 @@ npm run qa:3d      # every QA suite, against the running dev server
    | `src/data/projects.js`, ADRAF | Accuracy on FaceForensics++ and on Celeb-DF |
    | `src/data/resume.js` | The two certificates (name, issuer, year) |
 
-   Not in any repo, so not on the site either: the AthleteVision event and its result, any NASA Space Apps result, and the months of the older projects (`period` in `projects.js`; without it the résumé prints the year). The freelance row in `experience.js` runs July to November 2026, from the claims workbench's commits: correct it if that is wrong.
+   Not in any repo, so not on the site either: the AthleteVision event and its result, NeerNaadi's BUILDX Hackathon result and its team's size, any NASA Space Apps result, and the months of the older projects (`period` in `projects.js`; without it the résumé prints the year). The freelance row in `experience.js` runs July to November 2026, from the claims workbench's commits: correct it if that is wrong.
 2. **Reprint the résumé after changing its data or layout:** `npm run gen:resume`, then commit `public/resume.pdf` and `public/resume.meta.json`. The build refuses a PDF that no longer matches (see Résumé below).
 3. **Contact form endpoint.** Without one, the form opens the visitor's mail client with the message filled in. To make it post:
    ```bash
