@@ -15,7 +15,7 @@ import { skillGroups } from '../data/skills.js';
 import { projects } from '../data/projects.js';
 import { resume } from '../data/resume.js';
 
-export const SITE = 'https://sheikahmedyaseen.com';
+export const SITE = 'https://portfolio-nu-swart-gv2up4w1vw.vercel.app';
 
 const blank = (v) => v == null || String(v).trim() === '' || String(v).includes('TODO_');
 const shortTitle = (p) => p.title.split(':')[0];

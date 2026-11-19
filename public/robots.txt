@@ -1,4 +1,4 @@
 User-agent: *
 Allow: /
 
-Sitemap: https://sheikahmedyaseen.com/sitemap.xml
+Sitemap: https://portfolio-nu-swart-gv2up4w1vw.vercel.app/sitemap.xml

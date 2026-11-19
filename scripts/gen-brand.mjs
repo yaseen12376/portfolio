@@ -80,7 +80,7 @@ async function main() {
 
   await writeFile(
     `${OUT}/robots.txt`,
-    'User-agent: *\nAllow: /\n\nSitemap: https://sheikahmedyaseen.com/sitemap.xml\n'
+    'User-agent: *\nAllow: /\n\nSitemap: https://portfolio-nu-swart-gv2up4w1vw.vercel.app/sitemap.xml\n'
   );
   console.log('  robots.txt');
 }

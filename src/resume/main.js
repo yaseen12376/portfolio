@@ -138,7 +138,24 @@ function layout() {
     result = { fit: fit / 100, overflow: o.map((x) => Math.max(0, Math.round(x))) };
     if (o.every((x) => x <= 0.5)) break;
   }
+  tidyBreaks();
   return result;
+}
+
+/**
+ * Where the contact line wraps, the dot at the break goes: a dot left at the
+ * end of a line is hidden (in place, so nothing moves), and one carried to the
+ * start of a line is taken out. Neither is then printed, nor read by a parser.
+ */
+function tidyBreaks() {
+  const seps = [...document.querySelectorAll('.r-contact > .r-sep')];
+  for (const s of seps) s.style.display = s.style.visibility = '';
+  for (const s of seps) {
+    const prev = s.previousElementSibling;
+    const next = s.nextElementSibling;
+    if (prev && s.offsetTop > prev.offsetTop + 1) s.style.display = 'none';
+    else if (next && next.offsetTop > s.offsetTop + 1) s.style.visibility = 'hidden';
+  }
 }
 
 /* ────────────────────────── on screen ────────────────────────── */

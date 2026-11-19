@@ -11,7 +11,7 @@ export const profile = {
   // The slug is unreadable as link text, so the UI shows "LinkedIn" instead.
   linkedinLabel: 'linkedin.com/in/sheik-yaseen-96a83234a',
   location: 'Chennai, India',
-  languages: ['English', 'Hindi', 'Arabic'],
+  languages: ['English', 'Tamil', 'Arabic'],
   education: {
     degree: 'B.Tech, AI & Data Science',
     school: 'B S Abdur Rahman Crescent Institute of Science & Technology',

@@ -7,7 +7,7 @@ import { caseCopy } from './src/data/case-copy.js';
 import { resumeModel } from './src/resume/content.js';
 import { resumeHash } from './scripts/lib/resume.mjs';
 
-const SITE = 'https://sheikahmedyaseen.com';
+const SITE = 'https://portfolio-nu-swart-gv2up4w1vw.vercel.app';
 
 const esc = (s) =>
   String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');

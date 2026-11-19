@@ -103,4 +103,4 @@ To see a live jar move, `node scripts/qa/record.mjs --project mission-builder-3d
 
 ## Deploy
 
-Static. `npm run build`, then serve `dist/`. Update the domain in `scripts/gen-brand.mjs` (robots.txt), `vite.config.js` (`SITE`) and `src/resume/content.js` (`SITE`) before going live; all currently say `sheikahmedyaseen.com`.
+Static. `npm run build`, then serve `dist/`. The site lives at `https://portfolio-nu-swart-gv2up4w1vw.vercel.app`, and that address is written in six places: `vite.config.js` (`SITE`: the project pages' canonicals and the sitemap), `src/resume/content.js` (`SITE`: the résumé's links), the canonical in `index.html` and `resume/index.html`, and the sitemap line in `public/robots.txt` and `scripts/gen-brand.mjs`. If the site moves to a domain of its own, change all six and reprint the résumé.
