@@ -18,7 +18,8 @@
  *   pieces    the pieces under glass as shipped: budgets, backdrops, seams (Node)
  *   claims    nothing forbidden in the repo or the build, no dashes in the copy (Node)
  *   resume    the résumé PDF as a parser reads it: two A4 pages printed from
- *             the current data, in order, with working links and no phone (Node)
+ *             the current data, in order, with working links, and the phone
+ *             number on the PDF alone, nowhere else in the build (Node)
  *
  * Exits non-zero if any suite fails; prints one line per suite at the end.
  */

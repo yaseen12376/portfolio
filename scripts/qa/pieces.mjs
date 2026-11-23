@@ -15,8 +15,9 @@
  *     from one frame to the next
  *  5. each live jar (the case study's): its files are there and within
  *     budget, its scene.json is the version the page asks for and describes
- *     the jar, and its spots and its project's chapters match one for one,
- *     in words the site may use
+ *     the jar, its material tracks and its page hook (src/three/pieces/)
+ *     find what they animate in its scene.glb, and its spots and its
+ *     project's chapters match one for one, in words the site may use
  *
  * (In the browser, a tile looks the same still and playing: scripts/qa/site.mjs.)
  */
@@ -155,6 +156,30 @@ for (const id of ids) {
 }
 
 // ---------------------------------------------------------------- 5. each live jar
+/** The names in a GLB's JSON chunk: its nodes and its materials. */
+function gltfNames(buf) {
+  const len = buf.readUInt32LE(12);
+  const json = JSON.parse(buf.subarray(20, 20 + len).toString('utf8'));
+  return {
+    nodes: new Set((json.nodes ?? []).map((n) => n.name)),
+    materials: new Set((json.materials ?? []).map((m) => m.name)),
+  };
+}
+// The channels src/three/piece-tracks.js sets.
+const TRACK_CHANNELS = new Set(['emissive', 'emissiveColor', 'opacity', 'color']);
+// The pieces with a module of their own (src/three/pieces/index.js), and what each reads.
+const hookIds = new Set([...(await readFile(join(ROOT, 'src', 'three', 'pieces', 'index.js'), 'utf8')).matchAll(/^\s+'?([\w-]+)'?: \(\) => import\(/gm)].map((m) => m[1]));
+const HOOK_NEEDS = {
+  courier: { key: 'receipt', fields: ['mesh', 'tray', 'slot', 'start', 'feed'], nodes: (v) => [v.mesh, v.tray] },
+  'indoor-tracking': {
+    key: 'ranges',
+    fields: ['meshes', 'anchors', 'crate', 'z', 'lim', 'width', 'segs'],
+    nodes: (v) => [...(v.meshes?.length === v.anchors?.length ? v.meshes : ['(as many range meshes as anchors)']), v.crate],
+  },
+  adraf: { key: 'scan', fields: ['ring', 'band', 'color', 'materials'], nodes: (v) => [v.ring], materials: (v) => Object.keys(v.materials ?? {}) },
+  observex: { key: 'glow', fields: ['mesh', 'strength'], nodes: (v) => [v.mesh] },
+  'kps-cleano': { key: 'film', fields: ['material', 'thickness', 'ior'], nodes: () => [], materials: (v) => [v.material] },
+};
 const LIVE_BUDGET_KB = new Function(`return ${src.match(/const LIVE_BUDGET_KB = (\{[^}]+\})/)[1]}`)();
 const LIVE_TOTAL_KB = Number(src.match(/const LIVE_TOTAL_KB = (\d+)/)[1]);
 const LIVE_OWN_KB = Number(src.match(/const LIVE_OWN_KB = (\d+)/)[1]);
@@ -195,6 +220,43 @@ for (const id of ids.filter((x) => site[x]?.live)) {
     const onKey = (x) => Math.abs(x * frames - Math.round(x * frames)) < 1e-6;
     if (!frames || !onKey(d.start) || !onKey(d.start + d.sweep) || d.sheets.some((x) => !onKey(x.offset))) want.push("sweeps on the clip's keys");
     check(`${id}: live dust described for the page`, want.length === 0, want.length ? `lacks ${want.join(', ')}` : `${d.sheets.length} sheets, sweep ${(d.sweep * (pc.clip?.seconds ?? 6)).toFixed(2)} s`);
+  }
+
+  // What the scene.glb holds, by name: what the tracks and the hook find there.
+  const glb = existsSync(join(dir, 'scene.glb')) ? gltfNames(await readFile(join(dir, 'scene.glb'))) : { nodes: new Set(), materials: new Set() };
+  if (pc.tracks) {
+    // Each material animate() changes, one value per key for each channel that
+    // changes (piece-tracks.js); a colour may instead be one [r, g, b] for the
+    // whole loop (its glow's strength changes, not its colour: NeerNaadi's head).
+    const t = pc.tracks;
+    const want = [];
+    if (!(Number.isInteger(t.frames) && t.frames >= 2)) want.push('frames');
+    const oneColour = (ch, v) => (ch === 'emissiveColor' || ch === 'color') && v.length === 3 && v.every((x) => typeof x === 'number');
+    for (const [name, chans] of Object.entries(t.materials ?? {})) {
+      if (!glb.materials.has(name)) want.push(`material ${name} not in scene.glb`);
+      for (const [ch, vals] of Object.entries(chans)) {
+        if (!TRACK_CHANNELS.has(ch)) want.push(`${name}.${ch} is no channel piece-tracks.js knows`);
+        else if (!Array.isArray(vals) || (vals.length !== t.frames && !oneColour(ch, vals))) want.push(`${name}.${ch} has ${vals?.length} keys, not ${t.frames}`);
+      }
+    }
+    check(`${id}: live material tracks match the scene`, want.length === 0, want.length ? want.join('; ') : `${Object.keys(t.materials ?? {}).length} materials, ${t.frames} keys`);
+  }
+  const hook = HOOK_NEEDS[id];
+  if (hookIds.has(id) || hook) {
+    // What the piece's own module (src/three/pieces/<id>.js) reads from scene.json, and the nodes it looks up.
+    const want = [];
+    if (!hookIds.has(id)) want.push(`no hook in src/three/pieces/index.js`);
+    if (!hook) want.push('no entry in HOOK_NEEDS (scripts/qa/pieces.mjs)');
+    else {
+      const v = pc[hook.key];
+      if (!v) want.push(`scene.json piece.${hook.key}`);
+      else {
+        want.push(...hook.fields.filter((f) => v[f] === undefined).map((f) => `${hook.key}.${f}`));
+        for (const n of hook.nodes(v)) if (!glb.nodes.has(n)) want.push(`node ${n} not in scene.glb`);
+        for (const n of hook.materials?.(v) ?? []) if (!glb.materials.has(n)) want.push(`material ${n} not in scene.glb`);
+      }
+    }
+    check(`${id}: its page hook finds what it needs`, want.length === 0, want.join('; ') || `piece.${hook.key}`);
   }
 
   const chapters = projects.find((p) => p.piece?.id === id)?.piece?.chapters ?? [];

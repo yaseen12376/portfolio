@@ -1,8 +1,8 @@
-# Handoff: portfolio dioramas and pieces, revision 8
+# Handoff: portfolio dioramas and pieces, revision 9
 
 ## 1. Where things stand
 
-**Repo:** `yaseen12376/portfolio`, branch **`3D_miniatures`**. The last commit is `462f92f`, revision 7 (below). Revision 8 is **uncommitted** in the working tree: the phone layout, the résumé's phone number (on the PDF only) and CGPA, and Mission Builder 3D's live jar (§3b). Nothing is committed or pushed until you say so.
+**Repo:** `yaseen12376/portfolio`, branch **`3D_miniatures`**. The last commit is `662d096`. Revision 8 (the phone layout, the résumé's phone number on the PDF only and its CGPA, and Mission Builder 3D's live jar, §3b) went in with `4f9d2ce` and the commits after it. Revision 9 is **uncommitted** in the working tree: the other nine jars live (§3c) and the fixes to the glass and the export that came with them. Nothing is committed or pushed until you say so.
 
 | Commit | What |
 |---|---|
@@ -12,7 +12,8 @@
 | `982c19a` | Revision 6 of this file |
 | `3285e01` | "finmind done": the FinMind diorama |
 | `462f92f` | Revision 7: the exhibition layout, ten pieces under glass, three new projects, the résumé |
-| (uncommitted) | Revision 8: the phone layout, the résumé's phone number and CGPA, the live jar (§3b) |
+| `4f9d2ce` to `662d096` | Revision 8: the phone layout, the résumé's phone number and CGPA, the live jar (§3b); Aroli's film; the résumé's languages and the Vercel address |
+| (uncommitted) | Revision 9: the other nine jars live (§3c) |
 
 **Revision 7 changed the plan.** Three dioramas stay live: Retail Analytics, ConstructSafe and FinMind. The other ten projects (the seven r6 scenes still to come, and three new projects) each get a **piece under glass** instead: a small model of the project under a bell jar, rendered in Blender as a turntable loop (§3a). The site was rehung around them as an exhibition:
 
@@ -208,7 +209,157 @@ Mission Builder 3D's jar runs live in its case study; the other nine follow the 
 
 **Films.** `node scripts/qa/record.mjs --project <id>` films the jar with `scripts/qa/smooth.mjs`: the engine held, each frame's input sent as real input, `engine.frame(1/60)`, the page's CSS transitions stepped by the same 1/60 s, then a PNG of the clip into ffmpeg (H.264, BT.709). Don't edit `src/` while it runs: Vite reloads the page under it.
 
+## 3c. The other nine jars (revision 9)
+
+All ten pieces run live in their case studies now, the way Mission Builder 3D's does (§3b). Each piece script has a live section below the line `# ---...--- the live jar`. The render's hash stops at that line, so nothing below it ever re-renders a loop. The section holds:
+- `spots(st)`: the numbered dots, each with the parts a tap opens it from;
+- `live(st)`, optional: changes made for the live export only, after the build;
+- `page(st)`, optional: numbers for the page, into `scene.json`'s `piece`;
+- `LIVE`, optional: `clip_frames`, the clip's keys (48 by default; 144, a key a render frame, where something moves in steps a small part of the loop long: rain, pulses, bubbles, beads), and `model_uv_scale`, a material's share of the atlas (1.0 for a floor that shows).
+
+**Material tracks.** `animate()` changes materials as well as objects: a pulse's strength, a ripple's alpha, a ticket's colour. `live.py` `_keyframes()` reads every material on the turntable at each pose and keeps the channels that change (`emissive`, `emissiveColor`, `opacity`, `color`) as `scene.json`'s `piece.tracks`: `{ frames, materials: { name: { channel: [values] } } }`. Those materials leave as themselves (`tracked`). `src/three/piece-tracks.js` sets them from the clip's phase every frame. Soft glows (an Emission mixed with Transparent) are rebuilt as Principled materials first (`_principled_glows()`), so the glTF carries them.
+
+**Flags.** On an object: `hangs` (it hangs from the knob, and its thread hides while the glass is off) and `hooked` (the page draws it its own way, so it gets no keys and stays out of the joined model). On a material: `own` (exported as itself, not into the atlas).
+
+**Page hooks.** Where neither the clip nor the tracks can carry what the render does, `src/three/pieces/<id>.js` does it. `index.js` lists them, and `piece.js` loads a piece's hook after its scene and calls `update(phase, dt)` every frame.
+- Courier: the receipt slides out of the printer, cut at the slot by a clipping plane (the render moves its vertices). Courier has no clip, so its jar runs on a 6 s clock.
+- Indoor Tracking: the three range circles, rebuilt every frame from where the crate is, into buffers made once, cut to the plan.
+- ADRAF: the scan ring's light on the voxels it passes, the render's height function in their shader.
+- ObserveX: the logo block's glow (its gradient gives off its own colour at strength 0.5), in a copy of the atlas material that the block alone wears.
+- KPS Clean-O: the soap bubbles' film (below, "Soap bubbles").
+
+**Scanned surfaces.** `scripts/blender/pieces/_scans.py` `scanned(name, scan, tint=, size=, rough=, bump=)` makes a Principled material from an ambientCG scan (CC0). It is box-projected in the object's space, so no UVs are needed; its colour is normalised to its own mean and multiplied by the tint, so the palette keeps the colour and the scan adds the grain; its roughness varies round the mean asked for; its height drives a bump. The scans, in `scripts/blender/assets.json` (`npm run assets:3d` fetches them):
+
+| Piece | Surface: scan |
+|---|---|
+| AthleteVision | the hall's maple boards: `WoodFloor051`; the mat and the medicine ball: `Leather027` |
+| NeerNaadi | the wet road: `Asphalt033`; the tree: `Bark012` |
+| Courier | the scale's steel: `Metal009`; the parcels: `Cardboard004` |
+| Attendance | the painted door: `PaintedWood007A`; the terrazzo floor with brass strips: `Tiles043` |
+| Indoor Tracking | the plan's board: `Concrete048` (the crate is plywood) |
+| KPS Clean-O | the red-oxide step: `Concrete046`; the crate: `PaintedWood007A` |
+
+`Wicker004` is fetched but not used. AirDraw's hand is oak veneer (Poly Haven), and its landmarks are 21 small dots on the joints, on the side the camera sees, joined by MediaPipe's 21 connections. ObserveX and ADRAF keep their look, so they kept their loops: only their live jars are new.
+
+**Spots and chapters.** Every caption is from the project's repo, or from the site's own text where no code is on this machine (Indoor Tracking, ADRAF).
+
+| Piece | Spots |
+|---|---|
+| AthleteVision | phone, count, marks, throw |
+| NeerNaadi | zone, ticket, drains, floods |
+| Courier | weigh, receipt, track |
+| Attendance | camera, cooldown, log |
+| Indoor Tracking | ranges, track, gateway |
+| KPS Clean-O | kit, clean, kolam, site |
+| ObserveX | mark, palette, site |
+| ADRAF | landmarks, temporal, cnn |
+| AirDraw | hand, stroke, bridge |
+
+ObserveX's repo documents Sora, JetBrains Mono and Inter, but its stylesheet ships Bebas Neue, Rajdhani, DM Sans and Space Mono: the palette chapter quotes the stylesheet.
+
+**Which way a spot faces.** A chapter turns the jar until its spot's `out` points at the camera, and a dot fades while its `out` points away. Unless the piece's `spots()` gives one, `out` is outward from the turntable's axis and a little up (`live.py` `facing()`), right for a part on the model's rim whose face looks out. It was wrong for Courier: the scale stands behind the axis with its display turned to the front, and the receipt's slope looks off to the printer's right, so the weight chapter showed the display from behind and the receipt chapter showed it edge on. Their spots now face the way the display's glass and the slope look (as far up as the default, so the dots show as long). ADRAF, AirDraw, AthleteVision's count, NeerNaadi's drains and ObserveX's palette set their own as well.
+
+**QA.** `npm run qa:pieces` also checks each jar's tracks (every material in `scene.glb`, a value per key for each channel, or one colour for the whole loop where only a glow's strength changes) and its hook (`scene.json` carries what the hook reads, and the nodes and materials it looks up are in `scene.glb`).
+
+**Dots through the glass.** With the glass on, a dot goes where its part shows through the dome (`PieceGlass.apparent()`): the screen point whose ray, bent where it enters the glass as the shader bends it, passes through the spot. Until this revision it compared every try against the point a whole unit along the bent ray, not at the spot's own distance (`seen.copy(T).multiplyScalar(seen.dot(T))` runs `copy` before `dot`), so every dot was moved too far, and under the dome's top, where the glass bends most, NeerNaadi's cloud dot ran off to the knob. Now each try is measured at the spot's distance, the steps stop as soon as a miss grows, and a spot no bent ray reaches (none on these ten jars) is looked for again nearer the glass along the same line of sight, halfway at a time, since what shows there is the part's near side. Through the side wall a part shows lower than it would bare, under the dome's top higher; on NeerNaadi's jar the shifts are 10 to 22 px.
+
+**Many small movers.** The clip moves some parts one by one (a track's trail of dots, readings climbing a mast, a cloud's drops, a scrubber's bubbles), and each is a draw call, in every pass the glass makes. `src/three/piece-batch.js` draws those that share a material as one three.js `BatchedMesh`, each instance set from its node just before the batch is drawn. The nodes stay where they are, hidden: the clip still moves them, a tap still meets them (a ray meets what is hidden), the glass took its bounds from them, and `keepInView` reads them, not the batch (whose geometry is its parts unplaced). Left alone: what a hook drives (`hooked`), groups under four, and anything with several materials, morphs or a skin. Batches stay out of the glass's ground map (`GROUND_LAYER`), which draws the model from below in materials of its own. Indoor Tracking went from 192 draw calls to 31, Attendance from 75 to 16.
+
+**A part's own maps.** A borrowed model may carry its own textures (KPS Clean-O's grass cards, colour with alpha and a normal map, 921 KB of PNG in the GLB). The live stage re-encodes whatever textures the GLB carries as WebP, at most 512 px a side (`optimise(..., { webp, maxTexture })` in `scripts/lib/gltf.mjs`, `EXT_texture_webp`, which three's loader reads). KPS Clean-O's bristled products are thinned for the live jar only (`LIVE_THIN` in its live section: a quarter of their faces, a Decimate applied in `live()`), since the borrowed brushes are modelled for close-ups and the renders keep them whole.
+
+**Close-ups.** A chapter's own `view` (zoom and pitch, with the glass off, and `drop`: how far below its dot to aim, in the jar's metres, negative for above) frames what a spot shot at the usual 0.58 does not: NeerNaadi's drains (in on the cut), Attendance's sixty seconds (back far enough to keep the figure in, looking down on the ring at its feet), Indoor Tracking's gateway (in on the board atop the mast, looking down on the plan), ObserveX's palette (aimed 0.25 below its dot, at the middle of the rings the dot rides over, from far enough back to hold all three) and its tag (in close and a little low, so the rings swinging behind it rise out of the frame instead of catching under "Put the glass back"), AirDraw's stroke (aimed at the star's middle, its radius below the dot on its top point) and its bridge (aimed 0.2 up the rod from the dot on the base, the whole hand standing below the button). A tall model's top can still pass under the button in a close-up (KPS Clean-O's broom handles, AirDraw's star): the button is a translucent pill, and keeping every top clear would mean shots too far back to be close-ups. A view's zoom must differ from the spot's usual one: that is how the lift, frame by frame, knows it has not come in yet.
+
+**One build at a time.** `build-pieces.mjs` keeps each piece's frames and the shared manifest without locks. Two runs at once (a queue left running beside its replacement, here) render the same frames into the same folder, leave some that do not decode, and each writes the manifest from what it read when it started. `build/qa/frames.mjs <ids> [--fix]` (scratch) finds and drops broken frames; rerun the loop stage to render them again, then one `--stages live` run over every jar rewrites the manifest whole.
+
+**Blank lines count.** The render hash takes the piece script up to the live line, blank lines included: adding a live section changed ADRAF's and ObserveX's hashes by the two blank lines before it, with nothing above it changed. Their loop marks (`build/pieces/<id>/loop/.hash`) were set to the new hash rather than spending 50 minutes rendering the same frames. So do line endings: ADRAF's and ObserveX's scripts are CRLF above the live line and LF below it (the live sections were added later), and an editor that writes the whole file in one style changes the render hash with nothing changed. Keep a script's endings as they are when editing its live section.
+
+**What a hook names must survive the export.** The export joins the parts that ride one keyed parent into one mesh, `<parent>_rides` (`live.py`), so a part that rides is no node of its own on the page. ADRAF's scan ring is one: its hook looked for `scan_ring`, found nothing and stood down, and the voxels never lit as the ring passed. Its `page()` now names the group the clip moves (`scan`), whose height is the ring's. `npm run qa:pieces` checks each node a hook names is in the GLB.
+
+**Soap bubbles.** KPS Clean-O's bubbles are a soap film in the render (Principled, IOR 1 under a 480 nm thin film of index 1.33: water between air and air), which the glTF cannot carry. The export leaves a faint white stand-in, which lit live read as grey balls; `src/three/pieces/kps-cleano.js` swaps in the film, from what the piece's `page()` reads off the render's material: black, three.js iridescence over a base of index 1, both walls drawn, and added to what is behind it with the frame's alpha left as it was (a custom blend: three's `AdditiveBlending` adds to the alpha as well, which would count the film as covering what is behind it). A bubble then shows only what it reflects, faint face on and coloured at its rim, as in the render.
+
+**See-through parts through the glass.** The glass follows each bent ray through the frame's depth to what it meets, and a see-through part writes no depth, so a ray passes straight through it: NeerNaadi's rain and tickets, Indoor Tracking's links and KPS Clean-O's bubbles showed through the dome only where something stood right behind them on screen. Writing their depth was tried first and found wrong: a bubble then hid what stood behind it from every ray that went on behind it, and the glass showed a dark disc where a broom should be. Now `piece.js` `seenThrough()` hands those parts (transparent, writing no depth, under the turntable) to `PieceGlass.seeThrough()`, which puts them on a layer of their own (`SEE_LAYER`) and draws them again each frame, alone, into a target the frame's size, colour and depth, between the frame and the glass (`prepare`). In the shader, `march()` notes where a ray first passes through one of them before what it meets (`glance`), and that part's colour goes over everything else the ray finds, unless what it meets already has a see-through part in front of it in the frame (a bubble just before the broom behind it: the same one, already there). The jars without see-through parts compile none of it (`SEE_THROUGH`). `state().seen` names the materials.
+
+**One UV map before a join.** Blender joins UV maps by name. Indoor Tracking's crate came in with its map called `UVMap` while the atlas parts' is `atlas`, so after the join its coordinates sat in a second map the page never reads (the glTF's first set, `TEXCOORD_0`) and it read the atlas at its corner: a black crate. ObserveX's lenses the same. `live.py` `_one_uv()` now makes each object's render map its only one, named `atlas`, before `model_atlas` joins them.
+
+**A floor that is the turntable.** The glass's map of the ground (`captureGround`), taken from straight above with the lowest surface facing up winning, leaves out the turntable's top: under every other piece's ground it would win and hide the ground. Attendance's terrazzo is that top itself, so its map had no floor, and rays that went on behind the clipboard or the figure found nothing and showed black. Its `page()` sends `discFloor`, and the map keeps the turntable's top for that jar.
+
+**The pad's edge.** Live, the pad is cut at 0.76 m (its fade ends at 0.72), which left a 4 mm band round it. Packed with the rest of the set, the band's UV islands came out under a texel wide, so they wore whatever the bake's margin spread from the island beside them: a thin red dash on Attendance's black pad, a beige one on KPS Clean-O's, out to the left of the base. The light, colour and gloss maps were all black where the pad's top sits; reading back the UVs the GPU interpolates at the dash (`build/qa/gpuuv.mjs`, scratch) showed a second surface's. The band is black in the render, so `live.py` `_trim_pad()` now drops it and the pad's underside, keeping only the top.
+
+**What the page looks up stays apart.** `live.py` `model_atlas()` takes `keep`, the names a piece's `page()` gives the page to look up, and then reused that name for each object's list of its own materials, so by the join `keep` held the last object's materials and no part named only there was kept apart. Mission Builder's dust sheets, which nothing else keeps apart, were joined into one `model_own`, and the page's dust stood still. The list is `own_mats` now. Every other jar's named parts were nodes of their own anyway (they move, or carry others): their GLBs have them all, so those exports stand, and their live marks were set to the new hash (`build/qa/remark.mjs`, scratch) instead of exporting the same jars again.
+
+**The glass's own glow.** In the posters, rough parts inside the jar shine with the room's strip lights and the spot more than their own lighting explains: ObserveX's dark rings carry a bright band. It is Cycles' filter glossy: a ray off a rough surface treats the glass as rough as well, and rough glass gathers the strips (light-linked to the glass and its brass alone) and the spot. With `blur_glossy` at 0, or the rings' specular off, the band goes (`build/qa/band_test2.py`, scratch). Live, `room-sheen.js` `addGlassGlow()` gives it back to the model's atlas material: the room's rectangles and the spot, reflected off each surface through the GGX lobe, from roughness 0.4 rising to full at 1, weighted 0.06 for the rectangles and 1.5 for the spot. Fitted to ObserveX's band alone (`build/qa/band_cal.py`, scratch), the weights came to 0.1 and 2, which left Mission Builder's jar, its rough ground square to the spot, brighter than its poster. The spot's weight pulls two ways: more of it brightens Mission Builder past its poster, and brings Attendance, ObserveX, ADRAF and AirDraw closer to theirs. Nine pairs were tried on all ten jars against their posters (`build/qa/glowprobe.mjs <id> k:spot,...`, scratch, on the discrete GPU), and 0.06 and 1.5 is the one that keeps every jar within tone dE 3:
+
+| Rectangles, spot | Furthest jar, tone dE |
+|---|---|
+| 0.1, 2 | Mission Builder 3.86 |
+| 0.15, 1 | Mission Builder 3.37 |
+| 0.1, 0.5 | Attendance 3.35 |
+| 0.1, 1 | Attendance 3.15 |
+| 0.06, 1 | Attendance 3.05 |
+| 0.06, 1.25 | Attendance 3.03 |
+| 0.08, 1.5 | Mission Builder 3.02 |
+| 0.04, 1.5 | AthleteVision 3.01 |
+| 0.06, 1.5 | AthleteVision 2.94 |
+
+The inside capture is taken without it (in Cycles only glossy rays find it, and the model takes its diffuse light from that capture), and it fades as the glass lifts clear, since no glass then passes the lights on.
+
+**The room's tail on the brass.** `roomSheen()` (the brass and lacquer's reflections of the room's rectangles) took each light's solid angle as `max(-dot(L, n), 0)`, for a light that shines along x cross y: nothing, for every light, so the brass had its sharp highlight and none of its wider tail. The sign is fixed, there and in the glow, which had copied it.
+
+**A part's own maps, freed.** `stage.js` disposed a part's own materials but not their textures, which a material's `dispose()` leaves on the GPU: KPS Clean-O's grass cards left two textures behind each time its case study opened. `convert()` now disposes every texture a material holds as well. (Its GLB also draws a validator warning, `MESH_PRIMITIVE_GENERATED_TANGENT_SPACE`: the cards have a normal map and no tangents, so three makes them. Harmless.)
+
+**Rays the frame cannot follow.** The glass follows each bent ray through one layer of depth, the frame's, so it cannot see what stands behind something nearer. Four jars showed black where it guessed wrong:
+- AthleteVision: the hall floor's underlay is a disc under the boards with its top 5.4 mm up, over the 4 mm the ground map skips. Taken from above with the lowest surface winning, the map had the underlay's black under all the boards, so a ray that passed behind the athlete came down on black. Its `live()` drops the underlay's top, for the live jar only: the boards cover all of it.
+- AirDraw: the stand stands on the turntable's top, which the ground map leaves out, so rays that passed behind the hand found no floor. Its `page()` sends `discFloor`, as Attendance's does.
+- Attendance, beside the clipboard: a ray can go behind the clipboard while still in front of the roll it was nearing, pass the roll unseen, and come back into sight over the dark beyond it, having met nothing. `march()` now keeps how far in front of what it was nearing a ray was when it went out of sight. If it went deeper than that before it came back into sight, it passed that, or something hidden behind what hid it: z 3, and the glass shows what it was nearing there. A ray that only passed behind a thin part out in the open (AirDraw's star) went no deeper than its gap, and keeps the far wall.
+- Attendance, beside the figure: a ray that ends hidden, having passed what it was nearing the same way (z 4), and finds no ground below shows what the inside capture holds that way: the door behind the figure, which a map from above cannot hold. One that ends hidden in the open (beside AirDraw's hand) goes on to the far wall as before. And with the glass on its base nothing leaves by its foot: a ray that would, having met nothing, takes the inside capture too. Written for Attendance's clipboard, which is the z 3 case now, it still catches the rays in at the glass's very outline, which bent there miss the inside as the shader's `exitT()` has it: a line a pixel wide round the dome, the same 320 pixels on every jar (`build/qa/footcount.mjs`, scratch, draws the jar with that branch black and then white).
+
+`build/qa/glassdbg.mjs <id>` (scratch) colours each pixel of the glass by the way its ray went, and `glassdbg2.mjs <id> a|b|c|d` by the march's own state.
+
+**See-through parts, once.** The frame drew the see-through parts as well, so each showed twice through the glass, a little apart: once where a ray that met what stands behind one read the frame (which has the part over that, seen straight), and once where a bent ray passed through it (the film). Attendance's beam came out wider, and the whole jar more purple than its poster: its tone against the poster was dE 3.9, and is 2.9 with the beam drawn once. While the glass is on its base, every ray to them passes the glass, so `PieceGlass.seeInFrame()` now takes them out of the frame (layer 0) and the film alone draws them; lifted, they go back, since rays under the glass meet the frame. The batches that stand in for see-through movers (NeerNaadi's rain) go with them (`seeAlso()`), and the inside capture still takes them. Mission Builder's dust sheets are no longer see-through for the glass at all (`seenThrough(..., flat)`): 0.7 mm over the cells, they are on what every ray to them meets, as a ripple is.
+
+**The shadow at the last step.** On this laptop's Intel UHD every jar settles at the engine's last quality step (the density floor), where NeerNaadi's, the busiest (60 draw calls, its rain drawn again for the glass), still let 14 frames in 227 come late, over perf's one in twenty. Timed frame by frame, its parts came and went in the integrated GPU's noise (`build/qa/costprobe.mjs`, scratch: the same frame 19.4 to 21.5 ms from run to run). In the page's own loop, with each part taken away in turn (`build/qa/paceprobe.mjs`, scratch), only one cleared it in every round: the key light's shadow map not redrawn. Only the model, the hung cloud and its thread cast (`build/qa/castlist.mjs`, scratch), so the cost is the map's size, 2048 a side redrawn every frame. At that step `piece.js` now draws it at 1024, its edge spread over 2 texels instead of 4, so the edge stays about 2 mm wide on the model (three resizes the map itself when `mapSize` changes). NeerNaadi's jar then turned in 16.4 ms a frame (18.9 before), with no frame late, twice running.
+
 ## 4. Last QA results
+
+**r9, 22 and 23 November 2026** (the other nine jars live; the glass's glow; rays the frame cannot follow; see-through parts drawn once; the shadow at the last step; parity at quality 0).
+
+Each jar as shipped (`public/pieces/<id>/live/`). The download is what a computer fetches: the GLB and every map but the phones' 1k colour. Draws are the GLB's own; the page draws the many small movers as batches (§3c).
+
+| Jar | Download | GLB | Triangles | Draws | glTF validator |
+|---|---|---|---|---|---|
+| Mission Builder 3D | 1,437 KB | 339 KB | 30,219 | 26 | clean |
+| AthleteVision | 1,075 KB | 264 KB | 27,470 | 16 | clean |
+| NeerNaadi | 966 KB | 296 KB | 30,709 | 51 | clean |
+| Courier | 707 KB | 178 KB | 17,321 | 14 | clean |
+| Automated Attendance | 928 KB | 227 KB | 18,684 | 71 | clean |
+| Indoor Tracking | 649 KB | 314 KB | 32,150 | 146 | clean |
+| KPS Clean-O | 1,413 KB | 502 KB | 31,377 | 17 | 1 warning (the grass cards' tangents, §3c) |
+| ObserveX | 477 KB | 183 KB | 19,153 | 18 | clean |
+| ADRAF | 680 KB | 402 KB | 32,997 | 10 | clean |
+| AirDraw | 722 KB | 180 KB | 19,750 | 12 | clean |
+
+Each jar against its poster (`node scripts/qa/parity.mjs`), tone dE / pixels dE, at quality 0 on both GPUs:
+
+| Jar | Intel UHD | RTX 3050 Ti | Its bars |
+|---|---|---|---|
+| Mission Builder 3D | 2.76 / 12.70 | 2.79 / 12.70 | 3 / 16 |
+| AthleteVision | 2.94 / 17.99 | 2.94 / 17.98 | 3 / its own 18.5 |
+| NeerNaadi | 1.03 / 12.40 | 1.03 / 12.39 | 3 / 16 |
+| Courier | 1.78 / 14.70 | 1.75 / 14.70 | 3 / 16 |
+| Automated Attendance | 2.95 / 13.60 | 2.89 / 13.60 | 3 / 16 |
+| Indoor Tracking | 1.99 / 17.18 | 1.98 / 17.17 | 3 / its own 17.5 |
+| KPS Clean-O | 2.66 / 18.26 | 2.66 / 18.25 | 3 / its own 19 |
+| ObserveX | 1.30 / 19.29 | 1.36 / 19.28 | 3 / its own 20 |
+| ADRAF | 0.84 / 15.10 | 0.87 / 15.10 | 3 / 16 |
+| AirDraw | 1.88 / 17.12 | 1.83 / 17.11 | 3 / its own 17.5 |
+
+The scores now come out the same run after run, on the Intel to the hundredth. They did not at first: r9's earlier runs, alone and within `npm run qa:3d`, moved by up to 0.64 in tone (AirDraw's 1.88 in one, 1.24 in another), and nothing in the frame accounted for it (the glass's jitter and the dither are fixed per pixel, every map loads before the captures, a held jar follows its clip every frame). The shot did. Parity took it at whatever quality step the engine had reached, and on the Intel a jar steps down to 2 five to eight seconds after it loads, so some shots fell before the step and some after (`build/qa/parityrepeat.mjs`, scratch, logs the steps up to each shot: 1.88 at 0, 1.24 at 2); the step the report gave was read after the shot. `jarAtPoster()` (`scripts/qa/lib.mjs`) now holds the page's loop for the shot (`engine.hold()`), sets the engine back to quality 0 if it had stepped down, and draws the frames itself (`engine.step()`); the report says when it did.
+
+Five jars have bars of their own (`JAR_OWN` in `scripts/qa/parity.mjs`), each at the higher of its two GPUs' scores with a quarter added, rounded up to the next half, so a change that makes one worse still fails and no other jar gets the slack. Their boards (`build/qa/parity/<id>.png`) put the difference on the glass: its walls and outline, where Cycles bounces light inside the dome again and again and the live glass bends one ray a pixel, and on thin parts seen through it. By the same rule ObserveX's bar is 20, up from 19.5: at quality 0 it scores 19.29 (18.97 and 19.07 at step 2). AthleteVision's tone, 3.22 at step 2, needs no bar of its own at quality 0 (2.94), though it is still the furthest with Attendance's 2.95, both just under the shared 3: its jar is lighter and warmer than its poster (L +2.1, b +1.9), its dome's walls carrying the hall's maple boards more than Cycles' glass does. Mission Builder's tone was 1.12 in r8: the glow (and the brass's wider sheen, its sign fixed) light it more than its poster, 2.76 now, the price of a weight that brings ObserveX, ADRAF and AirDraw closer to theirs.
+
+The suites in the last full run (`npm run qa:3d`, 23 November): crowd 33/33, features 115/115, sim 50/50, parity (every diorama and jar inside its bars, the jars at the scores above), framing 54/54, site 478/478, gate 24/24 (the entry 86.6 of 90 KB gzip, 82.0 in r8; the project data it carries now holds the nine jars' parts and captions), perf 52/52, pieces 184/184, claims 6/6 and resume 12/12. Each jar in its case study turns in a median of 3.0 ms (Courier) to 4.7 ms (NeerNaadi) on the RTX 3050 Ti at quality 0, 1010 px a side, p95 at most 6.8 ms, inside the 8 ms budget; on the Intel UHD, at quality 3 and 758 px, in 12.9 ms (Courier) to 17.6 ms (Indoor Tracking, KPS Clean-O). In its own loop every jar drew 240 frames in 4 s with none late, on both GPUs. The two full runs before this one had a few late on the Intel (AthleteVision 8 of 231 once, Mission Builder 2, NeerNaadi 2), all under the bar of one in 20; before the shadow step (§3c), NeerNaadi's jar had 14.
+
+The nine new jars were filmed again after these fixes (`node scripts/qa/record.mjs --project <id> --only computer`): 27 s each, every frame its own, the console clean. The recorder used to skip a planned tap quietly when its part was not on screen from where the camera stood, so Attendance's film (its log behind the door) and ObserveX's (its mark out of the tag's close-up) had one tap each. It now taps the first other spot that is on screen and says so, and before it presses it checks the part is still under the pointer: ObserveX's rings swing, and the sliver of them at the edge of the tag's close-up had moved off the point by the time the pointer glided there (`build/qa/tapdebug.mjs`, scratch, clicks the same sliver at once and opens its chapter, so the page was right). `build/qa/reel.sh` and `build/qa/contact.mjs` (scratch) put the films and stills together; `reel.sh` runs ffmpeg with `-nostdin`, since inside its loop ffmpeg read the list of jars as input and dropped five of them. The site suite's tap on a part had the same race once, in a full run on the Intel: it found every part's pixel and then rested on another part for up to two seconds, and by its tap Indoor Tracking's gateway, small atop its mast, had moved off the pixel as the camera finished coming in. It passed in the run before and in two runs of `--live` after; `site.mjs` `partNow()` now looks again when the page no longer picks the part at its pixel. The full run after that failed once more, on NeerNaadi's ticket: with the glass off, the scan found no point on it. That was the turn, not the clock. The model stays where the suite's drag left it, and `build/qa/ticketprobe.mjs` (scratch), scanning at every 30°, found the three ticket beacons, the smallest part, on 2 to 17 of the scan's points, and the drains, cut into the street's front, on none at some turns. Before the check calls a part missing it now turns the model a quarter turn with the arrow keys, up to three times, as a visitor would turn it to look (`build/qa/turnprobe.mjs`, scratch, runs the three turns: 90° each, the glass still off).
 
 **r8, 18 November 2026** (the live jar's full lift, its parts, the engine's pacing and recovery): site 197/197 (the jar's lift out of the frame, every part pointed at and named, a part tapped, the pill; the same on a phone), gate 24/24 (entry 82.0 of 90 KB gzip), perf 16/16 (the jar's own loop: RTX 241 frames in 4 s, none late, quality 0; Intel 239, one late, quality 2), parity for the jar (tone dE 1.12, pixels 12.83 against 16), pieces 120/120, and crowd, features, sim, framing, claims and resume (12/12) green. Diorama parity was not re-run: nothing it measures changed. Run perf with nothing else drawing on the same GPU. One run beside the preview pane, which had the jar live on the Intel UHD, failed on the Intel: 191 frames in 4 s, 50 late.
 
@@ -262,6 +413,7 @@ Mission Builder 3D's jar runs live in its case study; the other nine follow the 
 - `helpable` (Retail-only staff help) was deferred.
 - The site's ScrollTrigger count falls during the open/close cycles. That's expected: the reveal triggers use `once: true`.
 - A mask-only PPE alert gets no dashboard card (the product only makes cards for helmet, vest, fall and fire), and the 10 s per-camera cooldown can hold back a helmet alert.
+- **The live glass sees one layer deep.** It follows each bent ray through the frame's depth, which holds only the nearest surface, so what stands right behind a nearer part (Attendance's door post behind the clipboard, near the glass's right edge, at the poster's pose) is not there for the rays that should bend round to it: those show the ground map's floor or the far wall, a dark patch about 60 px across in the case study. Cycles traces it whole. A second depth layer would fix it, at a second draw of the model.
 
 ## 7. FinMind (scene 2): done
 

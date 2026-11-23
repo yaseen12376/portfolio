@@ -240,8 +240,9 @@ class Engine {
   /**
    * Frames that keep coming late step quality down (KPS adapt()): 1 = lower
    * pixel density, 2 = no blur (a jar: a coarser look through its glass),
-   * 3 = density floor. Late is a frame that came more than a display frame
-   * and a half after the last (the display's interval: the shortest gap of
+   * 3 = density floor (a jar: its shadow map half as fine too). Late is a
+   * frame that came more than a display frame and a half after the last
+   * (the display's interval: the shortest gap of
    * late, taken as no shorter than 60 Hz's, so it never asks for more than 60
    * a second): the GPU fell behind, or the CPU did. A quarter of a window's
    * frames late is a stutter anyone sees; two such windows in a row step (one

@@ -12,17 +12,21 @@ own ticket colours (lib/types.ts), and ten open reports within 500 m are
 what raise an area red zone, so a red ring pulses round them. Outside it,
 one ticket goes through every state the app has once a loop: unattended,
 government processing, resolved, and reopened when the resident says it is
-not fixed. A model, not a map: no real street or ticket is shown.
+not fixed. A model, not a map: no real street or ticket is shown. The
+road (wet asphalt) and the tree's bark are scanned surfaces (ambientCG, CC0).
 """
 
 from __future__ import annotations
 
 import math
 
+import bpy
+
 import common as C
 from kit import geo
 from pieces import _kit as K
 from pieces import _parts as P
+from pieces import _scans as S
 
 META = {
     'id': 'neernaadi',
@@ -154,7 +158,9 @@ def _ground(col, root):
         x0, x1 = sorted((s * DRAIN[1], s * W / 2))
         _slab(f'walk_fill{s}', x0, x1, GRAVEL[1], Z_SLAB, gravel, col, root)
 
-    asphalt = geo.textured('asphalt', 'asphalt_02', tint='#2b2d32', rough=0.86, scale=0.05, strength=0.7)
+    # Wet asphalt: the scan's aggregate at the street's scale (about 1:19),
+    # darker and glossier than dry, its roughness still varying stone to stone.
+    asphalt = S.scanned('asphalt', 'Asphalt033', tint='#24262b', size=0.16, rough=0.36, bump=0.5)
     _slab('road', -X_KERB, X_KERB, GRAVEL[1], Z_ROAD, asphalt, col, root)
     paving = geo.textured('paving', 'patterned_paving_02', tint='#a0988c', rough=0.8, scale=0.035, strength=0.75)
     for s in (-1, 1):
@@ -349,7 +355,7 @@ def _lamp(col, root):
 
 def _tree(col, root):
     x, y = 0.248, 0.142
-    bark = geo.pbr('bark', '#4a3527', rough=0.85)
+    bark = S.scanned('bark', 'Bark012', tint='#4a3527', size=0.06, rough=0.85, bump=0.9)
     g = P.group('tree', col, loc=(x, y, Z_WALK), parent=root)
     geo.cyl('tree_guard', 0.022, 0.003, (0, 0, 0), col=col, material=geo.pbr('tree_soil', '#3b2b21', rough=1.0), verts=24, bev=0).parent = g
     P.limb('trunk', (0, 0, 0), (0.004, -0.006, 0.17), 0.0085, 0.0055, col, bark, g)
@@ -457,3 +463,50 @@ def animate(t, st):
     st['life']['head'].location.z = h
 
     st['cloud'].location.z = CLOUD_Z + 0.005 * math.sin(2 * math.pi * t)
+
+
+# ---------------------------------------------------------------- the live jar (pieces/live.py)
+
+# A drop falls six or seven times a loop: a key a frame (the render's 144),
+# so none is ever drawn between the bottom of one fall and the top of the next.
+LIVE = {'clip_frames': 144}
+
+
+def spots(st):
+    """The live jar's numbered dots: the red zone (on the tallest red
+    beacon), a ticket's life (on the beacon that goes through every state),
+    the drains (at the cut, over the silted one) and the floods (on the
+    cloud). Each names the parts a tap opens it from with the glass off."""
+    from mathutils import Vector
+
+    from pieces.live import below, box
+    bpy.context.view_layer.update()
+    _, top_r, red = box('red2_head_ball')
+    _, top_l, life = box('life_head_ball')
+    _, top_c, cloud = box('cloud_base')
+    street = bpy.data.objects['street']
+    rot = street.matrix_world.to_3x3()
+    i0, i1 = -DRAIN[1] + WALL_T, -DRAIN[0] - WALL_T
+    cut = street.matrix_world @ Vector(((i0 + i1) / 2, -D / 2 - 0.006, Z_DRAIN + WALL_T + 0.062))
+    out = (rot @ Vector((0.0, -1.0, 0.0))).normalized() * 0.8 + Vector((0.0, 0.0, 0.6))
+    allof = below('street')
+    zone = [n for n in allof if n.startswith(('red', 'zone'))]
+    ticket = [n for n in allof if n.startswith(('life', 'orange', 'grey'))]
+    drains = [n for n in allof if n.startswith(('drain_', 'silt', 'murky', 'clear_water', 'bottle', 'wrapper', 'leaf', 'grate'))]
+    floods = below('cloud') + ['cloud_thread'] + [n for n in allof if n.startswith(('drop', 'ripple', 'pond'))]
+    return [
+        {'id': 'zone', 'at': (red.x, red.y, top_r.z + 0.012), 'parts': zone},
+        {'id': 'ticket', 'at': (life.x, life.y, top_l.z + 0.012), 'parts': ticket},
+        {'id': 'drains', 'at': tuple(cut), 'out': tuple(out), 'parts': drains},
+        {'id': 'floods', 'at': (cloud.x, cloud.y, top_c.z + 0.01), 'parts': floods},
+    ]
+
+
+def live(st):
+    """The cloud hangs from the knob on its thread: lifting the glass leaves
+    it hanging where it is (raining), and only the thread goes."""
+    from pieces.live import below
+    for name in below('cloud') + ['cloud_thread']:
+        o = bpy.data.objects.get(name)
+        if o is not None:
+            o['hangs'] = 1

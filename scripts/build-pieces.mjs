@@ -114,7 +114,11 @@ async function pieceInputs(id) {
   const own = await readFile(join(ROOT, SRC, `${id}.py`), 'utf8');
   // The shared parts and borrowed models count only for the pieces that use
   // them, so a change made for one piece does not throw away another's loop.
-  const parts = /\b_parts\b/.test(own) ? [`${SRC}/_parts.py`] : [];
+  const parts = [
+    ...(/\b_parts\b/.test(own) ? [`${SRC}/_parts.py`] : []),
+    // The scanned surfaces' helper (pieces/_scans.py), for the pieces that use it.
+    ...(/\b_scans\b/.test(own) ? [`${SRC}/_scans.py`] : []),
+  ];
   const models = [...own.matchAll(/K\.source\(\s*['"]([^'"]+)['"]/g)]
     .map((m) => `build/pieces/_src/${m[1]}`)
     .filter((f) => existsSync(join(ROOT, f)));
@@ -297,7 +301,9 @@ async function live(id) {
   } else console.log('  live    bake unchanged');
 
   const scene = JSON.parse(await readFile(join(src, 'scene.json'), 'utf8'));
-  const doc = await optimise(join(src, 'scene.glb'), join(dst, 'scene.glb'), { animations: true, simplify: LIVE_SIMPLIFY, level: 'high' });
+  // A part's own maps (a borrowed model's: KPS Cleano's grass cards) at most
+  // 512 pixels a side: the part is a small piece of a jar a page shows whole.
+  const doc = await optimise(join(src, 'scene.glb'), join(dst, 'scene.glb'), { animations: true, simplify: LIVE_SIMPLIFY, level: 'high', webp: 85, maxTexture: 512 });
   const st = stats(doc);
   const val = await validate(join(dst, 'scene.glb'));
   const webp = (file, o) => sharp(join(src, file)).webp({ effort: 6, ...o });
@@ -351,7 +357,7 @@ async function live(id) {
 // ---------------------------------------------------------------- main
 
 // Every module here is a piece, except the shared ones (the jar and the small parts).
-const SHARED = new Set(['__init__.py', '_kit.py', '_parts.py', 'live.py']);
+const SHARED = new Set(['__init__.py', '_kit.py', '_parts.py', '_scans.py', 'live.py']);
 const all = (await readdir(join(ROOT, SRC))).filter((f) => f.endsWith('.py') && !SHARED.has(f)).map((f) => f.slice(0, -3));
 const ids = asked.length ? asked : all;
 for (const id of ids) if (!all.includes(id)) throw new Error(`no piece "${id}" (have: ${all.join(', ')})`);

@@ -41,9 +41,12 @@ import tap from '@phosphor-icons/core/assets/light/hand-tap-light.svg?raw';
 
 import { esc, prep } from '../../core/util.js';
 import { fit } from '../camera-rig.js';
+import { batchMovers } from '../piece-batch.js';
 import { pieceDust } from '../piece-dust.js';
-import { PieceGlass } from '../piece-glass.js';
-import { addRoomSheen, floorMap, roomLights } from '../room-sheen.js';
+import { GROUND_LAYER, PieceGlass } from '../piece-glass.js';
+import { pieceTracks } from '../piece-tracks.js';
+import { HOOKS } from '../pieces/index.js';
+import { addGlassGlow, addRoomSheen, floorMap, roomLights } from '../room-sheen.js';
 import { softShadow } from '../stage.js';
 
 const TAU = Math.PI * 2;
@@ -210,7 +213,8 @@ function keepInView(root, tt, skip, base, baseTop) {
   const fixed = new Box3();
   const v = new Vector3();
   root.traverse((o) => {
-    if (!o.isMesh || skip.has(o)) return;
+    // (A batch's geometry is its parts unplaced: the hidden nodes stand for it.)
+    if (!o.isMesh || o.isBatchedMesh || skip.has(o)) return;
     const pos = o.geometry.attributes.position;
     const part = o.geometry.attributes._part;
     const turns = !!tt && onTurntable(o);
@@ -236,6 +240,38 @@ function keepInView(root, tt, skip, base, baseTop) {
     for (const x of [fixed.min.x, fixed.max.x]) for (const y of [fixed.min.y, fixed.max.y]) for (const z of [fixed.min.z, fixed.max.z]) pts.push(new Vector3(x, y, z));
   }
   return pts;
+}
+
+/**
+ * The see-through parts of the model, which the glass must find. It follows
+ * each ray through the frame's depth to what it meets (piece-glass.js), and
+ * what writes none it passes straight through: a beam or a drop standing in
+ * the jar would never show through the glass (NeerNaadi's tickets and rain,
+ * Indoor Tracking's links, KPS Clean-O's bubbles), only over what stands
+ * behind it. So the glass draws these again on its own (seeThrough). Each
+ * one whole: a part that is partly solid stays as it is. Not what a track
+ * fades (a ripple, a pulse), nor the materials in `flat` (Mission Builder's
+ * dust sheets, 0.7 mm over the cells): those lie flat on what is under them,
+ * where the frame already shows them to any ray that meets it.
+ */
+function seenThrough(model, tracks, flat = []) {
+  const objects = [];
+  const materials = new Set();
+  const fades = new Set(
+    Object.entries(tracks?.materials ?? {})
+      .filter(([, t]) => t.opacity)
+      .map(([name]) => name)
+  );
+  const on = new Set(flat);
+  const clear = (m) => m && m.transparent && !m.depthWrite && !fades.has(m.name) && !on.has(m) && (m.isMeshStandardMaterial || m.isMeshBasicMaterial);
+  model?.traverse((o) => {
+    if (!o.isMesh || o.isBatchedMesh) return;
+    const ms = [o.material].flat();
+    if (!ms.every(clear)) return;
+    objects.push(o);
+    for (const m of ms) materials.add(m);
+  });
+  return { objects, materials };
 }
 
 /** The role the export gave a mesh, or the node above it that carries it. */
@@ -303,13 +339,12 @@ export async function create({ stage, rig, slot, emit }) {
 
   // What hangs from the knob hangs on where it is while the glass is off
   // (it turns with the turntable, as it did in the render: it was on it).
-  // Only its thread goes then, or it would end in the air: a hung part a few
-  // millimetres across.
+  // Only its thread goes then, or it would end in the air: the hung part
+  // named for it (the export keeps each thread a node of its own and joins
+  // the rest of what hangs; by size, a stopwatch's hand or tick would go too).
   const threads = [];
   tt?.traverse((o) => {
-    if (!o.userData?.hangs || !o.isMesh) return;
-    const b = new Box3().setFromObject(o);
-    if (Math.max(b.max.x - b.min.x, b.max.z - b.min.z) < 0.008) threads.push(o);
+    if (o.userData?.hangs && o.isMesh && /thread/.test(o.name)) threads.push(o);
   });
 
   // The model's own motion (a brush's sweep, a signal's beads): one clip,
@@ -318,12 +353,39 @@ export async function create({ stage, rig, slot, emit }) {
   const mixer = clip ? new AnimationMixer(stage.root) : null;
   const action = clip ? mixer.clipAction(clip) : null;
   action?.play();
+  // A piece whose motion is all its own (the courier's receipt) has no clip:
+  // its loop keeps time here, as long as the render's.
+  const LOOP = clip?.duration ?? pc.loop ?? 6;
+  let clock = 0;
+  const setTime = (t) => {
+    if (mixer) mixer.setTime(t);
+    else clock = ((t % LOOP) + LOOP) % LOOP;
+  };
+  const advance = (dt) => {
+    if (mixer) mixer.update(dt);
+    else clock = (clock + dt) % LOOP;
+  };
+  const timeNow = () => (mixer ? mixer.time : clock);
   /** Where the clip is in its loop (0..1). */
-  const phase = () => (action ? action.time / clip.duration : 0);
+  const phase = () => (action ? action.time / clip.duration : clock / LOOP);
 
   // A piece's dust (Mission Builder's arrays): the render's formula, on its
   // sheets, following the clip's brushes.
   const dust = pc.dust && stage.maps?.grain && stage.maps?.mottle ? pieceDust({ byName: stage.byName, dust: pc.dust, maps: stage.maps, prepare: softShadow }) : null;
+  // What the clip changes on the materials (a glow's beat, a ripple fading).
+  const tracks = pieceTracks(stage.root, pc.tracks);
+  // And a piece's own effects, which neither carries (src/three/pieces/).
+  const own = HOOKS[pc.id] ? (await HOOKS[pc.id]()).create({ stage, pc, tt, renderer: slot.engine.renderer }) : null;
+  // What of the see-through the glass must find (after the hook: its own
+  // materials count; before the movers are batched, which keep its layers).
+  const throughGlass = glassMesh ? seenThrough(tt ?? stage.root, pc.tracks, dust?.materials) : { objects: [], materials: new Set() };
+  /** Everything that follows the clip, where the clip is now. */
+  const follow = (dt = 0) => {
+    const ph = phase();
+    dust?.update(ph);
+    tracks?.update(ph);
+    own?.update(ph, dt);
+  };
 
   if (glassMesh) {
     const poses = (take) => {
@@ -345,8 +407,16 @@ export async function create({ stage, rig, slot, emit }) {
       models: modelsOn(tt),
       small: slot.opts.tier !== 'high',
     });
+    glass.seeThrough(throughGlass.objects, throughGlass.materials);
     glassMesh.geometry.computeBoundingBox();
   }
+  // The clip's many small movers that share a material, drawn as one each
+  // (after the glass took its bounds from them; before the first frames
+  // below compile what draws them).
+  const movers = batchMovers(tt, clip, { off: [GROUND_LAYER] });
+  // (A batch of see-through movers, NeerNaadi's rain, leaves the frame with
+  // its nodes while the glass is down: PieceGlass.seeInFrame.)
+  glass?.seeAlso(movers?.batches ?? []);
 
   // The room's lights in the brass, and in the walnut's lacquer (the export
   // marks what of the set is glossy): the render's highlights, which the
@@ -384,12 +454,27 @@ export async function create({ stage, rig, slot, emit }) {
   // cube map takes it, where the room seen through the glass is dark (Cycles'
   // lights are not seen through glass), not the panorama, which holds the
   // strips only the glassware sees.
-  let atlasMat = null;
+  // (A piece's hook may dress one part in a copy of the atlas material of its
+  // own, pieces/observex.js: each copy is the model's too.)
+  const atlasMats = new Set();
   stage.root.traverse((o) => {
-    if (o.isMesh) for (const m of [o.material].flat()) if (m?.name === 'atlas') atlasMat = m;
+    if (o.isMesh) for (const m of [o.material].flat()) if (m?.name === 'atlas') atlasMats.add(m);
   });
   // And the ground below it from the glass's ground map.
-  if (glass && atlasMat) glass.reflectGround(atlasMat);
+  if (glass) for (const m of atlasMats) glass.reflectGround(m);
+  // And what the render's glass passes on to its rough parts: the lights
+  // that fall on the glass, in their own gloss, as Cycles' glossy blur lets
+  // them through (room-sheen.js addGlassGlow). Before the captures below,
+  // so its shaders compile while the jar loads (the captures themselves are
+  // taken without it).
+  const spot = stage.key;
+  const glow =
+    glass && atlasMats.size && spot
+      ? addGlassGlow(atlasMats, roomLights(pc), {
+          dir: spot.position.clone().sub(spot.target.position),
+          color: spot.color.clone().multiplyScalar(spot.intensity),
+        })
+      : null;
   let modelEnv = null;
   // The inside, for the glass to mirror, is taken now, while the jar loads
   // (its new shaders compile here, not in the first frames on screen), at
@@ -397,18 +482,24 @@ export async function create({ stage, rig, slot, emit }) {
   // from wherever they were taken.
   if (glass) {
     if (tt) tt.rotation.y = 0;
-    mixer?.setTime(0);
-    dust?.update(phase());
+    setTime(0);
+    follow();
     stage.root.updateMatrixWorld(true);
     glass.update(0);
+    // (Without the glow: in Cycles only glossy rays find it, and the model
+    // takes its diffuse light from this capture as well.)
+    glow?.set(0);
     glass.capture(0);
-    if (atlasMat) {
+    glow?.set(1);
+    if (atlasMats.size) {
       const pm = new PMREMGenerator(slot.engine.renderer);
       modelEnv = pm.fromCubemap(glass.cubeTarget.texture);
       pm.dispose();
-      atlasMat.envMap = modelEnv.texture;
-      atlasMat.envMapIntensity = 1;
-      atlasMat.needsUpdate = true;
+      for (const m of atlasMats) {
+        m.envMap = modelEnv.texture;
+        m.envMapIntensity = 1;
+        m.needsUpdate = true;
+      }
       dust?.setEnv(modelEnv.texture);
     }
     glass.captureGround();
@@ -418,7 +509,7 @@ export async function create({ stage, rig, slot, emit }) {
   // set and brass round them, which open nothing but are in the way.
   const solids = [];
   stage.root.traverse((o) => {
-    if (!o.isMesh || o === glassMesh || o === proxy || roleOf(o) === 'glass') return;
+    if (!o.isMesh || o.isBatchedMesh || o === glassMesh || o === proxy || roleOf(o) === 'glass') return;
     o.userData.pick = 'part';
     solids.push(o);
   });
@@ -567,8 +658,11 @@ export async function create({ stage, rig, slot, emit }) {
     const p = spotAt(s, a, new Vector3());
     const up = spotOut(s, a, new Vector3()).y;
     // With the glass off, a chapter may come in closer, as its own view says
-    // (with it on the camera stays well outside it: close, the glass smears).
-    if (lift.want && lift.x >= GLASS_CLEAR && c?.view) return { target: [p.x, p.y, p.z], zoom: c.view.zoom, pitch: c.view.pitch ?? 0 };
+    // (with it on the camera stays well outside it: close, the glass smears),
+    // and aim `drop` below its dot (a dot over what it names: ObserveX's
+    // palette, above the rings it opens) or, negative, above it (AirDraw's
+    // bridge: up the rod from the dot on its base).
+    if (lift.want && lift.x >= GLASS_CLEAR && c?.view) return { target: [p.x, p.y - (c.view.drop ?? 0), p.z], zoom: c.view.zoom, pitch: c.view.pitch ?? 0 };
     // A spot that faces up is looked down on a little more.
     return { target: [p.x, p.y, p.z], zoom: s.on === 'jar' ? 0.5 : 0.58, pitch: up > 0.9 ? 0.12 : 0 };
   };
@@ -747,7 +841,7 @@ export async function create({ stage, rig, slot, emit }) {
     const ph = slot.opts.phase?.();
     if (!ph || !(ph.d > 0)) return null;
     const f = (ph.t / ph.d) % 1;
-    return { a: f * TAU, time: (f * (clip?.duration ?? ph.d)) % (clip?.duration || 1), playing: ph.playing !== false };
+    return { a: f * TAU, time: f * LOOP, playing: ph.playing !== false };
   };
   /** Take over from the loop where it is (its pose, its clip time, its pace). */
   const sync = () => {
@@ -757,7 +851,7 @@ export async function create({ stage, rig, slot, emit }) {
       turn.a = lp.a;
       turn.v = held ? 0 : LOOP_TURN;
       turn.handover = true;
-      mixer?.setTime(lp.time);
+      setTime(lp.time);
     } else {
       turn.v = held ? 0 : IDLE_TURN;
     }
@@ -765,11 +859,30 @@ export async function create({ stage, rig, slot, emit }) {
 
   const atHome = () => !focus;
 
+  // At the engine's last step (engine.js: the density floor) the key light's
+  // shadow map is drawn half as fine, its edge spread over half as many
+  // texels, so it stays as soft on the model (about 2 mm). Redrawn every
+  // frame at 2048 a side, it was what NeerNaadi's jar, the busiest, could
+  // least afford on an integrated GPU: with it held still, no frame came
+  // late (build/qa/paceprobe.mjs).
+  const shadowKey = stage.key?.castShadow ? stage.key : null;
+  const shadowFull = shadowKey ? { size: shadowKey.shadow.mapSize.x, radius: shadowKey.shadow.radius } : null;
+  let shadowHalf = false;
+  const shadowQuality = (q) => {
+    if (!shadowFull || (q >= 3) === shadowHalf) return;
+    shadowHalf = q >= 3;
+    const k = shadowHalf ? 0.5 : 1;
+    // (three resizes the map itself when mapSize changes.)
+    shadowKey.shadow.mapSize.setScalar(shadowFull.size * k);
+    shadowKey.shadow.radius = shadowFull.radius * k;
+  };
+
   function update(dt) {
     if (!synced) sync();
     sinceLive += dt;
-    if (!held) mixer?.update(dt);
+    if (!held) advance(dt);
     glass?.setQuality(slot.engine.quality);
+    shadowQuality(slot.engine.quality);
 
     const T = turn;
     // While the loop still plays under the canvas fading in, the jar keeps
@@ -778,7 +891,7 @@ export async function create({ stage, rig, slot, emit }) {
     if (lp?.playing) {
       T.a = near(lp.a, T.a);
       T.v = LOOP_TURN;
-      mixer?.setTime(lp.time);
+      setTime(lp.time);
     } else if (T.mode === 'idle') {
       const want = held ? 0 : T.handover && sinceLive < HANDOVER ? LOOP_TURN : IDLE_TURN;
       // A turntable has weight: it eases to a new pace.
@@ -824,10 +937,13 @@ export async function create({ stage, rig, slot, emit }) {
     }
     pivot.position.y = hinge.y + liftH * easeInOut(L.x);
     pivot.rotation.x = LIFT_TIP * Math.sin(Math.PI * L.x);
+    // (Lifted clear, no glass passes the lights on.)
+    glow?.set(1 - MathUtils.smoothstep(L.x, 0, GLASS_CLEAR));
     for (const t of threads) t.visible = L.x === 0;
     glass?.update(T.a);
-    // The dust where the clip has its brushes now.
-    dust?.update(phase());
+    // The dust where the clip has its brushes now; the glows, the receipt,
+    // the rings where the clip is.
+    follow(held ? 0 : dt);
 
     // "Drag to turn", until someone has; lifted, "Tap a part", until someone has.
     const kind = L.want ? (!tapped && L.up > TAP_HINT_AFTER ? 'tap' : null) : !dragged && sinceLive > HINT_AFTER && T.still > HINT_AFTER - 0.5 ? 'drag' : null;
@@ -936,13 +1052,13 @@ export async function create({ stage, rig, slot, emit }) {
       seek(near(0, turn.a));
       setLift(false);
     },
-    snapshot: () => ({ turn: turn.a, lifted: lift.want > 0, time: mixer?.time ?? 0 }),
+    snapshot: () => ({ turn: turn.a, lifted: lift.want > 0, time: timeNow() }),
     resume(s) {
       if (s?.turn != null) {
         turn.a = s.turn;
         synced = true;
       }
-      if (s?.time != null) mixer?.setTime(s.time);
+      if (s?.time != null) setTime(s.time);
       if (s?.lifted && glassMesh) {
         liftH = liftHeight();
         lift.want = lift.x = 1;
@@ -965,6 +1081,10 @@ export async function create({ stage, rig, slot, emit }) {
       back: back.classList.contains('is-in'),
       dots: dots.map((d) => ({ id: d.s.id, x: d.x, y: d.y, opacity: d.o })),
       dust: dust?.state() ?? null,
+      tracks: tracks?.state() ?? null,
+      own: own?.state?.() ?? null,
+      batched: movers ? { meshes: movers.meshes, batches: movers.batches.length } : null,
+      seen: [...throughGlass.materials].map((m) => m.name),
     }),
     dispose() {
       abort.abort();
@@ -977,6 +1097,8 @@ export async function create({ stage, rig, slot, emit }) {
       mixer?.stopAllAction();
       mixer?.uncacheRoot(stage.root);
       dust?.dispose();
+      own?.dispose();
+      movers?.dispose();
       glass?.dispose();
       floor?.dispose();
       modelEnv?.dispose();

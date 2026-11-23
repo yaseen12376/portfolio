@@ -10,7 +10,8 @@ draws it: a sikku kolam, one closed line that mirrors off the edge of a grid
 of dots. The step is a red-oxide floor, as a Tamil doorstep has.
 
 Soap bubbles rise from the scrubber's suds, each a whole number of times a
-loop, and pop at the top.
+loop, and pop at the top. The step is polished red oxide, mottled as a real
+one is, and the crate painted wood (scanned surfaces, ambientCG, CC0).
 """
 
 from __future__ import annotations
@@ -24,6 +25,7 @@ import common as C
 from kit import geo
 from pieces import _kit as K
 from pieces import _parts as P
+from pieces import _scans as SC
 
 META = {
     'id': 'kps-cleano',
@@ -60,7 +62,8 @@ TOP_Z = 0.84
 # ---------------------------------------------------------------- the step and its kolam
 
 def _step(col):
-    red = geo.textured('red_oxide', 'smooth_concrete_floor', tint='#8c3424', rough=0.3, scale=0.5, strength=0.3)
+    # Polished red oxide: glossy, its shine and its colour mottled.
+    red = SC.scanned('red_oxide', 'Concrete046', tint='#8c3424', size=0.45, rough=0.24, bump=0.08, detail=0.7, spec=0.6)
     geo.box('step', (STEP[0], STEP[1], STEP[2]), (0, 0, 0), col=col, material=red, bev=0.006)
 
 
@@ -132,7 +135,7 @@ def _kolam(col, at=(-0.14, -0.11), spacing=0.044, p_=3, q_=4):
 def _crate(col):
     x, y, yaw = CRATE
     root = P.group('crate', col, loc=(x, y, TOP), rot=(0, 0, yaw))
-    green = geo.textured('crate_green', 'oak_veneer_01', tint=LEAF, rough=0.55, scale=0.25, strength=0.45)
+    green = SC.scanned('crate_green', 'PaintedWood007A', tint=LEAF, size=0.2, rough=0.5, bump=0.3)
     cream = geo.pbr('crate_cream', CREAM_DEEP, rough=0.6)
     w, d, h, post, slat = 0.34, 0.16, 0.122, 0.018, 0.009
     parts = [geo.box('crate_floor', (w - 0.01, d - 0.01, CRATE_FLOOR - TOP), (0, 0, 0), col=col, material=green, bev=0.002)]
@@ -254,3 +257,101 @@ def animate(t, st):
         s = r * C.smoothstep(0.0, 0.1, u) * (1 - C.smoothstep(0.95, 1.0, u))
         s = max(s, 1e-4)
         o.scale = (s, s, s * 0.97)
+
+
+# ---------------------------------------------------------------- the live jar (pieces/live.py)
+
+# A bubble blows up and pops in a tenth of its climb: a key a frame (the
+# render's 144). The step's top shows: a full share of the atlas.
+LIVE = {'clip_frames': 144, 'model_uv_scale': {'red_oxide': 1.0}}
+IN_KIT = ('kps-big-21', 'i-steel-set', 'coco-gold', 'burma-fan-broom', 'white-phenyl')
+AT_WORK = ('handle-scrubber', 'nar-mat-24x16')
+
+
+def _span(names):
+    from pieces.live import box
+    boxes = [box(n) for n in names if bpy.data.objects.get(n) is not None and bpy.data.objects[n].type == 'MESH']
+    lo = Vector((min(b[0].x for b in boxes), min(b[0].y for b in boxes), min(b[0].z for b in boxes)))
+    hi = Vector((max(b[1].x for b in boxes), max(b[1].y for b in boxes), max(b[1].z for b in boxes)))
+    return lo, hi, (lo + hi) / 2
+
+
+def spots(st):
+    """The live jar's numbered dots: the kit (on the crate's rim), the
+    cleaning (on the scrubber in its suds), the kolam (on the step) and the
+    storefront (on the tag). Each names the parts a tap opens it from with
+    the glass off."""
+    from pieces.live import below, box
+    bpy.context.view_layer.update()
+    crate = below('crate')
+    _, hi_c, c = _span(crate)
+    work = [n for name in AT_WORK for n in below(name) + [name]]
+    _, hi_w, w = _span(work)
+    _, hi_k, k = box('kolam_line')
+    _, top_e, eye = box('tag_eyelet')
+    kit = crate + [n for name in IN_KIT for n in below(name) + [name]]
+    names = [o.name for o in bpy.data.objects if o.type == 'MESH']
+    clean = work + [n for n in names if n.startswith(('suds', 'bubble'))]
+    kolam = [n for n in names if n.startswith('kolam')] + ['step']
+    return [
+        {'id': 'kit', 'at': (c.x, c.y, hi_c.z + 0.012), 'parts': kit},
+        {'id': 'clean', 'at': (w.x, w.y, hi_w.z + 0.012), 'parts': clean},
+        {'id': 'kolam', 'at': (k.x, k.y, hi_k.z + 0.008), 'parts': kolam},
+        {'id': 'site', 'at': (eye.x, eye.y, top_e.z + 0.004), 'on': 'jar', 'parts': below('tag') + ['tag_string']},
+    ]
+
+
+# The bristled products are modelled to be looked at one at a time: in the
+# jar a brush head is a few pixels across, and this share of its faces keeps
+# its outline. (The renders keep them whole: the live jar's file has a budget.)
+LIVE_THIN = {'burma-fan-broom': 0.25, 'i-steel-set': 0.25, 'coco-gold': 0.3}
+
+
+def _thin(names, ratio):
+    """Collapse each mesh to `ratio` of its faces."""
+    for n in names:
+        o = bpy.data.objects.get(n)
+        if o is None or o.type != 'MESH' or len(o.data.polygons) < 200:
+            continue
+        if o.data.users > 1:
+            o.data = o.data.copy()
+        d = o.modifiers.new('live_thin', 'DECIMATE')
+        d.ratio = ratio
+        with bpy.context.temp_override(object=o, active_object=o, selected_objects=[o]):
+            bpy.ops.object.modifier_apply(modifier=d.name)
+
+
+def live(st):
+    """The bristled products thinned (LIVE_THIN). A soap film is thin-film
+    interference over a clear sphere, which the glTF cannot carry: it leaves
+    as a faint, see-through stand-in with no refraction to pay for, and the
+    page draws the film itself (src/three/pieces/kps-cleano.js), from what
+    page() reads off the render's material."""
+    from pieces.live import below
+    for root, ratio in LIVE_THIN.items():
+        _thin(below(root) + [root], ratio)
+    m = bpy.data.materials.get('soap_film')
+    if m is None:
+        return
+    b = next(n for n in m.node_tree.nodes if n.type == 'BSDF_PRINCIPLED')
+    K.sock(b.inputs, 'Transmission Weight', 'Transmission').default_value = 0.0
+    b.inputs['Base Color'].default_value = (1, 1, 1, 1)
+    b.inputs['Roughness'].default_value = 0.04
+    b.inputs['Alpha'].default_value = 0.16
+    try:
+        m.surface_render_method = 'BLENDED'
+    except Exception:
+        m.blend_method = 'BLEND'
+    m['own'] = 1
+
+
+def page(st):
+    """What the page's soap film needs: the stand-in's material, and the
+    film's thickness (nm) and index, read off the render's material
+    (_bubble_material(); live() leaves those two inputs as they were)."""
+    m = bpy.data.materials.get('soap_film')
+    if m is None:
+        return {}
+    b = next(n for n in m.node_tree.nodes if n.type == 'BSDF_PRINCIPLED')
+    get = lambda k, d: round(b.inputs[k].default_value, 4) if k in b.inputs else d
+    return {'film': {'material': m.name, 'thickness': get('Thin Film Thickness', 480.0), 'ior': get('Thin Film IOR', 1.33)}}

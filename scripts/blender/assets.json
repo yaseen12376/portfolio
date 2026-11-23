@@ -32,8 +32,123 @@
     "source": "https://ambientcg.com",
     "license": "CC0 1.0",
     "materials": {
-      "SolarPanel003": { "use": "mission-builder-3d: the lander's solar cells", "res": "2K-JPG", "maps": ["Color", "Roughness", "Metalness", "NormalGL"] },
-      "SurfaceImperfections015": { "use": "mission-builder-3d: the dust on its arrays", "res": "1K-JPG", "maps": ["Color", "Roughness"] }
+      "SolarPanel003": {
+        "use": "mission-builder-3d: the lander's solar cells",
+        "res": "2K-JPG",
+        "maps": [
+          "Color",
+          "Roughness",
+          "Metalness",
+          "NormalGL"
+        ]
+      },
+      "SurfaceImperfections015": {
+        "use": "mission-builder-3d: the dust on its arrays",
+        "res": "1K-JPG",
+        "maps": [
+          "Color",
+          "Roughness"
+        ]
+      },
+      "WoodFloor051": {
+        "use": "athletevision: the sports hall floor",
+        "res": "1K-JPG",
+        "maps": [
+          "Color",
+          "Roughness",
+          "Displacement"
+        ]
+      },
+      "Leather027": {
+        "use": "athletevision: the vinyl of the sit-up mat (its grain)",
+        "res": "1K-JPG",
+        "maps": [
+          "Color",
+          "Roughness",
+          "Displacement"
+        ]
+      },
+      "Cardboard004": {
+        "use": "courier: the parcel",
+        "res": "1K-JPG",
+        "maps": [
+          "Color",
+          "Roughness",
+          "Displacement"
+        ]
+      },
+      "Metal009": {
+        "use": "courier: the scale platform (brushed steel)",
+        "res": "1K-JPG",
+        "maps": [
+          "Color",
+          "Roughness",
+          "Displacement"
+        ]
+      },
+      "PaintedWood007A": {
+        "use": "attendance: the door",
+        "res": "1K-JPG",
+        "maps": [
+          "Color",
+          "Roughness",
+          "Displacement"
+        ]
+      },
+      "Tiles043": {
+        "use": "attendance: the terrazzo floor",
+        "res": "1K-JPG",
+        "maps": [
+          "Color",
+          "Roughness",
+          "Displacement"
+        ]
+      },
+      "Concrete048": {
+        "use": "indoor-tracking: the warehouse floor",
+        "res": "1K-JPG",
+        "maps": [
+          "Color",
+          "Roughness",
+          "Displacement"
+        ]
+      },
+      "Concrete046": {
+        "use": "kps-cleano: the red-oxide step (polished cement)",
+        "res": "1K-JPG",
+        "maps": [
+          "Color",
+          "Roughness",
+          "Displacement"
+        ]
+      },
+      "Wicker004": {
+        "use": "kps-cleano: the coir mat",
+        "res": "1K-JPG",
+        "maps": [
+          "Color",
+          "Roughness",
+          "Displacement"
+        ]
+      },
+      "Asphalt033": {
+        "use": "neernaadi: the road",
+        "res": "1K-JPG",
+        "maps": [
+          "Color",
+          "Roughness",
+          "Displacement"
+        ]
+      },
+      "Bark012": {
+        "use": "neernaadi: the tree",
+        "res": "1K-JPG",
+        "maps": [
+          "Color",
+          "Roughness",
+          "Displacement"
+        ]
+      }
     }
   }
 }

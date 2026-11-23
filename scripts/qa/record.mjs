@@ -18,6 +18,7 @@
 import { readdir, rename, rm } from 'node:fs/promises';
 import { join } from 'node:path';
 
+import { projects } from '../../src/data/projects.js';
 import { JAR, SOFTWARE_GL, args, ensureOut, launch, liveJarIds, onJar, watchConsole } from './lib.mjs';
 import { smoothFilm } from './smooth.mjs';
 
@@ -51,6 +52,11 @@ async function recordJar() {
   const box = (page, sel = JAR) => page.$eval(sel, (m) => { const b = m.getBoundingClientRect(); return { x: b.left, y: b.top, w: b.width, h: b.height }; });
   const live = (page, timeout = 90000) => page.waitForFunction((s) => ['live', 'paused'].includes(document.querySelector(s)?.dataset['3d']), JAR, { timeout });
   const stills = await ensureOut('rec', id, 'stills');
+  // The jar's own spots, in its chapters' order (the first chapter is the whole jar):
+  // three to rest on, two to tap (Mission Builder's: checks, dust, signal; signal, checks).
+  const spots = (projects.find((p) => p.id === id)?.piece?.chapters ?? []).slice(1).map((c) => c.id);
+  const hovers = spots.slice(0, 3);
+  const taps = [spots[2] ?? spots[1], spots[0]].filter(Boolean);
   /**
    * Where a part shows, as the page picks it: of its pixels (every `step`,
    * where nothing lies over the canvas), the one deepest inside it.
@@ -120,12 +126,12 @@ async function recordJar() {
     await film.glide(...at(0.1, 0.7), 0.6);
     await film.wait(0.9);
     await still('06-lifted');
-    for (const part of ['checks', 'dust', 'signal']) {
+    for (const part of hovers) {
       const p = await partAt(page, part);
       if (!p) continue;
       await film.glide(p.x, p.y, 0.75);
       await film.wait(0.75);
-      if (part === 'dust') await still('07-hover');
+      if (part === hovers[1]) await still('07-hover');
     }
     await film.glide(...at(0.3, 0.64), 0.5);
     await film.down();
@@ -134,13 +140,46 @@ async function recordJar() {
     await still('08-tilted');
     await film.up();
     await film.wait(1.0);
-    for (const [part, name] of [['signal', '09-part-dish'], ['checks', '10-part-lander']]) {
-      const p = await partAt(page, part);
-      if (!p) continue;
+    // Two parts tapped: each planned one, or where it is not on screen from
+    // where the camera is (behind the door, or out of the last close-up),
+    // the first other spot that is and is not planned later. Said, not skipped
+    // quietly.
+    const tapped = [];
+    for (const [i, planned] of taps.entries()) {
+      const later = taps.slice(i + 1);
+      let part = null;
+      let p = null;
+      for (const c of [planned, ...spots.filter((s) => s !== planned && !tapped.includes(s) && !later.includes(s))]) {
+        p = await partAt(page, c);
+        if (p) {
+          part = c;
+          break;
+        }
+      }
+      if (!p) {
+        console.log(`tap ${i + 1}: no part of ${planned} or another spot on screen, skipped`);
+        continue;
+      }
+      if (part !== planned) console.log(`tap ${i + 1}: ${planned} not on screen, ${part} tapped`);
       await film.glide(p.x, p.y, 0.7);
+      // A part that moves (ObserveX's rings swing), seen only as a sliver at
+      // the frame's edge (over the tag's close-up), can slip out from under
+      // the pointer on its way: where the pointer rests, it must still be on
+      // the part, or it goes straight to where the part is now.
+      const under = () => onJar(page, (slot, [x, y]) => slot.pick({ clientX: x, clientY: y })?.part ?? null, [film.at.x, film.at.y]);
+      for (let k = 0; k < 3 && p && (await under()) !== part; k++) {
+        console.log(`tap ${i + 1}: ${part} moved from under the pointer, looking again`);
+        p = await partAt(page, part);
+        if (p) await film.moveTo(p.x, p.y);
+      }
+      if (!p || (await under()) !== part) {
+        console.log(`tap ${i + 1}: ${part} left the screen, skipped`);
+        continue;
+      }
+      tapped.push(part);
       await film.click();
       await film.wait(2.4);
-      await still(name);
+      await still(`${String(9 + i).padStart(2, '0')}-part-${part}`);
     }
     const pill = await box(page, `${JAR} .piece-back`);
     await film.glide(pill.x + pill.w / 2, pill.y + pill.h / 2, 0.8);
@@ -191,9 +230,12 @@ async function recordJar() {
     await film.click();
     await film.wait(2.4);
     await still('phone-2-lifted');
-    for (const [part, name] of [['checks', 'phone-3-part'], ['dust', 'phone-4-part']]) {
+    for (const [part, name] of spots.slice(0, 2).map((t, i) => [t, `phone-${3 + i}-part`])) {
       const p = await partAt(page, part);
-      if (!p) continue;
+      if (!p) {
+        console.log(`phone: no part of ${part} on screen, skipped`);
+        continue;
+      }
       film.place(p.x, p.y);
       await film.click();
       await film.wait(2.6);

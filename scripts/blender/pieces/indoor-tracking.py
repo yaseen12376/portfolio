@@ -12,6 +12,8 @@ distance, so the three meet where the crate is; the faint disc around it is
 the 3 m the system promises (the scale bar on the plan says how big 3 m is).
 Raw fixes scatter round the route, the smoothed track is the line of dots
 behind the crate, and readings climb from the anchors to a gateway on a mast.
+The plan's board has a scanned grain under its navy (ambientCG, CC0), and
+the crate is plywood.
 """
 
 from __future__ import annotations
@@ -25,6 +27,7 @@ import common as C
 from kit import geo
 from pieces import _kit as K
 from pieces import _parts as P
+from pieces import _scans as S
 
 META = {
     'id': 'indoor-tracking',
@@ -103,7 +106,7 @@ def at(u):
 # ---------------------------------------------------------------- the plan
 
 def _plan(col):
-    navy = geo.pbr('blueprint', '#1d3158', rough=0.62)
+    navy = S.scanned('blueprint', 'Concrete048', tint='#1d3158', size=0.3, rough=0.62, bump=0.12)
     geo.box('plinth', (PLAN[0], PLAN[1], TOP - 0.03), (0, 0, 0), col=col, material=geo.pbr('plinth', '#121722', rough=0.5), bev=0.004)
     geo.box('plan', (PLAN[0], PLAN[1], 0.03), (0, 0, TOP - 0.03), col=col, material=navy, bev=0.004)
     grid = geo.pbr('blueprint_line', '#7097d1', rough=0.7)
@@ -175,7 +178,7 @@ def _bezier(a, b, lift):
 
 def _crate(col):
     root = P.group('tracked', col)
-    wood = P.wood('tracked_wood', '#b98a55', rough=0.6)
+    wood = geo.textured('tracked_wood', 'plywood', tint='#b98a55', rough=0.6, scale=0.3, strength=0.75)
     parts = [geo.box('tracked_crate', (0.06, 0.048, 0.042), (0, 0, 0), col=col, material=wood, bev=0.0035)]
     for sx in (-1, 1):
         parts.append(geo.box('tracked_band', (0.005, 0.0495, 0.0425), (sx * 0.02, 0, 0), col=col, material=P.wood('tracked_dark', '#7c5832'), bev=0.001))
@@ -298,3 +301,52 @@ def animate(t, st):
         o.location = path(u)
         r = 0.0072 * C.smoothstep(0.0, 0.08, u) * (1 - C.smoothstep(0.9, 1.0, u))
         o.scale = (max(r, 1e-4),) * 3
+
+
+# ---------------------------------------------------------------- the live jar (pieces/live.py)
+
+# Pulses four times a loop, readings twice, trail dots born and gone: a key a
+# frame (the render's 144), so nothing is drawn between one cycle and the next.
+LIVE = {'clip_frames': 144}
+ARC_W, ARC_SEGS = 0.0045, 180      # set_arcs()'s defaults, for the page
+
+
+def spots(st):
+    """The live jar's numbered dots: the ranges (on the front anchor's tip),
+    the track (on the plan's 3 m scale bar, which the crate's disc matches)
+    and the gateway (on its board). Each names the parts a tap opens it from
+    with the glass off: the anchors and their range circles; the crate, its
+    disc, pulses, raw fixes and track; the gateway, its mast and the
+    readings climbing to it."""
+    from pieces.live import below, box
+    bpy.context.view_layer.update()
+    _, top_a, tip = box('anchor2_tip')
+    _, top_s, bar = box('scale_3m')
+    _, top_g, gw = box('gw_pcb')
+    names = [o.name for o in bpy.data.objects if o.type in ('MESH', 'CURVE', 'FONT')]
+    ranges = [n for n in names if n.startswith(('anchor', 'range'))]
+    track = below('tracked') + [n for n in names if n.startswith(('accuracy', 'pulse', 'trail', 'raw', 'scale_'))]
+    gateway = below('gateway') + [n for n in names if n.startswith(('mast', 'link', 'reading'))]
+    return [
+        {'id': 'ranges', 'at': (tip.x, tip.y, top_a.z + 0.012), 'parts': ranges},
+        {'id': 'track', 'at': (bar.x, bar.y, top_s.z + 0.008), 'parts': track},
+        {'id': 'gateway', 'at': (gw.x, gw.y, top_g.z + 0.014), 'parts': gateway},
+    ]
+
+
+def live(st):
+    """The range circles are redrawn every frame (set_arcs): the page draws
+    them its own way (src/three/pieces/indoor-tracking.js), from where the
+    crate is, cut to the plan."""
+    for o in st['state']['arcs']:
+        o['hooked'] = 1
+
+
+def page(st):
+    """What the page's range circles need: their meshes, the anchors, the
+    crate they reach for, and the plan they are cut to (piece space, z up)."""
+    return {'ranges': {
+        'meshes': [o.name for o in st['state']['arcs']], 'anchors': [list(a) for a in ANCHORS], 'crate': 'tracked',
+        'z': round(TOP + 0.0016, 5), 'lim': [round(PLAN[0] / 2 - 0.006, 5), round(PLAN[1] / 2 - 0.006, 5)],
+        'width': ARC_W, 'segs': ARC_SEGS,
+    }}

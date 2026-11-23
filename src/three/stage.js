@@ -264,6 +264,10 @@ export async function loadStage(renderer, base, { small = false, signal, shadows
     const role = roleOf(o);
     const convert = (src) => {
       disposables.add(src);
+      // Its maps too, which a material's dispose() leaves on the GPU (a
+      // piece's own textured part: KPS Clean-O's grass, two each time its
+      // jar was opened).
+      for (const v of Object.values(src)) if (v?.isTexture) disposables.add(v);
       const metal = (src.metalness ?? 0) > 0.5;
       const glassy = src.transparent || (src.opacity ?? 1) < 1;
       if (tiled.has(src.name)) return tiled.get(src.name);

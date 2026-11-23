@@ -9,16 +9,22 @@ As the repo's code has it (cctv_attendance_system.py):
   - the Excel export has two sheets, Working_Hours_Summary and
     Detailed_InOut_Log
 The figure is a blank wooden peg: no face is modelled, and none is used.
+The floor is terrazzo with brass strips, the door painted wood (scanned
+surfaces, ambientCG, CC0).
 """
 
 from __future__ import annotations
 
 import math
 
+import bpy
+from mathutils import Vector
+
 import common as C
 from kit import geo, props
 from pieces import _kit as K
 from pieces import _parts as P
+from pieces import _scans as S
 
 META = {
     'id': 'attendance',
@@ -50,8 +56,9 @@ def _door(col):
 
     # the leaf, a little way open into the room behind
     leaf = P.group('door_leaf', col, loc=(-0.184, 0.012, 0.01), rot=(0, 0, 30.0), parent=root)
-    paint = geo.pbr('door_paint', '#2d5261', rough=0.5)
-    inset = geo.pbr('door_inset', '#274855', rough=0.55)
+    # Painted wood, its grain up the door.
+    paint = S.scanned('door_paint', 'PaintedWood007A', tint='#2d5261', size=0.22, rough=0.48, bump=0.25, rot=(0, 90, 0))
+    inset = S.scanned('door_inset', 'PaintedWood007A', tint='#274855', size=0.22, rough=0.52, bump=0.25, rot=(0, 90, 0))
     brass = K.brass('door_brass')
     w, h = 0.362, 0.655
     lp = [geo.box('leaf_panel', (w, 0.022, h), (w / 2, 0, 0), col=col, material=paint, bev=0.004)]
@@ -182,7 +189,26 @@ def _sheets(col):
     return root
 
 
+def _floor(col):
+    """The lobby floor: the turntable's own top as terrazzo, cast in squares
+    with brass strips between them (one under the door's sill)."""
+    disc = bpy.data.objects.get('disc')
+    if disc is not None:
+        disc.data.materials.clear()
+        disc.data.materials.append(S.scanned('lobby_terrazzo', 'Tiles043', tint='#a29b91', size=0.3, rough=0.3, bump=0.12, spec=0.55))
+    brass = geo.pbr('terrazzo_strip', '#a08a58', rough=0.38, metal=0.7)
+    r = K.DISC_R - 0.003
+    for i, x in enumerate((-0.25, 0.0, 0.25)):
+        h = math.sqrt(r * r - x * x)
+        geo.box(f'strip_x{i}', (0.0018, 2 * h, 0.0003), (x, 0, 0), col=col, material=brass, bev=0)
+    for i, y in enumerate((DOOR_Y - 0.25, DOOR_Y, DOOR_Y + 0.25)):
+        if abs(y) < r - 0.02:
+            h = math.sqrt(r * r - y * y)
+            geo.box(f'strip_y{i}', (2 * h, 0.0018, 0.0003), (0, y, 0), col=col, material=brass, bev=0)
+
+
 def build(col):
+    _floor(col)
     _door(col)
     pan = _camera(col)
     _person(col)
@@ -203,3 +229,37 @@ def animate(t, st):
     for i, o in enumerate(st['ticks']):
         k = max(0.0001, C.clamp(n - i))
         o.scale = (k, k, 1)
+
+
+# ---------------------------------------------------------------- the live jar (pieces/live.py)
+
+# The floor is the disc's own top now, and shows: a full share of the atlas.
+LIVE = {'model_uv_scale': {'lobby_terrazzo': 1.0}}
+
+
+def spots(st):
+    """The live jar's numbered dots: the camera (over its shelf), the
+    cooldown (on the ring's plate) and the log (on the easel). Each names the
+    parts a tap opens it from with the glass off: the camera, its cone and
+    the figure it has found; the ring; the two sheets and their easel."""
+    from pieces.live import below, box
+    bpy.context.view_layer.update()
+    _, top_s, shelf = box('cam_shelf')
+    _, top_r, plate = box('ring_plate')
+    _, top_b, board = box('board')
+    near = Vector((shelf.x, shelf.y, shelf.z - 0.03))
+    camera = [o.name for o in bpy.data.objects if o.type in ('MESH', 'CURVE', 'FONT') and (o.matrix_world.translation - near).length < 0.09]
+    return [
+        {'id': 'camera', 'at': (shelf.x, shelf.y, top_s.z + 0.012), 'parts': sorted(set(camera + below('scan_pan') + below('person')))},
+        {'id': 'cooldown', 'at': (plate.x, plate.y, top_r.z + 0.008), 'parts': below('cooldown')},
+        {'id': 'log', 'at': (board.x, board.y, top_b.z + 0.01), 'parts': below('sheets')},
+    ]
+
+
+def page(st):
+    """What the page's glass needs: the floor here is the turntable's own top
+    (_floor()). The map of the ground the glass takes from straight above
+    leaves the turntable's top out under every other piece's ground; here it
+    is the ground, and rays that pass behind the clipboard or the figure come
+    down on it."""
+    return {'discFloor': True}

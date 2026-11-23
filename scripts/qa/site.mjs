@@ -681,6 +681,25 @@ function partPixels(pg = page) {
   }, JAR);
 }
 
+/**
+ * Where a part shows now, for a tap: the pixel partPixels() found, while the
+ * page still picks the part there, or else a fresh look. The camera may still
+ * have been coming in when it looked (a busy GPU steps its ease in capped
+ * frames), and a small part moves off the point: Indoor Tracking's gateway,
+ * atop its mast, was missed that way once in a full run.
+ */
+async function partNow(part, at, pg = page) {
+  const under = await pg.evaluate(
+    ([s, x, y]) => {
+      const m = document.querySelector(s);
+      const slot = m && [...window.__three.slots].find((q) => q.media === m);
+      return slot?.pick({ clientX: x, clientY: y })?.part ?? null;
+    },
+    [JAR, at.x, at.y]
+  );
+  return under === part ? at : ((await partPixels(pg))[part] ?? at);
+}
+
 async function jarChecks(id, p) {
   // The jar takes over at the loop's pose: one turn per loop, so its angle
   // is the loop's phase (the two run at the same pace while the canvas fades in).
@@ -782,14 +801,34 @@ async function jarChecks(id, p) {
     check(`${id}: a tap on the dome lifts it right out of the frame`, up && gone && st.lifted, `lift ${st.lift.toFixed(2)}, ${st.height} m up, ${st.glassSeen ? 'in' : 'out of'} the frame`);
     check(`${id}: "Put the glass back" shows while it is off`, await jarUntil('back', '===', true, 1500));
     await page.waitForTimeout(600); // the camera in on the model
-    const parts = await partPixels();
+    // Each part where a visitor would find it: from this turn, or else a
+    // quarter turn on (the arrow keys), up to three times. The model stops
+    // where the drag above left it, and some parts face away from some
+    // turns: NeerNaadi's ticket beacons, its smallest part, cover as few as
+    // two of the scan's points at some, and none once in a full run; its
+    // drains, cut into the street's front, none at about 240 deg
+    // (build/qa/ticketprobe.mjs).
     const want = p.piece.chapters.slice(1).map((c) => c.id);
-    const missing = want.filter((c) => !parts[c]);
-    check(`${id}: every part can be pointed at with the glass off`, !missing.length, missing.length ? `not found: ${missing.join(', ')}` : want.join(', '));
+    let parts = await partPixels();
+    const seen = new Set(Object.keys(parts));
+    let turns = 0;
+    while (turns < 3 && want.some((c) => !seen.has(c))) {
+      await page.focus(JAR);
+      for (let k = 0; k < 6; k++) await page.keyboard.press('ArrowRight'); // 6 x 15 deg
+      await settle();
+      await page.waitForTimeout(300);
+      parts = await partPixels();
+      for (const c of Object.keys(parts)) seen.add(c);
+      turns++;
+    }
+    const missing = want.filter((c) => !seen.has(c));
+    check(`${id}: every part can be pointed at with the glass off`, !missing.length, missing.length ? `not found: ${missing.join(', ')}` : `${want.join(', ')}${turns ? ` (turned ${turns * 90} deg for them)` : ''}`);
+    // Where the parts show from the turn it is at now.
     const first = want.find((c) => parts[c]);
     const second = want.findLast((c) => parts[c]);
     if (first) {
-      await page.mouse.move(parts[first].x, parts[first].y, { steps: 3 });
+      const at = await partNow(first, parts[first]);
+      await page.mouse.move(at.x, at.y, { steps: 3 });
       const named = await jarUntil('hover', '===', first, 1500);
       const tip = await page.$eval(`${JAR} .piece-tip`, (t) => ({ in: t.classList.contains('is-in'), text: t.textContent.trim() }));
       const title = p.piece.chapters.find((c) => c.id === first)?.title ?? first;
@@ -798,7 +837,8 @@ async function jarChecks(id, p) {
       check(`${id}: the model holds still with the glass off`, ['rest', 'coast'].includes((await jarState()).mode));
     }
     if (second) {
-      await page.mouse.click(parts[second].x, parts[second].y);
+      const at = await partNow(second, parts[second]);
+      await page.mouse.click(at.x, at.y);
       const on = await jarUntil('focus', '===', second, 3000);
       const tab = await page.$eval('#project-detail .pd-chapter[aria-selected="true"]', (b) => b.dataset.chapter).catch(() => null);
       check(`${id}: a tap on a part opens it in the explorer (${second})`, on && tab === second, `tab ${tab}`);
@@ -1175,7 +1215,8 @@ async function phoneChecks() {
           const pid = Object.keys(parts)[0];
           check('phone: the parts can be tapped with the glass off', !!pid, Object.keys(parts).join(', '));
           if (pid) {
-            await ph.touchscreen.tap(parts[pid].x, parts[pid].y);
+            const at = await partNow(pid, parts[pid], ph);
+            await ph.touchscreen.tap(at.x, at.y);
             check(`phone: a tap on a part opens it (${pid})`, await jarUntil('focus', '===', pid, 3000, ph));
           }
           await ph.tap(`${JAR} .piece-back`);

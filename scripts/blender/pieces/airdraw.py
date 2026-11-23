@@ -3,8 +3,10 @@ AirDraw: a wooden artist's hand, drawing in the air.
 
 The app tracks one hand with MediaPipe (21 landmarks a frame) and reads
 three gestures: index finger up draws, an open palm erases, a pinch zooms.
-This hand holds the drawing pose. Its 21 landmarks are the lit beads on its
-joints, and the palm carries the lines MediaPipe joins them with. The stroke
+This hand holds the drawing pose. Its 21 landmarks are drawn over it as
+MediaPipe draws them over the camera's picture: a small lit dot on each joint,
+on the side the camera sees, and the 21 connections between them. The hand is
+oak, its grain showing. The stroke
 it has drawn hangs in the air in the app's brush colour, #22d3ee, ending at
 the fingertip. A pulse runs along the stroke twice a loop.
 """
@@ -79,7 +81,7 @@ def _stand(col):
 
 
 def _hand(col):
-    wood = P.wood('hand_wood', '#d6ab78', rough=0.5)
+    wood = geo.textured('hand_wood', 'oak_veneer_01', tint='#d6ab78', rough=0.48, scale=0.12, strength=0.8)
     root = P.group('hand', col)
     root.matrix_world = hand_matrix()
     lm = landmarks()
@@ -106,30 +108,36 @@ def _hand(col):
     return root, lm
 
 
+# MediaPipe's HAND_CONNECTIONS: the palm, then each finger from its base.
+CONNECTIONS = ((0, 1), (0, 5), (0, 17), (5, 9), (9, 13), (13, 17), (1, 2), (2, 3), (3, 4), (5, 6), (6, 7), (7, 8),
+               (9, 10), (10, 11), (11, 12), (13, 14), (14, 15), (15, 16), (17, 18), (18, 19), (19, 20))
+
+
 def _landmarks(col, root, lm):
-    """The 21 beads, and the palm's connecting lines (MediaPipe draws these)."""
+    """The 21 landmarks as MediaPipe draws them: a small dot on each joint,
+    on the palm's side (the side the camera sees: the palm faces -Y), and
+    the 21 connections between them. Life-size, in the hand's frame."""
     glow = geo.glow('landmark', BRUSH, 2.4)
-    beads = []
+    line = geo.glow('landmark_line', BRUSH, 1.6)
     finger = {**{i: 0.0098 for i in (1, 2, 3, 4)}, **{i: RADII['index'] for i in (5, 6, 7, 8)}, **{i: RADII['middle'] for i in (9, 10, 11, 12)},
               **{i: RADII['ring'] for i in (13, 14, 15, 16)}, **{i: RADII['pinky'] for i in (17, 18, 19, 20)}}
+    face = Vector((0.0, -1.0, 0.0))
+    pts = []
     for i, p in enumerate(lm):
-        # A bead just proud of the wood at each joint; at the wrist, a bigger one.
-        r = 0.0115 if i == 0 else finger[i] * (0.82 if i in (4, 8, 12, 16, 20) else 1.06)
-        if i in (4, 8, 12, 16, 20):  # tips: out at the end of the finger
-            prev = lm[i - 1]
-            p = p + (p - prev).normalized() * finger[i] * 0.55
-        b = P.ball(f'lm{i:02d}', r, col, glow, loc=tuple(p), seg=16)
+        if i == 0:
+            q = p + face * 0.025          # the wrist: just in front of the forearm's top
+        else:
+            r = finger[i]
+            if i in (4, 8, 12, 16, 20):   # a tip: at the end of the finger
+                p = p + (p - lm[i - 1]).normalized() * r * 0.4
+            q = p + face * (r * 0.9)
+        pts.append(q)
+        b = P.ball(f'lm{i:02d}', 0.0047 if i == 0 else 0.0036, col, glow, loc=tuple(q), seg=14)
         b.parent = root
-        beads.append(b)
-    line = geo.glow('landmark_line', BRUSH, 1.6)
-    front = Vector((0.0, -0.0135, 0.0))
-    for a, b in ((0, 1), (0, 5), (5, 9), (9, 13), (13, 17), (0, 17), (5, 6), (6, 7), (7, 8)):
-        pa, pb = lm[a] + front, lm[b] + front
-        if a >= 5 and b <= 8:  # along the pointing finger: on its palm side
-            pa, pb = lm[a] + Vector((0, -0.0085, 0)), lm[b] + Vector((0, -0.0085, 0))
-        o = P.rod(f'lm_line_{a}_{b}', tuple(pa), tuple(pb), 0.0012, col, line, verts=8)
+    for a, b in CONNECTIONS:
+        o = P.rod(f'lm_line_{a}_{b}', tuple(pts[a]), tuple(pts[b]), 0.0009, col, line, verts=8)
         o.parent = root
-    return beads
+    return pts
 
 
 # ---------------------------------------------------------------- the stroke
@@ -242,3 +250,40 @@ def animate(t, st):
         s = 0.0095 * C.smoothstep(0.0, 0.04, u) * (1 - C.smoothstep(0.96, 1.0, u))
         s = max(s, 1e-4)
         b.scale = (s, s, s)
+
+
+# ---------------------------------------------------------------- the live jar (pieces/live.py)
+
+# Three pulses run the stroke twice a loop and fade in and out in a few
+# frames: a key a frame (the render's 144).
+LIVE = {'clip_frames': 144}
+
+
+def spots(st):
+    """The live jar's numbered dots: the gestures (in front of the palm),
+    the stroke (on the star's top point) and the bridge (on the stand's
+    base). Each names the parts a tap opens it from with the glass off."""
+    from pieces.live import below, box
+    bpy.context.view_layer.update()
+    hm = hand_matrix()
+    lift = Vector((0.0, 0.0, K.FLOOR))
+    palm = hm @ Vector((0.0, -0.032, 0.05)) + lift
+    palm_out = (hm.to_3x3() @ Vector((0.0, -1.0, 0.35))).normalized()
+    star = Vector((STAR_C.x, STAR_C.y - 0.012, STAR_C.z + STAR_R * 0.98)) + lift
+    lo_b, hi_b, base = box('hand_base')
+    names = [o.name for o in bpy.data.objects if o.type == 'MESH']
+    return [
+        {'id': 'hand', 'at': tuple(palm), 'out': tuple(palm_out), 'parts': below('hand')},
+        {'id': 'stroke', 'at': tuple(star), 'out': (0.0, -1.0, 0.3), 'parts': [n for n in names if n.startswith(('stroke', 'pulse'))]},
+        {'id': 'bridge', 'at': (base.x, lo_b.y + 0.03, hi_b.z + 0.006), 'out': (0.0, -0.7, 0.7),
+         'parts': ['hand_base', 'hand_rod', 'hand_rod_cap']},
+    ]
+
+
+def page(st):
+    """What the page's glass needs: the stand stands on the turntable's own
+    top, so that top is the floor here. The map of the ground the glass
+    takes from straight above leaves the turntable's top out under every
+    other piece's ground; here it is the ground, and rays that pass behind
+    the hand come down on it (not on the far wall's dark, beside the wrist)."""
+    return {'discFloor': True}

@@ -386,7 +386,42 @@ const allProjects = [
     team: 'Team of three. My part: the test analyzers, the capture stack and native Android pose',
     status: 'Hackathon build, tested on Android',
     private: true,
-    piece: { id: 'athletevision' },
+    piece: {
+      id: 'athletevision',
+      chapters: [
+        {
+          id: 'jar',
+          title: 'The sit-up test',
+          caption:
+            'The handbook’s ninth test as the app runs it: one phone on a stand films side-on at mat height and counts. Round the mat, the kit of the other tests: a floor tape, two cones and the medicine ball.',
+          hint: 'Drag to turn it. Tap the glass to lift it off, then tap a part.',
+        },
+        {
+          id: 'phone',
+          title: 'Pose on the phone',
+          caption:
+            'MediaPipe pose runs on the phone with no network: a Lite model live and a Full model for still frames, both inside the app. Native Android pose through CameraX ran 2.7 to 3.7 times faster than the WebView on a Galaxy A17 5G, and the GPU is kept only if it is at least 15% faster.',
+        },
+        {
+          id: 'count',
+          title: 'Counting sit-ups',
+          caption:
+            'A sit-up counts when the elbows touch the knees, for 45 s. Three fouls refuse one: fingers not clasped behind the neck, pushing off with an elbow, or elbows not back on the mat before the next. A foul drops only that sit-up. The count was exact in all 16 synthetic scenarios.',
+        },
+        {
+          id: 'marks',
+          title: 'Marks that hold',
+          caption:
+            'Tape marks are tapped once, then followed through the phone’s motion sensors and found again in the picture. A turn of more than 0.4° held for 250 ms stops the attempt: a 1° tilt at 3 m would move a reading by about 5 cm.',
+        },
+        {
+          id: 'throw',
+          title: 'Medicine ball',
+          caption:
+            'The ball is followed from the release to its first touch of the ground, read on the floor’s own scale, and the landing frame is shown for the coach to confirm. On synthetic throws it lands within 0.12 m at 30 and 60 fps. The size it looks for follows the athlete’s ball, 2 kg or 1 kg.',
+        },
+      ],
+    },
     metrics: [
       { value: '8 of 10', label: 'tests measured by the camera; the coach types or times the other two' },
       { value: '2.7×', label: 'to 3.7× faster pose on native Android than in the WebView, on a Galaxy A17 5G' },
@@ -426,7 +461,45 @@ const allProjects = [
     team: 'Hackathon team. My part: the data pipeline, the AI advisor and the 3D',
     status: 'Hackathon build, seeded with demo tickets',
     private: true,
-    piece: { id: 'neernaadi' },
+    piece: {
+      id: 'neernaadi',
+      chapters: [
+        {
+          id: 'jar',
+          title: 'A street in the monsoon',
+          caption:
+            'A Chennai street in miniature, cut open to show what the advisor reads: the box drains under both footpaths, one silted with rubbish caught in it, the water main and the sewer. Ten unattended reports stand round the water in the road.',
+          hint: 'Drag to turn it. Tap the glass to lift it off, then tap a part.',
+        },
+        {
+          id: 'zone',
+          title: 'Red zones',
+          caption:
+            'Ten or more open reports within 500 m and 6 hours raise an area red zone. It turns orange once the government has responded to most of them and grey when most are resolved, then clears. Three area zones, or 50 open reports, raise a ward.',
+        },
+        {
+          id: 'ticket',
+          title: 'A ticket’s life',
+          caption:
+            'Every report is a public ticket: red while unattended, orange while the government processes it, grey once resolved. Then WhatsApp asks the resident “Is it fixed?”. YES closes it; NO reopens it as red, marked “Resident: not fixed”.',
+        },
+        {
+          id: 'drains',
+          title: 'The drain survey',
+          // With the glass off the camera comes in on the cut, where the
+          // silted drain shows its bottles and leaves.
+          view: { zoom: 0.4, pitch: 0.15 },
+          caption:
+            'The advice reads the city’s drain survey: 19,947 segments, each lined or unlined, covered or open, with its condition, whether water was seen flowing, its obstacles, size and age. Every defect it cites carries its GCC record number.',
+        },
+        {
+          id: 'floods',
+          title: 'Past floods',
+          caption:
+            'The advisor draws on 272 dated, place-named flood reports from the news, across 10 events from 2016 to 2026, each with its link. It may add no figure of its own: a rewrite with a number not in its sources falls back to the template.',
+        },
+      ],
+    },
     metrics: [
       { value: '272', label: 'dated, place-named flood reports from the news across 10 events, 2016 to 2026, each with its link' },
       { value: '19,947', label: 'surveyed drain segments behind the advice, each defect cited by its GCC record number' },
@@ -530,7 +603,36 @@ const allProjects = [
     role: 'Main developer',
     team: 'Client project for a courier franchise in Tamil Nadu',
     private: true,
-    piece: { id: 'courier' },
+    piece: {
+      id: 'courier',
+      chapters: [
+        {
+          id: 'jar',
+          title: 'The counter',
+          caption:
+            'What the software does at a courier counter: the parcel is weighed and booked, and its receipt prints with the consignment’s barcode. A new receipt feeds out over the last one.',
+          hint: 'Drag to turn it. Tap the glass to lift it off, then tap a part.',
+        },
+        {
+          id: 'weigh',
+          title: 'Weight to price',
+          caption:
+            'The destination’s pincode gives its region and the weight finds its slab; past the last slab, every extra unit adds the rate. A concession of up to 10% can come off by default, and the GST inside the total is split into CGST and SGST.',
+        },
+        {
+          id: 'receipt',
+          title: 'The receipt',
+          caption:
+            'An A5 receipt laid out with QuestPDF: the consignment row with its number as a Code 128 barcode, the date, the parcel’s type and weight, both customers, the charges and the total.',
+        },
+        {
+          id: 'track',
+          title: 'Tracking',
+          caption:
+            'Every consignment’s status is fetched from the courier network four times a day, at 10:00, 13:00, 16:00 and 20:00, and the master data every hour. Customers hear of each step by WhatsApp and SMS.',
+        },
+      ],
+    },
     metrics: [
       { value: '16', label: 'MVC controllers over 18 services' },
       { value: '4×', label: 'daily background sync with the courier network' },
@@ -563,7 +665,39 @@ const allProjects = [
     // The repository is public, but it is not linked from here until it has
     // been cleaned up (docs/dioramas-handoff.md, "Needs the owner").
     private: true,
-    piece: { id: 'attendance' },
+    piece: {
+      id: 'attendance',
+      chapters: [
+        {
+          id: 'jar',
+          title: 'At the door',
+          caption:
+            'A camera over a doorway, as the system watches one: each person who passes is matched to an enrolled face and logged. The figure is a blank wooden peg: no face is modelled, and none is used.',
+          hint: 'Drag to turn it. Tap the glass to lift it off, then tap a part.',
+        },
+        {
+          id: 'camera',
+          title: 'Find, then match',
+          caption:
+            'RetinaFace finds each face in the frame at 640 × 640, keeping those it is at least 0.7 sure of. ArcFace turns each into an embedding, and a cosine similarity above 0.4 with an enrolled one names the person.',
+        },
+        {
+          id: 'cooldown',
+          title: 'Sixty seconds',
+          // With the glass off the camera looks down on the ring round the
+          // figure's feet, far enough back to keep the figure in.
+          view: { zoom: 0.8, pitch: 0.4 },
+          caption:
+            'A sighting is a check-in and the next one a check-out. For 60 s after a sighting the same person is not logged again, so standing in frame counts once: the ring round the figure fills a mark a second.',
+        },
+        {
+          id: 'log',
+          title: 'The log',
+          caption:
+            'The day exports to Excel as two sheets: Working_Hours_Summary, with each person’s hours, and Detailed_InOut_Log, with every check-in and check-out. Enrolment and monitoring sit behind a JWT-secured FastAPI app.',
+        },
+      ],
+    },
     metrics: [
       { value: '60 s', label: 'cooldown, so someone standing in frame is logged once' },
       { value: '0.4', label: 'cosine-similarity threshold on ArcFace embeddings' },
@@ -590,7 +724,39 @@ const allProjects = [
     year: '2025',
     role: 'Internship project',
     team: 'Ethical Intelligence Technologies',
-    piece: { id: 'indoor-tracking' },
+    piece: {
+      id: 'indoor-tracking',
+      chapters: [
+        {
+          id: 'jar',
+          title: 'A crate on the plan',
+          caption:
+            'A floor plan with three anchors and a crate carrying a BLE tag, doing one lap of the rooms. Each anchor’s range circle is as wide as the crate is far, so the three meet where the crate is.',
+          hint: 'Drag to turn it. Tap the glass to lift it off, then tap a part.',
+        },
+        {
+          id: 'ranges',
+          title: 'Trilateration',
+          caption:
+            'The tag and the three anchors talk over Bluetooth Low Energy, and the signal’s strength (RSSI) says roughly how far apart they are. Three distances meet in one place: RSSI trilateration, indoors where GPS cannot reach.',
+        },
+        {
+          id: 'track',
+          title: 'Kalman smoothing',
+          caption:
+            'Signal strength is noisy, so raw fixes scatter round the route. A Kalman filter smooths them into a track that holds to about 3 metres: the disc round the crate, as wide as the scale bar.',
+        },
+        {
+          id: 'gateway',
+          title: 'Live on the plan',
+          // With the glass off the camera comes in on the board atop the mast
+          // (the readings climb to it), looking down on the arcs a little.
+          view: { zoom: 0.45, pitch: 0.3 },
+          caption:
+            'Readings come in over MQTT, and positions reach the floor plan live over WebSocket, for assets and people indoors.',
+        },
+      ],
+    },
     metrics: [
       { value: '±3 m', label: 'Positioning accuracy' },
       { value: 'BLE', label: 'RSSI trilateration' },
@@ -618,7 +784,42 @@ const allProjects = [
     role: 'Solo project',
     status: 'Redesign concept',
     private: true,
-    piece: { id: 'kps-cleano' },
+    piece: {
+      id: 'kps-cleano',
+      chapters: [
+        {
+          id: 'jar',
+          title: 'A doorstep and its kit',
+          caption:
+            'The storefront’s own product models in a crate on a red-oxide doorstep, with a sikku kolam drawn on the step. Soap bubbles rise from the scrubber’s suds.',
+          hint: 'Drag to turn it. Tap the glass to lift it off, then tap a part.',
+        },
+        {
+          id: 'kit',
+          title: 'The doorstep kit',
+          caption:
+            'On the storefront’s 3D doorstep the visitor cleans in the order professionals use, top to bottom and dry before wet, one product to a job. All nine make a doorstep kit: ₹1,035, over the free-delivery line.',
+        },
+        {
+          id: 'clean',
+          title: 'Clean by hand',
+          caption:
+            'The mess clears only where a tool goes: leaves and dust are particles pushed off the edge, and cobwebs, dust, grime and water are masks wiped away where it passes. Mop before sweeping and it says “Sweep first: wet dust turns to mud”.',
+        },
+        {
+          id: 'kolam',
+          title: 'The kolam',
+          caption:
+            'The last job is the reward: hold, and the kolam draws itself on the damp floor. The order-placed page plays the same kolam as a clip rendered in Cycles.',
+        },
+        {
+          id: 'site',
+          title: 'The storefront',
+          caption:
+            '165 products across 11 ranges on 415 static pages, every one with an English and a Tamil twin, and 68 KB of gzipped JavaScript across the whole site.',
+        },
+      ],
+    },
     metrics: [
       { value: '165', label: 'products across 11 ranges, rebuilt from the live catalogue' },
       { value: '415', label: 'static pages, every one with an English and a Tamil twin' },
@@ -646,7 +847,42 @@ const allProjects = [
       result: 'A pitch surface that reads as a funded startup, not a student project.',
     },
     year: '2026',
-    piece: { id: 'observex' },
+    piece: {
+      id: 'observex',
+      chapters: [
+        {
+          id: 'jar',
+          title: 'The mark and its rings',
+          caption:
+            'ObserveX is a product site for a home-security concept, so there is no machine to show: the jar holds its identity. The OX block is the logo from the site’s navbar, and three rings in its palette swing round it, each carrying a lens.',
+          hint: 'Drag to turn it. Tap the glass to lift it off, then tap a part.',
+        },
+        {
+          id: 'mark',
+          title: 'The logo',
+          caption:
+            'As the navbar draws it: a rounded square in a gradient from cyan to violet, with OX in the page’s navy, #050810.',
+        },
+        {
+          id: 'palette',
+          title: 'The palette',
+          caption:
+            'The rings are the palette in the site’s stylesheet: navy #050810, cyan #00e5ff and purple #8b5cf6. The type is Bebas Neue for display, Rajdhani for headings, DM Sans for text and Space Mono for figures.',
+          // The dot rides over the rings' tops: aimed at their middle instead
+          // (the block's, 0.25 below), from far enough back to hold all three.
+          view: { zoom: 0.74, pitch: 0.12, drop: 0.25 },
+        },
+        {
+          id: 'site',
+          title: 'Twelve sections',
+          caption:
+            'Twelve sections in React 19, TypeScript and Framer Motion, from a two-second loading screen with a turning scan to the demo booking and the footer.',
+          // In on the tag, from a little lower: the rings behind it then rise
+          // out of the frame instead of catching under the button at its top.
+          view: { zoom: 0.31, pitch: -0.14 },
+        },
+      ],
+    },
     repo: 'https://github.com/yaseen12376/observex',
     metrics: [
       { value: '12', label: 'Composed sections' },
@@ -671,7 +907,36 @@ const allProjects = [
       result: 'Trained across FaceForensics++ and Celeb-DF, served through a Flask API.',
     },
     year: '2025',
-    piece: { id: 'adraf' },
+    piece: {
+      id: 'adraf',
+      chapters: [
+        {
+          id: 'jar',
+          title: 'A head under the scanner',
+          caption:
+            'A milliner’s head form with no face, split down the middle: one half glazed porcelain, the other the same shape taken apart into voxels, a few lit where the checks found something. A scan ring travels up and down it.',
+          hint: 'Drag to turn it. Tap the glass to lift it off, then tap a part.',
+        },
+        {
+          id: 'landmarks',
+          title: 'Landmark geometry',
+          caption:
+            'The first of three independent signals: facial landmark analysis catches geometric inconsistency in a face. Faces are found and tracked in real time with MTCNN and dlib.',
+        },
+        {
+          id: 'temporal',
+          title: 'Frame to frame',
+          caption:
+            'The second: a temporal module looks for the frame-to-frame instability that generated video struggles to hide.',
+        },
+        {
+          id: 'cnn',
+          title: 'A CNN',
+          caption:
+            'The third: a CNN classifier catches the compression and lighting artefacts specific to synthesis. It was trained across two benchmarks, FaceForensics++ and Celeb-DF, and the pipeline is served through a Flask REST API.',
+        },
+      ],
+    },
     metrics: [
       { value: '2', label: 'Benchmark datasets' },
       { value: '3', label: 'Independent detection signals' },
@@ -699,7 +964,43 @@ const allProjects = [
     role: 'Solo project',
     status: 'In progress',
     private: true,
-    piece: { id: 'airdraw' },
+    piece: {
+      id: 'airdraw',
+      chapters: [
+        {
+          id: 'jar',
+          title: 'Drawing in the air',
+          caption:
+            'A wooden artist’s hand in the drawing pose, index finger up. Its 21 landmarks are the dots on its joints, joined as MediaPipe joins them, and the star it has drawn hangs in the air in the app’s brush colour.',
+          hint: 'Drag to turn it. Tap the glass to lift it off, then tap a part.',
+        },
+        {
+          id: 'hand',
+          title: 'Three gestures',
+          caption:
+            'MediaPipe finds the hand’s 21 landmarks in every frame of a 30 FPS feed. Index finger up draws, an open palm erases, and a pinch zooms: fingertips closer than 18% of the hand’s diagonal, and never less than 25 px.',
+        },
+        {
+          id: 'stroke',
+          title: 'Smooth strokes',
+          caption:
+            'Each point is eased toward the last: 60% where the pen was, 40% where the finger is now (POSITION_SMOOTHING 0.6). The brush runs from 1 to 50 px and the eraser from 10 to 100 px.',
+          // The dot sits on the star's top point: aimed at the star's middle
+          // (its radius, 0.15, below), the fingertip that drew it beside it.
+          view: { zoom: 0.55, pitch: 0.05, drop: 0.14 },
+        },
+        {
+          id: 'bridge',
+          title: 'The C++ bridge',
+          caption:
+            'Two C++ bridges built with Bazel, one for frames and one for landmarks, talk to the app over TCP, and Flask-SocketIO carries the result to the page. Gesture processing takes about 33 ms.',
+          // The bridge is the rod the hand stands on: aimed up it (0.2 above
+          // the dot on the base), from far enough back that the whole hand
+          // stands below the button at the top.
+          view: { zoom: 0.62, pitch: 0.05, drop: -0.2 },
+        },
+      ],
+    },
     metrics: [
       { value: '21', label: 'hand landmarks tracked every frame' },
       { value: '3', label: 'gestures: draw, erase and pinch to zoom' },

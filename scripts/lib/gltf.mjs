@@ -7,9 +7,10 @@ import { readFile } from 'node:fs/promises';
 
 import { NodeIO, PropertyType } from '@gltf-transform/core';
 import { ALL_EXTENSIONS } from '@gltf-transform/extensions';
-import { dedup, instance, meshopt, prune, resample, simplifyPrimitive, weld } from '@gltf-transform/functions';
+import { dedup, instance, meshopt, prune, resample, simplifyPrimitive, textureCompress, weld } from '@gltf-transform/functions';
 import validator from 'gltf-validator';
 import { MeshoptDecoder, MeshoptEncoder, MeshoptSimplifier } from 'meshoptimizer';
+import sharp from 'sharp';
 
 export const io = () =>
   new NodeIO()
@@ -83,8 +84,11 @@ function simplifyMeshes(error) {
  * @param {boolean} [o.animations]  keep the clips (no instancing; resampled, static channels dropped)
  * @param {number} [o.simplify]     error bound for simplifyMeshes(), as a fraction of each mesh's radius
  * @param {'medium'|'high'} [o.level]  meshopt: 'high' adds the filters (octahedral normals and so on)
+ * @param {number} [o.webp]         re-encode the textures the GLB carries (a borrowed model's own maps,
+ *                                  as Blender writes them: PNG) as WebP of this quality (EXT_texture_webp)
+ * @param {number} [o.maxTexture]   and no side of them over this many pixels
  */
-export async function optimise(src, dst, { animations = false, quantize = {}, simplify = 0, level = 'medium' } = {}) {
+export async function optimise(src, dst, { animations = false, quantize = {}, simplify = 0, level = 'medium', webp = 0, maxTexture = 0 } = {}) {
   await MeshoptEncoder.ready;
   await MeshoptDecoder.ready;
   const doc = await io().read(src);
@@ -97,6 +101,8 @@ export async function optimise(src, dst, { animations = false, quantize = {}, si
   if (!animations) steps.push(instance({ min: 2 }));
   if (animations) steps.push(resample(), dropStaticChannels());
   steps.push(prune({ propertyTypes: ['accessor', 'material', 'texture', 'animation'], keepAttributes: true, keepLeaves: true }));
+  // (Alpha survives: a grass card's cut-out is its colour map's alpha.)
+  if (webp) steps.push(textureCompress({ encoder: sharp, targetFormat: 'webp', quality: webp, effort: 90, ...(maxTexture ? { resize: [maxTexture, maxTexture] } : {}) }));
   // 8-bit normals are invisible at diorama scale and halve their bytes.
   steps.push(meshopt({ encoder: MeshoptEncoder, level, quantizeNormal: 8, ...quantize }));
   await doc.transform(...steps);

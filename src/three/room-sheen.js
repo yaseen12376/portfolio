@@ -132,7 +132,7 @@ const PARS = /* glsl */ `
     vec3 sum = vec3(0.0);
     for (int i = 0; i < ROOM_LIGHTS; i++) {
       // Lights face the jar along -(x cross y): a ray meets the lit face
-      // travelling against that.
+      // travelling against that (along x cross y).
       vec3 n = cross(roomX[i], roomY[i]);
       float den = dot(R, n);
       float t = dot(roomPos[i] - P, n) / max(den, 1e-4);
@@ -153,7 +153,10 @@ const PARS = /* glsl */ `
       float NoH = max(dot(N, H), 0.0);
       float k = NoH * NoH * (a2 - 1.0) + 1.0;
       float D = a2 / (PI * k * k);
-      float solid = 4.0 * roomHalf[i].x * roomHalf[i].y * max(-dot(L, n), 0.0) / d2;
+      // (Seen from its lit side: toward the light is along x cross y, as
+      // the ray above meets it. Taken the other way round, as it was, this
+      // was nothing for every light, and the brass had no tail at all.)
+      float solid = 4.0 * roomHalf[i].x * roomHalf[i].y * max(dot(L, n), 0.0) / d2;
       vec3 F = f0 + (1.0 - f0) * pow(1.0 - max(dot(V, H), 0.0), 5.0);
       vec3 tail = F * (D * solid * step(0.0, dot(N, L)) / (4.0 * NoV));
       sum += roomRad[i] * (core * dfg + (1.0 - core) * min(tail, dfg));
@@ -243,6 +246,130 @@ export function floorMap(renderer, meshes, { half = 0.78, size = 512 } = {}) {
   renderer.setRenderTarget(was);
   renderer.setClearColor(clear, alpha);
   return { texture: target.texture, half, texel: (2 * half) / size, dispose: () => target.dispose() };
+}
+
+// The glass's glow on a rough surface inside it (addGlassGlow): after three's
+// GGX, so the lights are weighed by the surface's own lobe, as its direct
+// light is.
+const GLOW_PARS = /* glsl */ `
+  #define GLOW_LIGHTS ${ROOM_LIGHTS}
+  uniform vec3 glowPos[GLOW_LIGHTS];
+  uniform vec3 glowX[GLOW_LIGHTS];
+  uniform vec3 glowY[GLOW_LIGHTS];
+  uniform vec2 glowHalf[GLOW_LIGHTS];
+  uniform vec3 glowRad[GLOW_LIGHTS];
+  uniform vec3 glowSpotL;
+  uniform vec3 glowSpot;
+  // x: how much of the lights at roughness 1, y: the roughness it starts
+  // from, z: how much of the glass is down (1 on the brass, 0 lifted clear),
+  // w: how much of the spot at roughness 1.
+  uniform vec4 glowK;
+  varying vec3 vGlowPos;
+
+  vec3 glassGlow(vec3 P, vec3 N, vec3 V, PhysicalMaterial material) {
+    float w = glowK.z * smoothstep(glowK.y, 1.0, material.roughness);
+    if (w <= 0.0) return vec3(0.0);
+    vec3 R = reflect(-V, N);
+    vec3 sum = vec3(0.0);
+    for (int i = 0; i < GLOW_LIGHTS; i++) {
+      // Each rectangle from its point nearest the mirror ray (its middle for
+      // a ray turned away from it), times how big it looks from here.
+      vec3 n = cross(glowX[i], glowY[i]);
+      float den = dot(R, n);
+      float t = dot(glowPos[i] - P, n) / max(den, 1e-4);
+      vec3 h = P + R * t - glowPos[i];
+      vec2 q = den > 1e-4 && t > 0.0 ? clamp(vec2(dot(h, glowX[i]) / glowHalf[i].x, dot(h, glowY[i]) / glowHalf[i].y), -1.0, 1.0) : vec2(0.0);
+      vec3 Lv = glowPos[i] + glowX[i] * (q.x * glowHalf[i].x) + glowY[i] * (q.y * glowHalf[i].y) - P;
+      float d2 = max(dot(Lv, Lv), 1e-4);
+      vec3 L = Lv * inversesqrt(d2);
+      float solid = 4.0 * glowHalf[i].x * glowHalf[i].y * max(dot(L, n), 0.0) / d2;
+      sum += glowRad[i] * (saturate(dot(N, L)) * solid) * BRDF_GGX(L, V, N, material);
+    }
+    sum *= glowK.x;
+    sum += glowK.w * glowSpot * saturate(dot(N, glowSpotL)) * BRDF_GGX(glowSpotL, V, N, material);
+    return sum * w;
+  }
+`;
+
+/**
+ * What the render's glass gives a rough surface inside it: the room's lights
+ * and the spot, in the surface's own lobe, as if the glass passed them on.
+ *
+ * In Cycles none of the strips falls on the model (they are linked to the
+ * glassware), and the spot's light reaches it once, through glass that is
+ * clear to shadow rays. Yet in every poster a dark disc under the dome reads
+ * as a pale floor: a rough surface's glossy rays meet the glass, Cycles'
+ * glossy blur (render_piece.py, blur_glossy 0.5) roughens the glass for a
+ * ray that comes off a rough bounce, and rough glass takes the light of
+ * every lamp it is linked to and passes it on. Rendered with that blur off,
+ * or with the disc's gloss off, the floor is dark, as it is here without
+ * this. A sharp surface keeps the glass sharp and gets none of it.
+ *
+ * Measured on ObserveX's disc (build/qa/band_cal.py): the strips' share
+ * comes to about a third of the surface's own GGX response to them at
+ * roughness 0.5 to 0.65, and half at 0.94; the spot's grows from a sixth of
+ * its direct gloss at 0.5 to as much again at 0.94. Here, a weight for
+ * each, the strips' `k` and the spot's `kSpot`, from nothing at roughness
+ * `from` to all of it at 1 (the model's roughness is the atlas's times 1.3,
+ * stage.js), unshadowed but for the model's own occlusion (its atlas's R),
+ * and fading as the glass is lifted (set()). Fitted to ObserveX's disc
+ * alone they came to 0.1 and 2, which left Mission Builder's jar, its rough
+ * ground square to the spot, brighter than its poster (tone dE 3.9). Of the
+ * nine pairs tried on all ten jars against their posters
+ * (build/qa/glowprobe.mjs), 0.06 and 1.5 is the one that keeps every jar
+ * within tone dE 3.
+ *
+ * @param {Iterable<import('three').MeshStandardMaterial>} materials the model's, sharing these uniforms
+ * @param {ReturnType<typeof roomLights>} room every light the glass takes (roomLights(piece))
+ * @param {{ dir: import('three').Vector3, color: import('three').Color }} spot
+ *   the direction toward the spot and its irradiance (the key light's colour
+ *   x intensity, linear)
+ */
+export function addGlassGlow(materials, room, spot, { k = 0.06, kSpot = 1.5, from = 0.4 } = {}) {
+  const uniforms = {
+    glowPos: { value: room.pos },
+    glowX: { value: room.x },
+    glowY: { value: room.y },
+    glowHalf: { value: room.half },
+    glowRad: { value: room.rad },
+    glowSpotL: { value: spot.dir.clone().normalize() },
+    glowSpot: { value: new Vector3(spot.color.r, spot.color.g, spot.color.b) },
+    glowK: { value: new Vector4(k, from, 1, kSpot) },
+  };
+  for (const material of materials) {
+    const before = material.onBeforeCompile;
+    const beforeKey = material.customProgramCacheKey;
+    material.onBeforeCompile = (shader, renderer) => {
+      before.call(material, shader, renderer);
+      Object.assign(shader.uniforms, uniforms);
+      shader.vertexShader = shader.vertexShader
+        .replace('#include <common>', '#include <common>\nvarying vec3 vGlowPos;')
+        .replace('#include <project_vertex>', '#include <project_vertex>\nvGlowPos = (modelMatrix * vec4(transformed, 1.0)).xyz;');
+      shader.fragmentShader = shader.fragmentShader.replace('#include <lights_physical_pars_fragment>', `#include <lights_physical_pars_fragment>\n${GLOW_PARS}`).replace(
+        '#include <opaque_fragment>',
+        `{
+          #ifdef USE_AOMAP
+          float glowAO = ambientOcclusion;
+          #else
+          float glowAO = 1.0;
+          #endif
+          // (The shading normal, turned to face the eye on a sheet's back.)
+          vec3 glowN = normalize(inverseTransformDirection(normal, viewMatrix));
+          outgoingLight += glowAO * glassGlow(vGlowPos, glowN, normalize(cameraPosition - vGlowPos), material);
+        }
+        #include <opaque_fragment>`
+      );
+    };
+    material.customProgramCacheKey = () => `${beforeKey.call(material)}|glass-glow`;
+    material.needsUpdate = true;
+  }
+  return {
+    uniforms,
+    /** How much of the glass is down: 1 on the brass, 0 lifted clear. */
+    set(down) {
+      uniforms.glowK.value.z = down;
+    },
+  };
 }
 
 /**

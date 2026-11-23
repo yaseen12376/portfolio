@@ -8,6 +8,9 @@ What the software does at the counter, as its code has it:
     right, date, parcel type and weight, the two customers, the charges and
     a total), with a plain header band in place of the client's name
 A new receipt feeds out over the last one once a loop.
+
+The boxes and envelope are scanned cardboard and the scale's plate brushed
+steel (ambientCG, CC0); the packing tape is glossy.
 """
 
 from __future__ import annotations
@@ -20,6 +23,7 @@ import common as C
 from kit import geo
 from pieces import _kit as K
 from pieces import _parts as P
+from pieces import _scans as S
 
 META = {
     'id': 'courier',
@@ -39,7 +43,7 @@ SLOT = 0.286                 # where the paper leaves the printer, up the tray
 def _scale(col):
     root = P.group('scale', col, loc=(0.11, 0.075, 0.0), rot=(0, 0, -8.0))
     enamel = geo.pbr('scale_enamel', '#2b3038', rough=0.42)
-    steel = geo.textured('scale_steel', 'metal_plate_02', tint='#b9bec5', rough=0.34, metal=1.0, scale=0.2, strength=0.25)
+    steel = S.scanned('scale_steel', 'Metal009', tint='#b9bec5', size=0.16, rough=0.3, metal=1.0, bump=0.08)
     parts = [geo.box('scale_base', (0.3, 0.33, 0.04), (0, 0, 0), col=col, material=enamel, bev=0.01)]
     for sx in (-1, 1):
         for sy in (-1, 1):
@@ -64,9 +68,9 @@ def _parcel(col, scale):
     """A kraft box tied with string, the address label on top."""
     root = P.group('parcel', col, loc=(0.004, -0.02, 0.061), rot=(0, 0, -9.0), parent=scale)
     w, d, h = 0.205, 0.155, 0.118
-    kraft = geo.textured('kraft', 'rough_linen', tint='#b98d5c', rough=0.84, scale=0.5, strength=0.5)
+    kraft = S.scanned('kraft', 'Cardboard004', tint='#b98d5c', size=0.3, rough=0.82, bump=0.35, detail=0.5)
     parts = [geo.box('parcel_box', (w, d, h), (0, 0, 0), col=col, material=kraft, bev=0.004)]
-    tape = geo.pbr('parcel_tape', '#a17a4d', rough=0.5)
+    tape = geo.pbr('parcel_tape', '#b38b58', rough=0.18, spec=0.7)
     parts.append(geo.box('parcel_tape', (w + 0.001, 0.034, 0.0006), (0, 0, h), col=col, material=tape, bev=0))
     twine = geo.pbr('twine', '#d9c7a3', rough=0.9)
     e = 0.0028
@@ -197,7 +201,7 @@ def _printer(col):
 def _envelopes(col):
     """Two more consignments waiting: a padded envelope and a small box."""
     root = P.group('waiting', col, loc=(-0.2, 0.2, 0.0), rot=(0, 0, -34.0))
-    kraft = geo.textured('kraft_b', 'rough_linen', tint='#a9814f', rough=0.86, scale=0.5, strength=0.5)
+    kraft = S.scanned('kraft_b', 'Cardboard004', tint='#a9814f', size=0.3, rough=0.84, bump=0.35, detail=0.5)
     geo.box('small_box', (0.13, 0.1, 0.07), (0, 0, 0), col=col, material=kraft, bev=0.004).parent = root
     env = geo.box('envelope', (0.15, 0.105, 0.016), (0.008, -0.004, 0.07), rot=(0, 0, 16), col=col,
                   material=geo.pbr('envelope', '#d8c9a8', rough=0.8), bev=0.005)
@@ -236,3 +240,62 @@ def animate(t, st):
         flat += (r.x, min(r.y + off, SLOT), r.z)
     me.vertices.foreach_set('co', flat)
     me.update()
+
+
+# ---------------------------------------------------------------- the live jar (pieces/live.py)
+
+FEED_START, FEED_LEN = 0.9, 0.78   # animate(): the receipt's offset in the loop, and how long it feeds
+
+
+def spots(st):
+    """The live jar's numbered dots: the weight (on the scale's display),
+    the receipt (on the printer) and the tracking (on the consignments
+    waiting). Each names the parts a tap opens it from with the glass off.
+    The weight and the receipt face the way their faces look, the display's
+    glass and the slope the receipt lies on, not out from the axis (the
+    default): the scale stands behind the axis with its display turned to
+    the front, and the slope looks off to the printer's right, so a chapter
+    turned by the axis showed the display from behind and the receipt edge
+    on. (As up as the default, so the dots show as long.)"""
+    from mathutils import Vector
+    from pieces.live import below, box
+    bpy.context.view_layer.update()
+    _, top_h, head = box('head_box')
+    _, top_p, printer = box('printer_box')
+    _, top_w, waiting = box('envelope')
+    up = Vector((0.0, 0.0, 1.0))
+
+    def face(name):
+        n = bpy.data.objects[name].matrix_world.to_3x3() @ up
+        n.z = 0.0
+        return tuple((n.normalized() * 0.4 + up * 0.6).normalized())
+
+    return [
+        {'id': 'weigh', 'at': (head.x, head.y, top_h.z + 0.012), 'out': face('scale_head'), 'parts': below('scale')},
+        {'id': 'receipt', 'at': (printer.x, printer.y, top_p.z + 0.012), 'out': face('slope'), 'parts': below('printer')},
+        {'id': 'track', 'at': (waiting.x, waiting.y, top_w.z + 0.012), 'parts': below('waiting')},
+    ]
+
+
+def live(st):
+    """The receipt feeds out on the page (src/three/pieces/courier.js): the
+    whole sheet slides up the tray and what is still inside the printer is
+    cut away at its slot, as the render folds it there. It leaves whole, at
+    its t = 0 (lying in the tray), apart from the join, in materials of its
+    own (copies, `own`: the page cuts these at the slot, not the atlas the
+    rest of the model shares)."""
+    sheet = st['state']['sheet']
+    sheet['hooked'] = 1
+    me = sheet.data
+    for i, m in enumerate(me.materials):
+        if m is not None:
+            c = m.copy()
+            c.name = f'sheet_{m.name}'
+            c['own'] = 1
+            me.materials[i] = c
+
+
+def page(st):
+    """What the page's receipt needs: the sheet, the tray it slides up (its
+    frame: y up the slope), the slot and the loop's timing."""
+    return {'receipt': {'mesh': 'receipt_new', 'tray': 'slope', 'slot': SLOT, 'start': FEED_START, 'feed': FEED_LEN}}

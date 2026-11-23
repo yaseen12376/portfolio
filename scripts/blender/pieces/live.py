@@ -24,11 +24,17 @@ for a piece:
   lights()  nothing more: the kit's lights come with the jar
 
 and what only a piece has: the spots (empties the page hangs its numbered
-dots on), animate() sampled into keyframes the page plays as a glTF clip, the
-lights the glass reflects, and the model's atlas. A piece module can add its
-own: live(st) changes the scene for the export (a stand-in for a shader the
-page draws its own way), page(st) what scene.json's piece tells the page about
-it, and LIVE['model_uv_scale'] its share of the atlas.
+dots on), animate() sampled into keyframes the page plays as a glTF clip, what
+animate() changes on its materials (a glow's strength and colour, a ring's
+opacity) sampled with it as tracks the page sets frame by frame, the lights
+the glass reflects, and the model's atlas. A piece module can add its own:
+live(st) changes the scene for the export (a stand-in for a shader the page
+draws its own way; an object it marks `hooked` is left out of the clip and of
+the join, for src/three/pieces/<id>.js to move), page(st) what scene.json's
+piece tells the page about it, LIVE['model_uv_scale'] its share of the atlas
+and LIVE['clip_frames'] how finely its motion is sampled (the render's 144
+for a drop that falls six times a loop: a key a frame, so no part is ever
+drawn between the bottom of one fall and the top of the next).
 """
 
 from __future__ import annotations
@@ -116,12 +122,15 @@ class Piece:
         _trim_pad()
         _trim_base()
         spots = _spots(st, self.mod)
-        clip = _keyframes(st, self.mod)
+        clip, tracks = _keyframes(st, self.mod)
+        # Glows the glTF exporter cannot read (an emission shader mixed with
+        # a transparent one) leave as the Principled glows it can.
+        _principled_glows(st['turntable'])
         bpy.context.view_layer.update()
         # What the page needs for the piece's own effects (its dust), as
         # scene.json's piece says it.
         own = self.mod.page(st) if hasattr(self.mod, 'page') else {}
-        return {'piece_spots': spots, 'clip': clip, 'piece_page': own}
+        return {'piece_spots': spots, 'clip': clip, 'tracks': tracks, 'piece_page': own}
 
     def lights(self, sc):
         return None
@@ -187,7 +196,11 @@ def _sheen():
 
 def _trim_pad():
     """The pad is 1.7 m across so no render ever shows its edge. Live, only
-    what the page can see is kept: its fade ends at 0.72 m."""
+    what the page can see is kept: its fade ends at 0.72 m, so its top is cut
+    at PAD_R, and its edge and underside go. (Kept, the 4 mm edge took UV
+    islands under a texel wide, coloured by whatever island lay beside them
+    in the atlas: a red or beige dash on the black pad. Black there in the
+    render, as the floor shows it.)"""
     pad = bpy.data.objects.get('jar_pad')
     if not pad:
         return
@@ -196,6 +209,15 @@ def _trim_pad():
         if r > PAD_R:
             v.co.x *= PAD_R / r
             v.co.y *= PAD_R / r
+    nm = pad.matrix_world.to_3x3().inverted_safe().transposed()
+    bm = bmesh.new()
+    bm.from_mesh(pad.data)
+    bm.normal_update()
+    kill = [f for f in bm.faces if (nm @ f.normal).normalized().z < 0.5]
+    if kill:
+        bmesh.ops.delete(bm, geom=kill, context='FACES')
+        bm.to_mesh(pad.data)
+    bm.free()
     pad.data.update()
 
 
@@ -308,22 +330,145 @@ def _spots(st, mod):
     return out
 
 
+def _from_light_path(sock, depth=4):
+    """Whether a Light Path node drives this socket (through a few nodes)."""
+    for link in sock.links:
+        f = link.from_node
+        if f.type == 'LIGHT_PATH':
+            return True
+        if depth and any(_from_light_path(i, depth - 1) for i in f.inputs if i.is_linked):
+            return True
+    return False
+
+
+def _unwrap(n):
+    """Past any ray switch a piece put round a surface (a Mix that a Light
+    Path drives, Transparent on one side: NeerNaadi keeps its glows out of
+    reflections so), to the shader it switches. Cycles needs the switch; the
+    page has no rays to switch on."""
+    while n is not None and n.type == 'MIX_SHADER' and n.inputs[0].is_linked and _from_light_path(n.inputs[0]):
+        a = n.inputs[1].links[0].from_node if n.inputs[1].is_linked else None
+        b = n.inputs[2].links[0].from_node if n.inputs[2].is_linked else None
+        if b is not None and b.type == 'BSDF_TRANSPARENT':
+            n = a
+        elif a is not None and a.type == 'BSDF_TRANSPARENT':
+            n = b
+        else:
+            break
+    return n
+
+
+def _strip_switch(m):
+    """The material's surface straight from the shader its ray switch wraps."""
+    nt = m.node_tree if m and m.use_nodes else None
+    if nt is None:
+        return
+    s = _output(m).inputs['Surface']
+    if not s.is_linked:
+        return
+    n = s.links[0].from_node
+    inner = _unwrap(n)
+    if inner is not None and inner is not n:
+        nt.links.new(inner.outputs[0], s)
+
+
+def _glow_nodes(m):
+    """An emission-shader glow (_parts.soft_glow): the Emission node and, if
+    it is mixed with a Transparent one, the Mix (its factor is the opacity).
+    (None, None) for anything else."""
+    nt = m.node_tree if m and m.use_nodes else None
+    if nt is None or _bsdf(m) is not None:
+        return None, None
+    s = _output(m).inputs['Surface']
+    if not s.is_linked:
+        return None, None
+    n = _unwrap(s.links[0].from_node)
+    if n is None:
+        return None, None
+    if n.type == 'EMISSION':
+        return n, None
+    if n.type == 'MIX_SHADER':
+        em = next((l.from_node for l in n.inputs[2].links if l.from_node.type == 'EMISSION'), None)
+        tr = next((l.from_node for l in n.inputs[1].links if l.from_node.type == 'BSDF_TRANSPARENT'), None)
+        if em is not None and tr is not None and not n.inputs[0].is_linked:
+            return em, n
+    return None, None
+
+
+def _values(m):
+    """What animate() may change on a material between frames, as the page
+    can set it (three.js names): emission strength and colour, opacity and
+    base colour, each where no link drives it. Colours are linear."""
+    out = {}
+    b = _bsdf(m)
+    if b is not None:
+        for key, name in (('emissive', 'Emission Strength'), ('emissiveColor', 'Emission Color'), ('opacity', 'Alpha'), ('color', 'Base Color')):
+            s = b.inputs.get(name)
+            if s is not None and not s.is_linked:
+                v = s.default_value
+                out[key] = float(v) if isinstance(v, float) else tuple(v)[:3]
+        return out
+    em, mix = _glow_nodes(m)
+    if em is not None:
+        if not em.inputs['Strength'].is_linked:
+            out['emissive'] = float(em.inputs['Strength'].default_value)
+        if not em.inputs['Color'].is_linked:
+            out['emissiveColor'] = tuple(em.inputs['Color'].default_value)[:3]
+        out['opacity'] = float(mix.inputs[0].default_value) if mix is not None else 1.0
+    return out
+
+
+def _round(v):
+    return round(v, 4) if isinstance(v, float) else [round(c, 4) for c in v]
+
+
+def _differ(a, b):
+    if isinstance(a, float):
+        return abs(a - b) > 1e-4
+    return any(abs(x - y) > 1e-4 for x, y in zip(a, b))
+
+
 def _keyframes(st, mod):
-    """animate(t) sampled CLIP_FRAMES times through one loop, keyed on every
-    object it moves, so the page can play it as a glTF clip. The last key is
-    t = 1 itself (not 0 again), so a turning part keeps turning the same way
-    into the seam."""
+    """animate(t) sampled n times through one loop (LIVE['clip_frames'],
+    CLIP_FRAMES unless the piece asks for more), keyed on every object it
+    moves, so the page can play it as a glTF clip. The last key is t = 1
+    itself (not 0 again), so a turning part keeps turning the same way into
+    the seam. With it, what animate() changes on the materials of what the
+    turntable carries, sampled at the same keys: (clip, tracks).
+
+    tracks: {'frames': n + 1, 'materials': {name: {channel: [a value per
+    key]}}}, for the channels that change (emissive, opacity: numbers;
+    emissiveColor, color: linear RGB). A glow that changes strength carries
+    its colour too, if only as one value: at t = 0 it may be dark, and the
+    glTF would keep no colour for it. Each tracked material leaves as itself
+    (keeps_own), never in the atlas."""
     if not hasattr(mod, 'animate'):
-        return None
+        return None, None
     tt = st['turntable']
-    objs = [o for o in bpy.data.objects if under(o, tt)]
-    n = CLIP_FRAMES
+    objs = [o for o in bpy.data.objects if under(o, tt) and not o.get('hooked')]
+    n = int(getattr(mod, 'LIVE', {}).get('clip_frames', CLIP_FRAMES))
+    mats = {m for o in bpy.data.objects if under(o, tt) and o.type == 'MESH' for m in o.data.materials if m is not None}
+    seen = []
 
     def pose(t):
         mod.animate(t, st['state'])
+        seen.append({m.name: _values(m) for m in mats})
         return {o.name: (tuple(o.location), tuple(o.rotation_euler), tuple(o.scale)) for o in objs}
 
     frames = [pose(i / n) for i in range(n + 1)]
+    tracks = {}
+    for name, v0 in seen[0].items():
+        chans = {}
+        for k, v in v0.items():
+            if any(_differ(v, f[name][k]) for f in seen[1:]):
+                chans[k] = [_round(f[name][k]) for f in seen]
+        if 'emissive' in chans and 'emissiveColor' not in chans and 'emissiveColor' in v0:
+            chans['emissiveColor'] = _round(v0['emissiveColor'])
+        if chans:
+            tracks[name] = chans
+            bpy.data.materials[name]['tracked'] = 1
+    if tracks:
+        print('TRACKED', len(tracks), 'materials:', ', '.join(f'{k} ({"/".join(v)})' for k, v in sorted(tracks.items())))
     first = frames[0]
     moving = sorted({k for f in frames for k, v in f.items()
                      if any(abs(a - b) > 1e-6 for x, y in zip(v, first[k]) for a, b in zip(x, y))})
@@ -344,7 +489,52 @@ def _keyframes(st, mod):
     mod.animate(0.0, st['state'])
     sc.frame_set(0)
     print('KEYED', len(moving), 'objects over', n, 'frames')
-    return {'frames': n, 'seconds': LOOP_SECS, 'objects': moving}
+    clip = {'frames': n, 'seconds': LOOP_SECS, 'objects': moving} if moving else None
+    return clip, ({'frames': n + 1, 'materials': tracks} if tracks else None)
+
+
+def _principled_glows(tt):
+    """Every emission-shader glow on the turntable (_parts.soft_glow: a beam,
+    a ring of light, a ripple) rebuilt as the Principled glow the glTF
+    exporter reads: black, rough, no specular, the same emission, and the
+    Mix's factor as its alpha (blended, so the page draws it see-through).
+    Its name stays, so its tracks still find it."""
+    done = set()
+    for o in bpy.data.objects:
+        if not under(o, tt) or o.type != 'MESH':
+            continue
+        for m in o.data.materials:
+            if m is None or m in done:
+                continue
+            done.add(m)
+            # (A Principled glow inside a ray switch, too: the glTF exporter
+            # reads the Principled only when it feeds the output itself.)
+            _strip_switch(m)
+            em, mix = _glow_nodes(m)
+            if em is None:
+                continue
+            colour = tuple(em.inputs['Color'].default_value)
+            strength = float(em.inputs['Strength'].default_value)
+            alpha = float(mix.inputs[0].default_value) if mix is not None else 1.0
+            nt = m.node_tree
+            for n in list(nt.nodes):
+                nt.nodes.remove(n)
+            out = nt.nodes.new('ShaderNodeOutputMaterial')
+            b = nt.nodes.new('ShaderNodeBsdfPrincipled')
+            b.inputs['Base Color'].default_value = (0, 0, 0, 1)
+            b.inputs['Roughness'].default_value = 1.0
+            if 'Specular IOR Level' in b.inputs:
+                b.inputs['Specular IOR Level'].default_value = 0.0
+            b.inputs['Emission Color'].default_value = colour
+            b.inputs['Emission Strength'].default_value = strength
+            b.inputs['Alpha'].default_value = alpha
+            nt.links.new(b.outputs[0], out.inputs['Surface'])
+            if alpha < 1 or m.get('tracked'):
+                try:
+                    m.surface_render_method = 'BLENDED'
+                except Exception:
+                    m.blend_method = 'BLEND'
+            m['glow'] = 1
 
 
 # ---------------------------------------------------------------- light, for the page
@@ -450,6 +640,8 @@ def scene_json(S, data):
             # The turntable's room: what the shadow map covers.
             'room': {'y': round(K.FLOOR, 4), 'r': K.DISC_R, 'h': K.ROOM_H},
             'clip': data.get('clip'),
+            # What the clip moves on the materials (_keyframes).
+            'tracks': data.get('tracks'),
             'spots': data.get('piece_spots', {}),
             'probe': {'at': C.y_up(ENV_AT), 'lights': glass_lights()},
             'model': {'color': 'model_color.webp', 'orm': 'model_orm.webp'},
@@ -490,8 +682,10 @@ def _is_clear(m):
 
 def keeps_own(m):
     """A material the atlas cannot carry: a glow (its strength is more than a
-    colour) or anything see-through. It is exported as itself."""
-    return _is_emissive(m) or _is_clear(m)
+    colour), anything see-through, or anything animate() changes (its
+    tracks), or what a piece asks to keep (`own`: a part the page draws its
+    own way). It is exported as itself."""
+    return bool(m is not None and (m.get('tracked') or m.get('own'))) or _is_emissive(m) or _is_clear(m)
 
 
 def _output(m):
@@ -629,7 +823,27 @@ def uv_scale(obj, factors):
     bmesh.update_edit_mesh(obj.data)
 
 
-def model_atlas(out, size=1024, scale=None):
+def _one_uv(o, name='atlas'):
+    """`o`'s UVs as one map, named as the atlas parts' map is, before a join.
+    Blender joins UV maps by name, and the page reads the first: joined onto
+    a part of its own first by name (a crate's LED, a lens's eye), the atlas
+    parts would bring their UVs in as a second map and read zeros from the
+    first, one texel for the whole part (Indoor Tracking's crate went black).
+    A part of its own keeps its UVs, under the atlas's name."""
+    me = o.data
+    keep = me.uv_layers.get(name)
+    if keep is None and len(me.uv_layers):
+        keep = next((u for u in me.uv_layers if u.active_render), me.uv_layers[0])
+        keep.name = name
+    if keep is None:
+        keep = me.uv_layers.new(name=name)
+    for other in [u.name for u in me.uv_layers if u.name != name]:
+        me.uv_layers.remove(me.uv_layers[other])
+    me.uv_layers.active = me.uv_layers[name]
+    me.uv_layers[name].active_render = True
+
+
+def model_atlas(out, size=1024, scale=None, keep=None):
     """Everything the turntable carries, ready to draw live in few draw calls.
     Every part shares one UV atlas, and into it go the colour
     (model_color.png) and occlusion, roughness and metalness (model_orm.png,
@@ -639,7 +853,8 @@ def model_atlas(out, size=1024, scale=None):
     materials become one 'atlas' material the page fills in (glows and
     see-through materials keep their own), and every part that does not move
     on its own is joined into one mesh, 'model'. Returns the objects to export
-    under the turntable."""
+    under the turntable. `keep`: names that stay nodes of their own (what
+    the piece's page() names: the page looks them up)."""
     sc = bpy.context.scene
     tt = bpy.data.objects['turntable']
     for o in [o for o in bpy.data.objects if under(o, tt) and o.type in ('CURVE', 'FONT')]:
@@ -753,19 +968,22 @@ def model_atlas(out, size=1024, scale=None):
     atlas['atlas'] = True
     for o in atlas_objs:
         me = o.data
-        keep = []
+        # (Not `keep`: that is the names the page looks up, read below. Named
+        # so, this list took its place, and Mission Builder's dust sheets,
+        # which nothing else keeps apart, were joined into one 'model_own'.)
+        own_mats = []
         remap = {}
         for i, m in enumerate(me.materials):
             if m is not None and keeps_own(m):
-                if m not in keep:
-                    keep.append(m)
-                remap[i] = 1 + keep.index(m)
+                if m not in own_mats:
+                    own_mats.append(m)
+                remap[i] = 1 + own_mats.index(m)
             else:
                 remap[i] = 0
         idx = [remap.get(p.material_index, 0) for p in me.polygons]
         me.materials.clear()
         me.materials.append(atlas)
-        for m in keep:
+        for m in own_mats:
             me.materials.append(m)
         me.polygons.foreach_set('material_index', idx)
         for layer in [u for u in me.uv_layers if u.name != 'atlas']:
@@ -776,11 +994,21 @@ def model_atlas(out, size=1024, scale=None):
 
     # Join what does not move on its own (and carries nothing that does).
     # The disc first: the joined mesh keeps its place, a child of the turntable.
-    # What a piece marks `hangs` stays apart: it hangs from the jar's knob
-    # (the page hides its thread while the glass is off). Every part says
-    # first which spot a tap on it opens.
+    # What a piece marks `hangs` is joined apart from the rest: it hangs from
+    # the jar's knob, and the page hides its thread while the glass is off, so
+    # the thread (named for it) stays a node of its own. Every part says first
+    # which spot a tap on it opens.
     part_attr([o for o in bpy.data.objects if under(o, tt)])
-    still = [o for o in atlas_objs if not moves(o) and not o.children and not o.get('hangs')]
+    keep = set(keep or ())
+
+    def apart(o):
+        """A part that must stay a node of its own: one that carries others,
+        what a piece marks `hooked`, a hung thread, and whatever its page()
+        names (the page looks it up by name)."""
+        return (bool(o.children) or bool(o.get('hooked')) or (bool(o.get('hangs')) and 'thread' in o.name)
+                or o.name in keep)
+
+    still = [o for o in atlas_objs if not moves(o) and not apart(o) and not o.get('hangs')]
     still.sort(key=lambda o: o.name != 'disc')
     if len(still) > 1:
         model = C.join(still, 'model')
@@ -790,10 +1018,60 @@ def model_atlas(out, size=1024, scale=None):
         model = None
     if model is not None:
         model['role'] = 'dyn'
+
+    # The rest draws together too, one draw for each material rather than one
+    # for each part: what stands still in materials of its own (the glows, the
+    # see-through, the tracked) as 'model_own', and what moves, by what moves
+    # it: every part that rides one keyed parent (a figure's limbs on its
+    # torso) as '<parent>_rides', under that parent. What hangs is joined the
+    # same way among itself ('hung', '<parent>_hung'), keeping its mark. A
+    # keyed part keeps its own keys, so it stays apart.
+    def carrier(o):
+        p = o.parent
+        while p is not None and p != tt:
+            if p in keyed:
+                return p
+            p = p.parent
+        return None
+
+    groups = {}
+    for o in [o for o in bpy.data.objects if under(o, tt) and o.type == 'MESH' and o is not model]:
+        if o in keyed or apart(o):
+            continue
+        k = carrier(o)
+        if o.get('hangs'):
+            name = 'hung' if k is None else f'{k.name}_hung'
+        else:
+            name = 'model_own' if k is None else f'{k.name}_rides'
+        groups.setdefault(name, []).append(o)
+    joined = 0
+    for name, objs in sorted(groups.items()):
+        if len(objs) < 2:
+            continue
+        objs.sort(key=lambda o: o.name)
+        for o in objs:
+            _one_uv(o)
+        j = C.join(objs, name)
+        j['role'] = 'dyn'
+        if name.endswith('hung'):
+            j['hangs'] = 1
+        joined += len(objs) - 1
     drop_idle()
-    print('JOINED', len(still), 'parts into model;', len(atlas_objs) - len(still), 'move on their own')
+    print('JOINED', len(still), 'parts into model;', len(atlas_objs) - len(still), 'move on their own;',
+          joined, 'more into', ', '.join(n for n, objs in sorted(groups.items()) if len(objs) > 1) or 'nothing')
     return [tt] + [o for o in bpy.data.objects if under(o, tt)]
 
 
+def page_names(v):
+    """Every string in a piece's page() numbers: the names its page looks up."""
+    if isinstance(v, str):
+        return {v}
+    if isinstance(v, dict):
+        return set().union(*(page_names(x) for x in v.values())) if v else set()
+    if isinstance(v, (list, tuple)):
+        return set().union(*(page_names(x) for x in v)) if v else set()
+    return set()
+
+
 __all__ = ['Piece', 'load', 'out_dir', 'glass_lights', 'live_lights', 'scene_json', 'model_atlas', 'uv_scale',
-           'keeps_own', 'ENV_AT', 'under', 'box', 'below', 'facing', 'reparent', 'part_attr']
+           'keeps_own', 'ENV_AT', 'under', 'box', 'below', 'facing', 'reparent', 'part_attr', 'page_names']

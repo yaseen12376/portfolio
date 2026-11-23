@@ -772,7 +772,8 @@ def stage_export_piece(S, out):
     C.engine(sc, 'CYCLES')  # the GPU (a saved file keeps the device, not the preference)
     bake_setup(sc, 128)
     data = json.load(open(os.path.join(out, 'build.json')))
-    model = live.model_atlas(out, int(S.META.get('model_atlas', 1024)), S.META.get('model_uv_scale'))
+    model = live.model_atlas(out, int(S.META.get('model_atlas', 1024)), S.META.get('model_uv_scale'),
+                             keep=live.page_names(data.get('piece_page')))
     props = [o for o in objects('prop') if o.type == 'MESH']
     for o in props:
         o.hide_render = False

@@ -222,3 +222,60 @@ def animate(t, st):
     # The materials read world height; the turntable's top is K.FLOOR up.
     for m in st['mats']:
         m.node_tree.nodes['ring_z'].outputs[0].default_value = z + K.FLOOR
+
+
+# ---------------------------------------------------------------- the live jar (pieces/live.py)
+
+PLAIN_GLOW, LIT_GLOW = (0.0, 2.4), (1.6, 3.2)   # _voxels(): (rest, peak) for each kind of voxel
+BAND = 0.045                                     # _scan_material(): how far either side of the ring it glows
+
+
+def spots(st):
+    """The live jar's numbered dots: the landmarks (on the porcelain cheek),
+    the frame-to-frame check (on the scan ring, at its height at t = 0) and
+    the CNN (on the voxel half). Each faces out from its side of the head and
+    names the parts a tap opens it from with the glass off."""
+    z0 = K.FLOOR
+    ring = RING_R * 1.06
+    return [
+        {'id': 'landmarks', 'at': (-0.085, -0.105, z0 + 0.62), 'out': (-0.55, -0.8, 0.25),
+         'parts': ['form_porcelain', 'form_base', 'form_column', 'form_collar']},
+        {'id': 'temporal', 'at': (0.0, -ring - 0.006, z0 + ring_z(0.0) + 0.004), 'out': (0.0, -1.0, 0.3),
+         'parts': ['scan_ring', 'scan_plane']},
+        {'id': 'cnn', 'at': (0.125, -0.07, z0 + 0.64), 'out': (0.8, -0.55, 0.25), 'parts': ['form_voxels', 'form_voxels_lit']},
+    ]
+
+
+def live(st):
+    """The voxels glow by height, where the scan ring is: a shader the page
+    runs itself (src/three/pieces/adraf.js). They leave as plain Principled
+    materials of their own (`own`), glowing at rest as the render does away
+    from the ring; the node animate() sets stays, unused."""
+    for m, (rest, _peak) in zip(st['state']['mats'], (PLAIN_GLOW, LIT_GLOW)):
+        nt = m.node_tree
+        old = next(n for n in nt.nodes if n.type == 'BSDF_PRINCIPLED')
+        base = tuple(old.inputs['Base Color'].default_value)
+        rough = old.inputs['Roughness'].default_value
+        for n in list(nt.nodes):
+            if n.name != 'ring_z':
+                nt.nodes.remove(n)
+        out = nt.nodes.new('ShaderNodeOutputMaterial')
+        b = nt.nodes.new('ShaderNodeBsdfPrincipled')
+        b.inputs['Base Color'].default_value = base
+        b.inputs['Roughness'].default_value = rough
+        K.sock(b.inputs, 'Emission Color', 'Emission').default_value = C.lin(ROSE)
+        b.inputs['Emission Strength'].default_value = rest
+        nt.links.new(b.outputs[0], out.inputs['Surface'])
+        m['own'] = 1
+
+
+def page(st):
+    """What the page's scan band needs: the voxels' materials, the node whose
+    height is the ring's (the group animate() moves: the export joins the
+    ring and its plane into one mesh under it, 'scan_rides', so the ring is
+    no node of its own), the glow's colour (linear) and its strengths."""
+    lin = list(C.lin(ROSE))[:3]
+    return {'scan': {
+        'ring': st['state']['ring'].name, 'band': BAND, 'color': [round(c, 5) for c in lin],
+        'materials': {m.name: {'rest': g[0], 'peak': g[1]} for m, g in zip(st['state']['mats'], (PLAIN_GLOW, LIT_GLOW))},
+    }}

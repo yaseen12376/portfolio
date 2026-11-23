@@ -141,7 +141,9 @@ export const onJar = (page, fn, arg = null) =>
  * The jar as the poster shows it: held (it neither turns by itself nor plays
  * the model's motion), at turn 0 and clip time 0, the glass down, and only
  * its canvas showing (no feathered edge, dots, hint, caption or Pause, and
- * not the poster or loop under it). Returns the box as a PNG.
+ * not the poster or loop under it), at the engine's best quality step.
+ * Returns { png: the box as a PNG, stepped: the step the engine had taken
+ * itself to (0: none), quality: the step at the shot }.
  */
 export async function jarAtPoster(page) {
   await page.mouse.move(2, 2); // the view leans toward a pointer resting on it
@@ -164,13 +166,29 @@ export async function jarAtPoster(page) {
     { timeout: 15000 }
   );
   await page.waitForTimeout(800);
-  await onJar(page, (slot) => slot.controller.resume({ turn: 0, time: 0 }));
   await page.addStyleTag({
     content: `${JAR}::after { display: none !important; }
       ${JAR} > :not(canvas.media-3d), #project-detail .pd-hold { visibility: hidden !important; }`,
   });
-  await page.waitForTimeout(400);
-  return page.locator(JAR).screenshot();
+  // At quality 0, as the poster is, with the page's own loop held from here
+  // to the shot (engine.js hold(), step()). A slower GPU steps down by itself
+  // while the jar loads (the Intel UHD to 2, five to eight seconds in), and a
+  // shot before the step and one after differ: AirDraw's tone 1.88 at 0 and
+  // 1.24 at 2 (build/qa/parityrepeat.mjs), so a run's score hung on where
+  // the shot fell. Its frames are drawn here instead, as many as the page
+  // drew in the 400 ms this used to wait.
+  const stepped = await onJar(page, (slot, _a, engine) => {
+    const q = engine.quality;
+    engine.hold(true);
+    if (q) engine.setQuality(0);
+    slot.controller.resume({ turn: 0, time: 0 });
+    engine.step(24);
+    return q;
+  });
+  const png = await page.locator(JAR).screenshot();
+  const quality = await page.evaluate(() => window.__three?.quality ?? 0);
+  await page.evaluate(() => window.__three.hold(false));
+  return { png, stepped, quality };
 }
 
 // ---------------------------------------------------------------- image maths

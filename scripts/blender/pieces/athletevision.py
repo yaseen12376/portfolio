@@ -6,12 +6,17 @@ mat height, and a sit-up counts at the moment the elbows touch the knees. A
 jointed wooden figure does one sit-up a loop, fingers clasped behind the neck
 as the handbook asks; the pose landmarks the phone tracks ride on its joints.
 Around it, the kit of the other tests: a floor tape, two cones and the
-medicine ball. A toy, not a person: no face, no athlete.
+medicine ball, all on a slice of sports-hall floor (maple boards on a rubber
+underlay, a court's painted lines). The floor, the mat's vinyl and the ball's
+grip are scanned surfaces (ambientCG, CC0). A toy, not a person: no face, no
+athlete.
 """
 
 from __future__ import annotations
 
 import math
+
+import bpy
 
 from mathutils import Vector
 
@@ -19,6 +24,7 @@ import common as C
 from kit import geo
 from pieces import _kit as K
 from pieces import _parts as P
+from pieces import _scans as S
 
 META = {
     'id': 'athletevision',
@@ -28,6 +34,8 @@ META = {
 }
 
 YAW = 33.0            # the mat's turn on the disc, so the phone stands front right
+FLOOR_T = 0.012       # the hall floor's slice: boards over an underlay, everything stands on it
+FLOOR_R = K.DISC_R - 0.006
 MAT_T = 0.014
 HIP = Vector((0.06, 0.0, MAT_T + 0.047))
 TORSO, NECK, HEAD_R = 0.2, 0.03, 0.054
@@ -160,7 +168,8 @@ def _kit(col, root):
         geo.box(f'tape_tick{i}', (0.0022, 0.014 if i % 5 == 0 else 0.008, 0.0004), (-0.24 + i * 0.048, 0.004, 0.0012), col=col, material=dark, bev=0).parent = tape
     # the medicine ball
     mb = P.group('med_ball', col, loc=(-0.15, 0.275, 0.0), parent=root)
-    P.ball('ball', 0.055, col, geo.pbr('ball_rubber', '#23395d', rough=0.55), loc=(0, 0, 0.055), seg=32).parent = mb
+    grip = S.scanned('ball_rubber', 'Leather027', tint='#23395d', size=0.07, rough=0.62, bump=0.6)
+    P.ball('ball', 0.055, col, grip, loc=(0, 0, 0.055), seg=32).parent = mb
     P.ring('ball_seam', 0.0553, 0.0022, col, geo.pbr('ball_seam', '#e2571c', rough=0.5), z=0.055, segments=48, sides=6).parent = mb
     s2 = P.ring('ball_seam2', 0.0553, 0.0022, col, geo.pbr('ball_seam', '#e2571c', rough=0.5), z=0.0, segments=48, sides=6)
     s2.rotation_euler = (math.radians(90), 0, math.radians(30))
@@ -209,12 +218,45 @@ def _stopwatch(col):
     return hands
 
 
+def _hall_floor(col):
+    """A round slice of sports-hall floor: maple boards, lacquered, over a
+    black rubber underlay, with a court's painted lines. The boards are a
+    scanned floor at the figure's scale (a 1.8 m tile, about 1:4.5)."""
+    boards = S.scanned('hall_boards', 'WoodFloor051', tint='#c39360', size=0.4, rough=0.3, bump=0.12, spec=0.6)
+    under = geo.pbr('hall_underlay', '#17181b', rough=0.85)
+    geo.cyl('hall_underlay', FLOOR_R, FLOOR_T * 0.45, (0, 0, 0), col=col, material=under, verts=96, bev=0.0015)
+    top = geo.cyl('hall_boards', FLOOR_R - 0.0015, FLOOR_T * 0.55, (0, 0, FLOOR_T * 0.45), col=col, material=boards, verts=96, bev=0.0012)
+    # The court: a white boundary line behind the mat, and the red arc of a
+    # circle crossing the front (5 cm lines at the hall's scale).
+    z = FLOOR_T + 0.0002
+    white = geo.pbr('court_white', '#ece9e1', rough=0.4)
+    red = geo.pbr('court_red', '#b8322b', rough=0.4)
+    paint = []
+    a = math.radians(YAW + 90)
+    d = Vector((math.cos(a), math.sin(a), 0))
+    along = Vector((-d.y, d.x, 0))
+    off = 0.33
+    half = math.sqrt(max(0.0, (FLOOR_R - 0.012) ** 2 - off ** 2))
+    p0, p1 = d * off - along * half, d * off + along * half
+    paint.append(P.stroke('court_line', (p0.x, p0.y), (p1.x, p1.y), 0.011, col, white, z=z, depth=0.0004))
+    arc = P.flat_ring('court_arc', 0.25, 0.261, col, red, z=0.0, h=0.0004, a0=YAW - 150, a1=YAW - 30, segments=96)
+    arc.location = (d.x * 0.08, d.y * 0.08, z)
+    paint.append(arc)
+    return top
+
+
 def build(col):
-    root = P.group('rig', col, rot=(0, 0, YAW))
-    mat = geo.box('mat', (0.64, 0.25, MAT_T), (0, 0, 0), col=col, material=geo.pbr('mat_blue', '#2c5a9e', rough=0.72), bev=0.006)
+    _hall_floor(col)
+    root = P.group('rig', col, loc=(0, 0, FLOOR_T), rot=(0, 0, YAW))
+    vinyl = S.scanned('mat_vinyl', 'Leather027', tint='#2c5a9e', size=0.11, rough=0.5, bump=0.35)
+    mat = geo.box('mat', (0.64, 0.25, MAT_T), (0, 0, 0), col=col, material=vinyl, bev=0.006)
     mat.parent = root
-    trim = geo.box('mat_trim', (0.6, 0.21, 0.0006), (0, 0, MAT_T), col=col, material=geo.pbr('mat_blue2', '#3468b2', rough=0.7), bev=0)
-    trim.parent = root
+    # The mat folds in three: two seams across it, and a darker piping round its top.
+    seam = geo.pbr('mat_seam', '#1a3561', rough=0.6)
+    for i, x in enumerate((-0.107, 0.107)):
+        geo.box(f'mat_seam{i}', (0.003, 0.246, 0.0008), (x, 0, MAT_T - 0.0002), col=col, material=seam, bev=0).parent = root
+    for i, (dx, dy, w, h) in enumerate(((0, 0.1225, 0.632, 0.004), (0, -0.1225, 0.632, 0.004), (0.3155, 0, 0.004, 0.249), (-0.3155, 0, 0.004, 0.249))):
+        geo.box(f'mat_piping{i}', (w, h, 0.001), (dx, dy, MAT_T - 0.0003), col=col, material=seam, bev=0).parent = root
     torso, elbows, knees = _figure(col, root)
     _phone(col, root)
     _kit(col, root)
@@ -246,3 +288,67 @@ def animate(t, st):
     st['torso'].rotation_euler = (0, math.radians(theta - 90), 0)
     for h in st['hands']:
         h.rotation_euler = (0, 0, -2 * math.pi * t)
+
+
+# ---------------------------------------------------------------- the live jar (pieces/live.py)
+
+def spots(st):
+    """The live jar's numbered dots: the phone (on its screen), the count (on
+    the knees, where the elbows touch at each counted sit-up: the legs hold
+    still, and a dot must sit on something that only turns with the
+    turntable; it faces the phone's side, so its chapter sees the sit-up
+    side-on, as the phone does), the marks (on the floor tape) and the throw
+    (on the medicine ball). Each names the parts a tap opens it from with the
+    glass off: the phone and its stand; the figure, its mat and the stopwatch
+    (the 45 s); the tape and the cones; the ball."""
+    from pieces.live import below, box
+    bpy.context.view_layer.update()
+    _, top_p, phone = box('phone_body')
+    knees = [box(o.name) for o in bpy.data.objects if o.type == 'MESH' and o.name.split('.')[0] == 'knee']
+    top_k = max(k[1].z for k in knees)
+    knee = sum((k[2] for k in knees), Vector()) / len(knees)
+    side = Vector((phone.x - knee.x, phone.y - knee.y, 0.0)).normalized()
+    _, top_t, tape = box('tape')
+    _, top_b, ball = box('ball')
+    figure = below('rig')
+    stand = below('stand')
+    marks = below('floor_tape') + below('cone0') + below('cone1')
+    throw = below('med_ball')
+    body = [n for n in figure if n not in stand + marks + throw]
+    return [
+        {'id': 'phone', 'at': (phone.x, phone.y, top_p.z + 0.012), 'parts': stand},
+        {'id': 'count', 'at': (knee.x, knee.y, top_k + 0.012), 'out': tuple((side * 0.75 + Vector((0.0, 0.0, 0.66))).normalized()),
+         'parts': body + below('stopwatch')},
+        {'id': 'marks', 'at': (tape.x, tape.y, top_t.z + 0.006), 'parts': marks},
+        {'id': 'throw', 'at': (ball.x, ball.y, top_b.z + 0.01), 'parts': throw},
+    ]
+
+
+def live(st):
+    """The stopwatch hangs from the knob on its thread: lifting the glass
+    leaves it hanging where it is, and only the thread goes. And the
+    underlay's top goes: the boards cover all of it, yet the map of the
+    ground the glass takes from straight above (the lowest surface that faces
+    up wins) took it for the floor, and drew its black wherever a ray passed
+    behind the athlete and came down on the boards."""
+    import bmesh
+
+    for name in below('stopwatch'):
+        bpy.data.objects[name]['hangs'] = 1
+    under = bpy.data.objects.get('hall_underlay')
+    if under:
+        nm = under.matrix_world.to_3x3().inverted_safe().transposed()
+        bm = bmesh.new()
+        bm.from_mesh(under.data)
+        bm.normal_update()
+        top = [f for f in bm.faces if (nm @ f.normal).normalized().z > 0.99]
+        if top:
+            bmesh.ops.delete(bm, geom=top, context='FACES')
+            bm.to_mesh(under.data)
+        bm.free()
+        under.data.update()
+
+
+def below(name):
+    from pieces.live import below as _below
+    return _below(name)

@@ -119,3 +119,38 @@ def animate(t, st):
     for swing, swings, start, rider, laps in st['rings']:
         swing.rotation_euler = (0, 0, math.radians(start) + 2 * math.pi * swings * t)
         rider.rotation_euler = (0, 0, 2 * math.pi * laps * t)
+
+
+# ---------------------------------------------------------------- the live jar (pieces/live.py)
+
+def spots(st):
+    """The live jar's numbered dots: the mark (on the block's face), the
+    palette (over the block, where the rings' tops pass: the rings swing, and
+    a dot must sit on something that only turns with the turntable) and the
+    site (on the tag). Each names the parts a tap opens it from with the
+    glass off."""
+    from pieces.live import below, box
+    bpy.context.view_layer.update()
+    lo, hi, c = box('ox_block')
+    names = [o.name for o in bpy.data.objects if o.type == 'MESH']
+    rings = [n for n in names if n.startswith('ring')]
+    crown = max(r * math.sin(math.radians(lean)) for r, lean, *_ in RINGS)
+    _, top_e, eye = box('tag_eyelet')
+    return [
+        {'id': 'mark', 'at': (c.x, lo.y - 0.006, c.z + 0.035), 'parts': ['ox_block', 'ox_text0', 'ox_text1']},
+        {'id': 'palette', 'at': (c.x, c.y, c.z + crown + 0.014), 'out': (0.0, 0.0, 1.0), 'parts': rings + ['stand_glow']},
+        {'id': 'site', 'at': (eye.x, eye.y, top_e.z + 0.004), 'on': 'jar', 'parts': below('tag') + ['tag_string']},
+    ]
+
+
+def live(st):
+    """The block's gradient also gives off its own colour (Emission Strength
+    0.5), which the atlas cannot carry: the atlas takes its colour, and the
+    page adds the glow (src/three/pieces/observex.js) to a copy of the atlas
+    material the block alone wears, so the block stays a mesh of its own."""
+    bpy.data.objects['ox_block']['hooked'] = 1
+
+
+def page(st):
+    b = next(n for n in bpy.data.materials['ox_gradient'].node_tree.nodes if n.type == 'BSDF_PRINCIPLED')
+    return {'glow': {'mesh': 'ox_block', 'strength': round(b.inputs['Emission Strength'].default_value, 4)}}

@@ -35,6 +35,13 @@
  *    mirrors the room, and through it, bent going in and again coming out,
  *    shows the dome below where that light comes down on it (round its
  *    outline, where it bends most, the warm ring), and the dark elsewhere.
+ *  - what is see-through inside (a bubble, a beam, rain) writes no depth, so
+ *    the frame's depth cannot show a ray where it is. Those parts are drawn
+ *    once more on their own (seeThrough): where a ray passes one on its way,
+ *    that part goes over what the ray meets beyond it, as it would through
+ *    a soap film. (Written into the frame's depth instead, a bubble hides
+ *    what stands behind it from every ray that goes on behind it: a dark
+ *    disc where a broom should be.)
  *
  * The result replaces what the frame had under the glass, premultiplied
  * (post.js composites a piece that way), so where nothing lies behind, the
@@ -70,7 +77,9 @@ const MAX_LIGHTS = ROOM_LIGHTS;
 /** The glass's own layer: the scene's cameras (and the cube map's) leave it out. */
 export const GLASS_LAYER = 3;
 /** What the ground map is taken of: the model on the turntable, and the lights. */
-const GROUND_LAYER = 4;
+export const GROUND_LAYER = 4;
+/** The see-through parts, drawn again on their own for the glass (seeThrough), and the lights. */
+export const SEE_LAYER = 5;
 /** How far the far wall's mirror spreads the ground it shows (mip levels of the ground map). */
 const GROUND_BLUR = 2.5;
 
@@ -158,6 +167,12 @@ const frag = (steps) => /* glsl */ `
   uniform mat4 viewProj;
   uniform vec2 clipNF;
   uniform vec2 res;
+  #ifdef SEE_THROUGH
+  // The see-through parts alone, in the same part of a target the frame's
+  // size: their colour (premultiplied) and depth.
+  uniform sampler2D tSeeColor;
+  uniform sampler2D tSeeDepth;
+  #endif
   // Where there is anything to meet (world): a box round all of it but the
   // glass (the turntable's part as it turns), the top of what stands inside
   // the jar, and a box round what stands outside it.
@@ -221,8 +236,9 @@ const frag = (steps) => /* glsl */ `
     return L;
   }
 
-  vec4 insideLight(vec3 P, vec3 R) {
-    // Where the ray meets the room: the cylinder's far side, or the ground.
+  // The inside capture along a ray from P: where it meets the room (the
+  // cylinder's far side, or the ground), as the cube saw that from its middle.
+  vec4 insideAt(vec3 P, vec3 R, float lod) {
     vec2 p = P.xz;
     vec2 r = R.xz;
     float a = max(dot(r, r), 1e-5);
@@ -233,8 +249,12 @@ const frag = (steps) => /* glsl */ `
     vec3 d = P + R * max(t, 0.0) - probe;
     // Back to where the model stood when the map was taken.
     d = vec3(d.x * spin.x - d.z * spin.y, d.y, d.x * spin.y + d.z * spin.x);
-    // Soft: the far wall is a curved mirror, which spreads what it shows.
-    return textureCubeLodEXT(inside, d, 2.5);
+    return textureCubeLodEXT(inside, d, lod);
+  }
+
+  // Soft: the far wall is a curved mirror, which spreads what it shows.
+  vec4 insideLight(vec3 P, vec3 R) {
+    return insideAt(P, R, 2.5);
   }
 
 
@@ -330,10 +350,14 @@ const frag = (steps) => /* glsl */ `
   // behind the frame's surface went where the frame cannot show: where it
   // passed closest behind the surface on its last stretch out of sight
   // stands in, if that was close; if not, z is 2 and xy is where it went out
-  // of sight, for the caller to look further (the ground map). (In clip
+  // of sight, for the caller to look further (the ground map); z 3 is one
+  // out in front again with nothing met after going out of sight, and z 4
+  // one hidden at the end that went past something unseen. (In clip
   // space a point on the ray moves in a straight line, and its w is its
-  // distance ahead.)
-  vec3 march(vec3 p, vec3 d, vec2 span, float jitter) {
+  // distance ahead.) glance: where on screen it first passed through a
+  // see-through part before what it met (-1 if it did not, or not look).
+  vec3 march(vec3 p, vec3 d, vec2 span, float jitter, bool look, out vec2 glance) {
+    glance = vec2(-1.0);
     if (span.y <= span.x) return vec3(0.0);
     vec4 c0 = viewProj * vec4(p, 1.0);
     vec4 cd = viewProj * vec4(d, 0.0);
@@ -351,12 +375,33 @@ const frag = (steps) => /* glsl */ `
     vec2 near = vec2(-1.0);
     float nearBy = 1e9;
     vec2 seen = vec2(-1.0); // where it was last in front of the surface
+    float seenGap = 1e9;    // ...how far in front of it
+    float seenW = 0.0;      // ...and how far ahead
+    vec2 lost = vec2(-1.0); // where it last went out of sight and went on
+    float lostGap = 0.0;
+    float lostW = 0.0;
+    vec2 through = vec2(-1.0); // where it went out of sight and passed through something unseen
+    float lastW = 0.0;
+    #ifdef SEE_THROUGH
+    bool clear = true;
+    #endif
     for (int i = 0; i < STEPS; i++) {
       if (float(i) >= n) break;
       float t = span.x + dt * (float(i) + jitter);
       vec4 c = c0 + cd * t;
       vec3 s = c.xyz / c.w * 0.5 + 0.5;
       if (s.x < 0.0 || s.x > 1.0 || s.y < 0.0 || s.y > 1.0) break;
+      lastW = c.w;
+      #ifdef SEE_THROUGH
+      // Through a see-through part: from in front of it to just behind it
+      // (not round behind its edge, well back).
+      if (look && glance.x < 0.0) {
+        float gd = texture2D(tSeeDepth, s.xy * uvScale).x;
+        bool gb = gd < s.z;
+        if (gb && clear && viewZ(gd) + c.w < tol) glance = s.xy;
+        clear = !gb;
+      }
+      #endif
       float sd = depthAt(s.xy);
       bool behind = sd < s.z;
       if (behind) {
@@ -367,7 +412,12 @@ const frag = (steps) => /* glsl */ `
           near = s.xy;
         }
       } else {
+        // In sight again after going out of it further than it was in front
+        // of what it was nearing: it went past that, unseen.
+        if (!front && through.x < 0.0 && lost.x >= 0.0 && c.w - lostW > lostGap) through = lost;
         seen = s.xy;
+        seenGap = -(viewZ(sd) + c.w);
+        seenW = c.w;
       }
       if (behind && front) {
         float lo = t0;
@@ -382,14 +432,26 @@ const frag = (steps) => /* glsl */ `
         vec4 ch = c0 + cd * hi;
         vec2 uv = ch.xy / ch.w * 0.5 + 0.5;
         if (viewZ(depthAt(uv)) + ch.w < tol) return vec3(uv, 1.0);
+        lost = seen;
+        lostGap = seenGap;
+        lostW = seenW;
       }
       front = !behind;
       t0 = t;
     }
-    if (front) return vec3(0.0);
+    // Out in front again with nothing met, having gone deeper while out of
+    // sight than it was in front of what it was nearing when it went: it
+    // passed that, or what stands hidden behind what hid it (Attendance's
+    // roll, behind the clipboard), where the frame cannot show it. z 3, and
+    // xy where it went out of sight, for the caller to decide. (Not one that
+    // only passed behind a thin stroke, well in front of anything: AirDraw's
+    // star.)
+    if (front) return through.x >= 0.0 ? vec3(through, 3.0) : vec3(0.0);
     if (nearBy < 0.025) return vec3(near, 1.0);
-    // (Hidden from its first step, by the ground's own edge: that edge.)
-    return vec3(seen.x >= 0.0 ? seen : near, 2.0);
+    // (Hidden from its first step, by the ground's own edge: that edge.) z 4
+    // where it went past what it was nearing, as for z 3, before it ended.
+    bool passed = through.x >= 0.0 || (lost.x >= 0.0 && lastW - lostW > lostGap);
+    return vec3(seen.x >= 0.0 ? seen : near, passed ? 4.0 : 2.0);
   }
 
   // How far a ray from p (the jar's frame) goes before the far side of the
@@ -444,12 +506,31 @@ const frag = (steps) => /* glsl */ `
     vec2 span = tOut < 1e2
       ? clipBox(P, T, boxMin, vec3(boxMax.x, innerTop, boxMax.z), vec2(0.0, tOut))
       : clipBox(P, T, boxMin, boxMax, vec2(0.0, 1.6));
-    vec3 hit = march(P, T, span, jit);
+    vec2 glance;
+    vec3 hit = march(P, T, span, jit, true, glance);
     vec4 seen = vec4(0.0);
     bool met = hit.z > 0.5 && hit.z < 1.5;
+    bool hidden = abs(hit.z - 2.0) < 0.5 || hit.z > 3.5;
+    // The see-through part it passed through on the way, if any: over all
+    // the rest below. (Lifted, not where what it met already has one in
+    // front of it in the frame: as near as a bubble to the broom behind it,
+    // that is the same one. Down, the frame has none: update().)
+    vec4 film = vec4(0.0);
+    #ifdef SEE_THROUGH
+    if (glance.x >= 0.0 && (down > 0.5 || !(met && texture2D(tSeeDepth, hit.xy * uvScale).x < depthAt(hit.xy)))) {
+      film = texture2D(tSeeColor, glance * uvScale);
+    }
+    #endif
     if (met) {
       seen = texture2D(tColor, hit.xy * uvScale);
-    } else if (hit.z > 1.5) {
+    } else if (abs(hit.z - 3.0) < 0.5) {
+      // Through something hidden: what it was coming up on where it went
+      // out of sight (it was in front of that, nearing it), not the far
+      // wall's dark, which drew a black patch there. (Lifted, out by the
+      // open foot, the frame shows through, as for nothing met.)
+      met = tOut < 1e2 || down > 0.5;
+      if (met) seen = texture2D(tColor, hit.xy * uvScale);
+    } else if (hidden) {
       // Hidden where it ended: into ground the frame cannot show (behind the
       // lander, round behind a hill), as the ground map has it; in by the
       // ground's side, the cut face as the frame shows it just in front of
@@ -467,7 +548,26 @@ const frag = (steps) => /* glsl */ `
       } else if (!met && tOut > 1e2 && down > 0.5 && P.y + T.y * span.y < room.y) {
         seen = texture2D(tColor, hit.xy * uvScale);
         met = true;
+      } else if (!met && tOut < 1e2 && hit.z > 3.5) {
+        // Gone behind something, past what it was nearing, and down on no
+        // ground: a wall or a door stands behind it (Attendance's door,
+        // behind the figure), which a map taken from above cannot hold, or a
+        // floor the map leaves out. What the inside capture holds that way,
+        // not the dark past the far wall: that drew black shapes beside
+        // whatever hid the ray. (Not one in the open behind a part, nearing
+        // nothing: AirDraw's hand. That goes on to the far wall.)
+        seen = vec4(insideAt(P, T, 1.0).rgb, 1.0);
+        met = true;
       }
+    }
+    if (!met && tOut > 1e2 && down > 0.5) {
+      // On its base, nothing leaves the glass by its foot. A ray that would,
+      // having met nothing, takes what the inside capture holds that way, not
+      // black: the rays in at the glass's very outline, which bent there miss
+      // the inside as exitT() has it, a line a pixel wide round the dome on
+      // every jar (build/qa/footcount.mjs).
+      seen = vec4(insideAt(P, T, 1.0).rgb, 1.0);
+      met = true;
     }
     if (!met && tOut < 1e2) {
       // The far wall: out through two surfaces, each turning some light back
@@ -487,10 +587,12 @@ const frag = (steps) => /* glsl */ `
       if (rFar < 0.999) {
         vec3 T2 = refract(T, -No, eta * eta);
         // Out of the jar (it is convex: nothing inside it is met again).
-        vec3 h2 = march(E, T2, clipBox(E, T2, outMin, outMax, vec2(0.0, 1.2)), jit);
+        vec2 none;
+        vec3 h2 = march(E, T2, clipBox(E, T2, outMin, outMax, vec2(0.0, 1.2)), jit, false, none);
         if (h2.z > 0.5 && h2.z < 1.5) seen += texture2D(tColor, h2.xy * uvScale) * (1.0 - rFar);
       }
     }
+    seen = film + seen * (1.0 - film.a);
     return vec4(L + seen.rgb * tNear, 1.0 - tNear * (1.0 - seen.a));
   }
 
@@ -557,7 +659,12 @@ const _cj = new Vector3();
 const _n = new Vector3();
 const _d = new Vector3();
 const _dj = new Vector3();
+const _a = new Vector3();
 const _m = new Matrix4();
+const _col = new Color();
+// How near (on screen, normalized device coordinates) a bent ray must pass a
+// point to show it: a quarter of a pixel on a jar 500 pixels across.
+const NEAR_ENOUGH = 1e-3;
 
 export class PieceGlass {
   /**
@@ -625,6 +732,8 @@ export class PieceGlass {
       jar: { value: new Vector3(jar.r, jar.h, jar.wall) },
       knob: { value: knobOf(this.source, mesh, frame, jar) },
       marching: { value: new Vector3() },
+      tSeeColor: { value: null },
+      tSeeDepth: { value: null },
     };
     this.setQuality(0);
     mesh.material = new ShaderMaterial({
@@ -659,8 +768,11 @@ export class PieceGlass {
         u.res.value.set(w, h);
         u.viewProj.value.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse);
         u.clipNF.value.set(camera.near, camera.far);
+        if (this.seeTarget) this.drawSeeThrough(camera, w, h, W, H);
       },
     };
+    this.seeTarget = null;
+    this.seeMats = [];
 
     this.cubeTarget = new WebGLCubeRenderTarget(small ? 128 : 256, { type: HalfFloatType, generateMipmaps: true, minFilter: LinearMipmapLinearFilter });
     this.cube = new CubeCamera(0.01, 20, this.cubeTarget);
@@ -690,8 +802,11 @@ export class PieceGlass {
     this.groundCam.updateMatrixWorld();
     this.groundCam.layers.set(GROUND_LAYER);
     this.groundMats = new Map();
-    // The turntable's top, which the ground stands on.
+    // The turntable's top, which the ground stands on; or, where the floor
+    // is that top itself (Attendance's terrazzo: scene.json piece.discFloor),
+    // the ground.
     this.floor = piece.room?.y ?? jar.y ?? 0;
+    this.discFloor = !!piece.discFloor;
     for (const m of models) m.layers.enable(GROUND_LAYER);
     u.groundMap.value = this.groundTarget.texture;
     u.groundDepth.value = this.groundTarget.depthTexture;
@@ -704,9 +819,14 @@ export class PieceGlass {
 
   /** Take the inside of the jar at turntable angle `angle` (the glass is on a layer the cube leaves out). */
   capture(angle = 0) {
+    // (With the see-through parts, as the frame had them when it was taken
+    // before they left it.)
+    const framed = this.inFrame;
+    this.seeInFrame(true);
     this.scene.add(this.cube);
     this.cube.update(this.renderer, this.scene);
     this.scene.remove(this.cube);
+    this.seeInFrame(framed);
     this.takenAt = angle;
   }
 
@@ -750,7 +870,8 @@ export class PieceGlass {
   /**
    * A model's material as the ground map draws it: lit the same, the lowest
    * surface winning, but nothing at the turntable's top or below (the export
-   * merges the disc into the model; the ground stands on it).
+   * merges the disc into the model; the ground stands on it), unless that
+   * top is the floor.
    */
   groundMaterial(src) {
     let m = this.groundMats.get(src);
@@ -758,7 +879,7 @@ export class PieceGlass {
       m = src.clone();
       m.depthFunc = GreaterDepth;
       const top = this.groundCam.position.y;
-      const floor = this.floor + 0.004;
+      const floor = this.discFloor ? this.floor - 0.01 : this.floor + 0.004;
       // Its own patches (the lights that only light: stage.js diffuseOnly) as well.
       const before = src.onBeforeCompile;
       m.onBeforeCompile = (shader, renderer) => {
@@ -812,6 +933,95 @@ export class PieceGlass {
   }
 
   /**
+   * The see-through parts inside (piece.js seenThrough), which write no depth
+   * in the frame: drawn again each frame on their own, colour and depth, for
+   * the bent rays to pass through (SEE_THROUGH in the shader). They keep
+   * writing none in the frame: there a bubble's depth would hide what stands
+   * behind it from every ray that goes on behind it. And while the glass is
+   * on its base, the frame leaves them out (update): every ray to them goes
+   * through the glass, which finds them in their own draw. Left in, each was
+   * drawn twice, a little apart: once where a ray that meets what stands
+   * behind it reads the frame (the frame has it in front of that, seen
+   * straight), and once where a bent ray passes through it. Attendance's
+   * beam came out wider, and the whole jar more purple than its poster:
+   * tone dE 3.9 against it, 2.9 with the beam drawn once.
+   */
+  seeThrough(objects, materials) {
+    if (!objects.length) return;
+    for (const o of objects) o.layers.enable(SEE_LAYER);
+    // Lit as the frame lights them.
+    this.scene.traverse((o) => {
+      if (o.isLight) o.layers.enable(SEE_LAYER);
+    });
+    this.seeObjects = [...objects];
+    this.seeMats = [...materials];
+    this.inFrame = true;
+    this.seeTarget = new WebGLRenderTarget(1, 1, { type: HalfFloatType, depthTexture: new DepthTexture(1, 1) });
+    this.uniforms.tSeeColor.value = this.seeTarget.texture;
+    this.uniforms.tSeeDepth.value = this.seeTarget.depthTexture;
+    const m = this.mesh.material;
+    m.defines = { ...(m.defines ?? {}), SEE_THROUGH: '' };
+    m.needsUpdate = true;
+  }
+
+  /**
+   * What else draws see-through parts in the frame: the batches that stand in
+   * for the clip's many small movers (piece-batch.js; NeerNaadi's rain).
+   */
+  seeAlso(meshes) {
+    if (!this.seeObjects) return;
+    for (const b of meshes) if (this.seeMats.includes(b.material)) this.seeObjects.push(b);
+  }
+
+  /** The see-through parts in the frame (layer 0) or out of it. */
+  seeInFrame(on) {
+    if (!this.seeObjects || on === this.inFrame) return;
+    this.inFrame = on;
+    for (const o of this.seeObjects) {
+      if (on) o.layers.enable(0);
+      else o.layers.disable(0);
+    }
+  }
+
+  /**
+   * The see-through parts alone, as the frame's camera sees them, into the
+   * same part of a target the frame's size (prepare: after the frame, before
+   * the glass). Their depth is written here, for the rays to find; the key
+   * light's shadow map is the one the frame drew.
+   */
+  drawSeeThrough(camera, w, h, W, H) {
+    const r = this.renderer;
+    const t = this.seeTarget;
+    if (t.width !== W || t.height !== H) t.setSize(W, H);
+    t.viewport.set(0, 0, w, h);
+    t.scissor.set(0, 0, w, h);
+    t.scissorTest = true;
+    const target = r.getRenderTarget();
+    const clear = r.getClearColor(_col);
+    const alpha = r.getClearAlpha();
+    const auto = r.autoClear;
+    const shadows = r.shadowMap.autoUpdate;
+    const mask = camera.layers.mask;
+    const background = this.scene.background;
+    r.setRenderTarget(t);
+    r.setClearColor(0x000000, 0);
+    r.clear(true, true, false);
+    for (const m of this.seeMats) m.depthWrite = true;
+    r.autoClear = false;
+    r.shadowMap.autoUpdate = false;
+    this.scene.background = null;
+    camera.layers.set(SEE_LAYER);
+    r.render(this.scene, camera);
+    camera.layers.mask = mask;
+    this.scene.background = background;
+    r.shadowMap.autoUpdate = shadows;
+    r.autoClear = auto;
+    for (const m of this.seeMats) m.depthWrite = false;
+    r.setClearColor(clear, alpha);
+    r.setRenderTarget(target);
+  }
+
+  /**
    * How finely rays are followed through the frame, by the engine's quality
    * step (engine.js measure): at 2 and over, two and a half pixels or three a
    * step, fewer steps, and a coarser walk through the ground map. Small
@@ -836,36 +1046,74 @@ export class PieceGlass {
     const e = this.frame.matrixWorld.elements;
     const rest = this.rest.elements;
     u.down.value = Math.abs(e[13] - rest[13]) < 1e-4 && Math.abs(e[5] - rest[5]) < 1e-5 ? 1 : 0;
+    // Down, every ray to a see-through part passes the glass, which draws it
+    // (seeThrough); lifted, rays below the glass meet the frame.
+    this.seeInFrame(u.down.value < 0.5);
   }
 
   /**
    * Where a point inside the jar shows on screen, seen through the glass
-   * (normalized device coordinates, into `out`). A point the camera does not
-   * see through the glass is projected straight.
+   * (normalized device coordinates, into `out`): the screen point whose ray,
+   * bent where it enters the glass, passes through it. Under the dome's top,
+   * where the glass bends most, no bent ray may reach a point deep inside (the
+   * middle of NeerNaadi's cloud): what shows there is the part's near side,
+   * the first thing the bent rays meet, so it looks again nearer the glass
+   * along the same line of sight, halfway at a time. A point the camera does
+   * not see through the glass, or that none of that finds, is projected
+   * straight.
    */
   apparent(point, camera, out) {
+    // (out may be point itself.)
     const world = _p.copy(point);
     const target = _w.copy(world).project(camera);
     out.copy(target);
     const toJar = _m.copy(this.frame.matrixWorld).invert();
-    const fromJar = this.frame.matrixWorld;
     const cam = camera.getWorldPosition(_c);
     const camJ = _cj.copy(cam).applyMatrix4(toJar);
-    const ndc = _n.set(target.x, target.y, 0.5);
-    for (let k = 0; k < 6; k++) {
+    const sight = _d.copy(world).sub(cam).normalize();
+    const hit = enterJar(camJ, _dj.copy(sight).transformDirection(toJar), this.jar);
+    if (!hit) return out;
+    const entry = hit.p.applyMatrix4(this.frame.matrixWorld);
+    // (Every aim lies on the line of sight, so it shows straight at target too.)
+    const aim = _a.copy(world);
+    for (let k = 0; k < 5; k++) {
+      if (this.bendTo(aim, target, camera, cam, camJ, toJar, _n)) return out.set(_n.x, _n.y, target.z);
+      aim.lerp(entry, 0.5);
+    }
+    return out;
+  }
+
+  /**
+   * The screen point (into `ndc`) whose ray, bent where it enters the glass,
+   * passes through `aim` (seen straight at `target`), stepping by how far off
+   * each try shows: false once a try leaves the glass or misses by more than
+   * the last (no bent ray reaches it), or it has not come near enough.
+   */
+  bendTo(aim, target, camera, cam, camJ, toJar, ndc) {
+    const fromJar = this.frame.matrixWorld;
+    ndc.set(target.x, target.y, 0.5);
+    let last = Infinity;
+    for (let k = 0; k < 10; k++) {
       const dir = _d.copy(ndc).unproject(camera).sub(cam).normalize();
       const hit = enterJar(camJ, _dj.copy(dir).transformDirection(toJar), this.jar);
-      if (!hit) return out;
+      if (!hit) return false;
       const p = hit.p.applyMatrix4(fromJar);
       const T = refract(dir, hit.n.transformDirection(fromJar), 1 / (this.eta * this.eta));
-      if (!T) return out;
-      // The point on the bent ray nearest the target, and how far off it shows.
-      const seen = _v.copy(world).sub(p);
-      seen.copy(T).multiplyScalar(seen.dot(T)).add(p).project(camera);
-      ndc.x += target.x - seen.x;
-      ndc.y += target.y - seen.y;
+      if (!T) return false;
+      // The point on the bent ray nearest the aim, and how far off it shows.
+      // (How far along first: seen.copy(T) would run before seen.dot(T).)
+      const along = _v.copy(aim).sub(p).dot(T);
+      const seen = _v.copy(T).multiplyScalar(along).add(p).project(camera);
+      const dx = target.x - seen.x;
+      const dy = target.y - seen.y;
+      const miss = dx * dx + dy * dy;
+      if (miss < NEAR_ENOUGH * NEAR_ENOUGH) return true;
+      if (miss >= last) return false;
+      last = miss;
+      ndc.x += dx;
+      ndc.y += dy;
     }
-    return out.set(ndc.x, ndc.y, target.z);
+    return false;
   }
 
   dispose() {
@@ -877,6 +1125,12 @@ export class PieceGlass {
     this.groundTarget.dispose();
     for (const m of this.groundMats.values()) m.dispose();
     for (const o of this.models) o.layers.disable(GROUND_LAYER);
+    if (this.seeTarget) {
+      this.seeTarget.depthTexture.dispose();
+      this.seeTarget.dispose();
+      this.seeInFrame(true);
+      for (const o of this.seeObjects) o.layers.disable(SEE_LAYER);
+    }
     this.mesh.layers.set(0);
   }
 }

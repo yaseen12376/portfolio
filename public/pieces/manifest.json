@@ -19,45 +19,105 @@
    "loop-720.mp4": 278,
    "loop-1080.webm": 492,
    "loop-1080.mp4": 514
+  },
+  "live": {
+   "v": "98ec2bb4",
+   "kb": {
+    "scene.glb": 402,
+    "lightmap.webp": 75,
+    "gloss.webp": 48,
+    "albedo.webp": 19,
+    "env.webp": 3,
+    "model_color.webp": 82,
+    "model_color-1k.webp": 33,
+    "model_orm.webp": 51
+   },
+   "triangles": 32997,
+   "drawCalls": 10
   }
  },
  "airdraw": {
-  "v": "b7b82a70",
+  "v": "bcda16ab",
   "frames": 144,
   "fps": 24,
   "kb": {
    "poster-720.webp": 21,
    "poster-1080.webp": 38,
-   "loop-720.webm": 250,
-   "loop-720.mp4": 257,
-   "loop-1080.webm": 404,
-   "loop-1080.mp4": 460
+   "loop-720.webm": 244,
+   "loop-720.mp4": 247,
+   "loop-1080.webm": 397,
+   "loop-1080.mp4": 447
+  },
+  "live": {
+   "v": "12155206",
+   "kb": {
+    "scene.glb": 180,
+    "lightmap.webp": 83,
+    "gloss.webp": 55,
+    "albedo.webp": 23,
+    "env.webp": 3,
+    "model_color.webp": 282,
+    "model_color-1k.webp": 126,
+    "model_orm.webp": 96
+   },
+   "triangles": 19750,
+   "drawCalls": 12
   }
  },
  "athletevision": {
-  "v": "84192290",
+  "v": "ff5597c0",
   "frames": 144,
   "fps": 24,
   "kb": {
-   "poster-720.webp": 23,
-   "poster-1080.webp": 41,
-   "loop-720.webm": 500,
-   "loop-720.mp4": 516,
-   "loop-1080.webm": 816,
-   "loop-1080.mp4": 916
+   "poster-720.webp": 24,
+   "poster-1080.webp": 44,
+   "loop-720.webm": 585,
+   "loop-720.mp4": 572,
+   "loop-1080.webm": 961,
+   "loop-1080.mp4": 1028
+  },
+  "live": {
+   "v": "9aea2f9b",
+   "kb": {
+    "scene.glb": 264,
+    "lightmap.webp": 80,
+    "gloss.webp": 53,
+    "albedo.webp": 22,
+    "env.webp": 3,
+    "model_color.webp": 441,
+    "model_color-1k.webp": 163,
+    "model_orm.webp": 212
+   },
+   "triangles": 27470,
+   "drawCalls": 16
   }
  },
  "attendance": {
-  "v": "10d7918d",
+  "v": "c227a7c7",
   "frames": 144,
   "fps": 24,
   "kb": {
-   "poster-720.webp": 21,
-   "poster-1080.webp": 36,
-   "loop-720.webm": 472,
-   "loop-720.mp4": 478,
-   "loop-1080.webm": 755,
-   "loop-1080.mp4": 863
+   "poster-720.webp": 22,
+   "poster-1080.webp": 40,
+   "loop-720.webm": 542,
+   "loop-720.mp4": 534,
+   "loop-1080.webm": 915,
+   "loop-1080.mp4": 1016
+  },
+  "live": {
+   "v": "39b27ce0",
+   "kb": {
+    "scene.glb": 227,
+    "lightmap.webp": 77,
+    "gloss.webp": 47,
+    "albedo.webp": 20,
+    "env.webp": 3,
+    "model_color.webp": 426,
+    "model_color-1k.webp": 132,
+    "model_orm.webp": 128
+   },
+   "triangles": 18684,
+   "drawCalls": 71
   }
  },
  "claims-workbench": {
@@ -74,7 +134,7 @@
   }
  },
  "courier": {
-  "v": "479e4e23",
+  "v": "5981fcc7",
   "frames": 144,
   "fps": 24,
   "kb": {
@@ -82,34 +142,79 @@
    "poster-1080.webp": 36,
    "loop-720.webm": 350,
    "loop-720.mp4": 373,
-   "loop-1080.webm": 574,
-   "loop-1080.mp4": 675
+   "loop-1080.webm": 578,
+   "loop-1080.mp4": 682
+  },
+  "live": {
+   "v": "7c7de371",
+   "kb": {
+    "scene.glb": 178,
+    "lightmap.webp": 90,
+    "gloss.webp": 60,
+    "albedo.webp": 24,
+    "env.webp": 3,
+    "model_color.webp": 220,
+    "model_color-1k.webp": 83,
+    "model_orm.webp": 132
+   },
+   "triangles": 17321,
+   "drawCalls": 14
   }
  },
  "indoor-tracking": {
-  "v": "d1721ae6",
+  "v": "752c5e1e",
   "frames": 144,
   "fps": 24,
   "kb": {
    "poster-720.webp": 21,
    "poster-1080.webp": 38,
    "loop-720.webm": 535,
-   "loop-720.mp4": 528,
-   "loop-1080.webm": 931,
-   "loop-1080.mp4": 1009
+   "loop-720.mp4": 529,
+   "loop-1080.webm": 935,
+   "loop-1080.mp4": 1005
+  },
+  "live": {
+   "v": "6804933a",
+   "kb": {
+    "scene.glb": 314,
+    "lightmap.webp": 89,
+    "gloss.webp": 56,
+    "albedo.webp": 25,
+    "env.webp": 3,
+    "model_color.webp": 80,
+    "model_color-1k.webp": 34,
+    "model_orm.webp": 82
+   },
+   "triangles": 32150,
+   "drawCalls": 146
   }
  },
  "kps-cleano": {
-  "v": "43b25b7d",
+  "v": "023413bb",
   "frames": 144,
   "fps": 24,
   "kb": {
-   "poster-720.webp": 23,
+   "poster-720.webp": 24,
    "poster-1080.webp": 44,
-   "loop-720.webm": 459,
-   "loop-720.mp4": 469,
-   "loop-1080.webm": 802,
-   "loop-1080.mp4": 898
+   "loop-720.webm": 464,
+   "loop-720.mp4": 472,
+   "loop-1080.webm": 812,
+   "loop-1080.mp4": 909
+  },
+  "live": {
+   "v": "50e9219d",
+   "kb": {
+    "scene.glb": 502,
+    "lightmap.webp": 75,
+    "gloss.webp": 48,
+    "albedo.webp": 20,
+    "env.webp": 3,
+    "model_color.webp": 500,
+    "model_color-1k.webp": 221,
+    "model_orm.webp": 265
+   },
+   "triangles": 31377,
+   "drawCalls": 17
   }
  },
  "mission-builder-3d": {
@@ -125,34 +230,49 @@
    "loop-1080.mp4": 837
   },
   "live": {
-   "v": "7e159164",
+   "v": "90c844de",
    "kb": {
-    "scene.glb": 343,
-    "lightmap.webp": 86,
-    "gloss.webp": 54,
-    "albedo.webp": 24,
+    "scene.glb": 339,
+    "lightmap.webp": 80,
+    "gloss.webp": 48,
+    "albedo.webp": 19,
     "env.webp": 3,
     "model_color.webp": 542,
     "model_color-1k.webp": 190,
-    "model_orm.webp": 311,
+    "model_orm.webp": 310,
     "dust_grain.webp": 91,
     "dust_mottle.webp": 5
    },
-   "triangles": 30276,
+   "triangles": 30219,
    "drawCalls": 26
   }
  },
  "neernaadi": {
-  "v": "66859988",
+  "v": "11792e6e",
   "frames": 144,
   "fps": 24,
   "kb": {
    "poster-720.webp": 22,
-   "poster-1080.webp": 38,
-   "loop-720.webm": 472,
-   "loop-720.mp4": 479,
-   "loop-1080.webm": 779,
-   "loop-1080.mp4": 876
+   "poster-1080.webp": 39,
+   "loop-720.webm": 484,
+   "loop-720.mp4": 485,
+   "loop-1080.webm": 797,
+   "loop-1080.mp4": 888
+  },
+  "live": {
+   "v": "e2d4b3f1",
+   "kb": {
+    "scene.glb": 296,
+    "lightmap.webp": 80,
+    "gloss.webp": 50,
+    "albedo.webp": 21,
+    "env.webp": 3,
+    "model_color.webp": 370,
+    "model_color-1k.webp": 114,
+    "model_orm.webp": 146
+   },
+   "triangles": 30709,
+   "drawCalls": 51
   }
  },
  "observex": {
@@ -166,6 +286,21 @@
    "loop-720.mp4": 398,
    "loop-1080.webm": 603,
    "loop-1080.mp4": 696
+  },
+  "live": {
+   "v": "9c0adca5",
+   "kb": {
+    "scene.glb": 183,
+    "lightmap.webp": 75,
+    "gloss.webp": 49,
+    "albedo.webp": 19,
+    "env.webp": 3,
+    "model_color.webp": 76,
+    "model_color-1k.webp": 31,
+    "model_orm.webp": 72
+   },
+   "triangles": 19153,
+   "drawCalls": 18
   }
  }
 }
