@@ -305,15 +305,16 @@ const GLOW_PARS = /* glsl */ `
  * or with the disc's gloss off, the floor is dark, as it is here without
  * this. A sharp surface keeps the glass sharp and gets none of it.
  *
- * Measured on ObserveX's disc (build/qa/band_cal.py): the strips' share
+ * Measured on the first ObserveX piece's disc (build/qa/band_cal.py; the
+ * piece has since been rebuilt): the strips' share
  * comes to about a third of the surface's own GGX response to them at
  * roughness 0.5 to 0.65, and half at 0.94; the spot's grows from a sixth of
  * its direct gloss at 0.5 to as much again at 0.94. Here, a weight for
  * each, the strips' `k` and the spot's `kSpot`, from nothing at roughness
  * `from` to all of it at 1 (the model's roughness is the atlas's times 1.3,
  * stage.js), unshadowed but for the model's own occlusion (its atlas's R),
- * and fading as the glass is lifted (set()). Fitted to ObserveX's disc
- * alone they came to 0.1 and 2, which left Mission Builder's jar, its rough
+ * and fading as the glass is lifted (set()). Fitted to that disc alone
+ * they came to 0.1 and 2, which left Mission Builder's jar, its rough
  * ground square to the spot, brighter than its poster (tone dE 3.9). Of the
  * nine pairs tried on all ten jars against their posters
  * (build/qa/glowprobe.mjs), 0.06 and 1.5 is the one that keeps every jar

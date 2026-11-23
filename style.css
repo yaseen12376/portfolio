@@ -1759,10 +1759,17 @@ html.js:not(.intro-done) .reveal-hero { opacity: 0; }
   .stage-text { grid-area: text; }
   .stage-media { grid-area: media; justify-self: center; width: min(100%, calc(100svh - 120px)); }
 
-  /* Six large pieces three to a row, then four small ones four to a row. */
-  .shelf { grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 56px clamp(20px, 2.4vw, 36px); }
-  .piece-large { grid-column: span 4; }
-  .piece-small { grid-column: span 3; }
+  /* Seven large pieces three to a row; the seventh opens the last row, with
+     the three small ones beside it. 36 tracks: a large piece spans 12, a small
+     one 8. The space between pieces is their own margin, since a column gap
+     would sit between every one of the 36 tracks. A small jar is shorter than
+     a large one by a ninth of the shelf, which is half its own grid area: that
+     much padding stands it on the same line as the large jar beside it, and
+     puts all four labels in one line. */
+  .shelf { --shelf-gap: clamp(20px, 2.4vw, 36px); grid-template-columns: repeat(36, minmax(0, 1fr)); gap: 56px 0; margin-inline: calc(var(--shelf-gap) / -2); }
+  .shelf > .piece { margin-inline: calc(var(--shelf-gap) / 2); }
+  .piece-large { grid-column: span 12; }
+  .piece-small { grid-column: span 8; padding-top: 50%; }
 
   .cat-head,
   .cat-link { grid-template-columns: 3.25rem minmax(0, 2.6fr) minmax(0, 1.3fr) 4rem minmax(0, 1.5fr) 1.5rem; gap: 20px; }

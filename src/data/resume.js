@@ -61,7 +61,8 @@ export const resume = {
       'Rebuilt a cleaning-products brand’s storefront as a static Astro site in English and Tamil: 165 products, 415 pages, 449 interface strings in both languages, 68 KB of gzipped JavaScript.',
     ],
     observex: [
-      'Product site for a behavioural threat detection platform: 12 composed sections in React 19, TypeScript and Tailwind CSS 4, with a Three.js scene.',
+      'Built a home security system on RTSP cameras: YOLOv12m fine-tuned on 9,523 images in 14 weapon classes (0.744 mAP50 on its validation split), with covered-face, loitering and number plate checks.',
+      'Each of 12 kinds of alert reaches the owner as a Twilio text, SOS places voice calls, and a Flask dashboard on 29 routes shows every camera live with its detections.',
     ],
     adraf: [
       'Deepfake authentication that stacks 3 independent detection signals, trained across FaceForensics++ and Celeb-DF, with MTCNN and dlib face tracking.',

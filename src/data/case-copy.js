@@ -313,24 +313,31 @@ export const caseCopy = {
 
   'observex': {
     overview:
-      'An investor-facing product site for ObserveX, an AI home security system built on behavioural threat detection: reading intent from how a person moves and lingers rather than simply recording that they were there.',
+      'ObserveX is a home security system that runs on one PC beside the cameras. It reads each RTSP stream for weapons, covered faces, strangers, loiterers and flagged number plates, and texts the owner while it is happening, with a snapshot where it can. A dashboard shows every camera live with its boxes drawn, and an SOS button calls for help. A solo project: I built the app and fine-tuned its weapon model.',
     problem:
-      'Conventional CCTV is reactive. It produces evidence for after a break-in has already happened, which is useful to an insurer and almost useless to the homeowner. The pitch needed a site that made the proactive-versus-reactive distinction land immediately, for an audience deciding whether to fund it.',
+      'Home CCTV records. The footage helps the police or an insurer after a break-in, and does little for the family while it happens, because nobody is watching the feed. A camera at the door can see a covered face or a knife well before anyone reaches the lock, so the system has to notice that itself, on its own hardware, and tell someone at once.',
     solution:
-      'A cinematic single-page experience that leads with the problem, contrasts traditional CCTV against behavioural analysis directly, then walks through how detection works, what the product looks like in use, and why it is defensible, closing on a demo booking form.',
+      'Run the checks on the live stream. Each camera is read continuously and a set of detectors looks at the newest frame: a weapon model, a test for people whose face cannot be seen, face recognition, a loitering timer and a plate reader. Each kind of threat becomes an alert with its own text message, the dashboard shows everything live, and one button calls the emergency and neighbour numbers.',
     implementation: [
-      'Built on React 19 and TypeScript with Tailwind CSS 4, using the OKLCH colour format for perceptually even gradients',
-      'Choreographed scroll-triggered reveals, hover states and continuous ambient motion with Framer Motion',
-      'Designed a glassmorphic interface language over deep navy, with cyan, purple and emerald accents',
-      'Composed twelve sections including an animated how-it-works flow, dashboard preview and statistics counters',
-      'Integrated Three.js and React Three Fiber for 3D capability, with shadcn/ui for accessible primitives',
-      'Implemented a validated lead-capture demo booking flow with confirmation state',
+      'Gave every RTSP camera a capture thread that keeps only the newest frame and a detection thread that runs at most twice a second, with a 160 × 120 motion test that skips the heavy models while nothing moves and CLAHE on frames darker than 60 of 255',
+      'Fine-tuned YOLOv12m for 30 epochs on 9,523 labelled images in 14 weapon classes on a 4 GB laptop GPU, and merged it with the stock model’s knives and scissors, dropping a stock box that overlaps a custom one by more than 0.3',
+      'Flagged a person with no clear face as a possible masked intruder, judging the covering with a YOLO mask detector, a ViT classifier and a skin and edge test of the lower face, in that order',
+      'Matched known faces with InsightFace (RetinaFace and ArcFace) at cosine 0.45, gave each stranger an ID for 30 minutes, and raised an alert when the same person moved between cameras within 5 minutes',
+      'Timed people near the door with a HOG detector and centroid tracks, an alert at 20 s and a critical one at 40 s, and read plates with contour candidates and EasyOCR against the owner’s allowed and flagged lists',
+      'Sent every alert as a Twilio text written for its kind, the masked person’s with its snapshot by MMS, and SOS as voice calls with a spoken message, each one rate-limited',
+      'Built the six-tab dashboard on 29 Flask routes: MJPEG streams with boxes redrawn every 250 ms, alert history with CSV and JSON export and false-positive marking, known people and plates, settings, Home and Away modes and per-camera metrics',
     ],
     outcomes: [
-      'A pitch surface that reads as a funded startup rather than a student project',
-      'The proactive-versus-reactive argument made visually, in the first screen',
-      'Mobile-first responsive behaviour across all twelve sections',
-      'Reusable component system built on accessible primitives',
+      'Weapon model: 0.744 mAP50 and 0.483 mAP50-95 on the dataset’s 1,906 validation images, up from 0.211 mAP50 after the first epoch',
+      'Twelve kinds of alert, from a weapon or a covered face to a camera that stops sending frames, each reaching the owner’s phone as a text',
+      'Heavy models skipped while nothing moves, but never for more than 5 s, and weapons looked for at least every 0.9 s',
+      'Trained and run on a laptop with a 4 GB RTX 3050 Ti, the weapon models in half precision on CUDA',
+    ],
+    limitations: [
+      'A prototype on one PC, not a product. Alerts are kept in memory, the last 500, and are gone after a restart.',
+      'The weapon figures come from the dataset’s own validation split, not from footage of real homes.',
+      'Sound alerts are typed events, such as bang, glass or scream, not a microphone.',
+      'A snapshot reaches the phone only when the app has a public address for Twilio to fetch it from.',
     ],
   },
 

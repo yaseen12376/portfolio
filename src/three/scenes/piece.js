@@ -455,7 +455,7 @@ export async function create({ stage, rig, slot, emit }) {
   // lights are not seen through glass), not the panorama, which holds the
   // strips only the glassware sees.
   // (A piece's hook may dress one part in a copy of the atlas material of its
-  // own, pieces/observex.js: each copy is the model's too.)
+  // own: each copy is the model's too.)
   const atlasMats = new Set();
   stage.root.traverse((o) => {
     if (o.isMesh) for (const m of [o.material].flat()) if (m?.name === 'atlas') atlasMats.add(m);
@@ -660,8 +660,8 @@ export async function create({ stage, rig, slot, emit }) {
     // With the glass off, a chapter may come in closer, as its own view says
     // (with it on the camera stays well outside it: close, the glass smears),
     // and aim `drop` below its dot (a dot over what it names: ObserveX's
-    // palette, above the rings it opens) or, negative, above it (AirDraw's
-    // bridge: up the rod from the dot on its base).
+    // masked person, the dot over the label over the figure) or, negative,
+    // above it (AirDraw's bridge: up the rod from the dot on its base).
     if (lift.want && lift.x >= GLASS_CLEAR && c?.view) return { target: [p.x, p.y - (c.view.drop ?? 0), p.z], zoom: c.view.zoom, pitch: c.view.pitch ?? 0 };
     // A spot that faces up is looked down on a little more.
     return { target: [p.x, p.y, p.z], zoom: s.on === 'jar' ? 0.5 : 0.58, pitch: up > 0.9 ? 0.12 : 0 };

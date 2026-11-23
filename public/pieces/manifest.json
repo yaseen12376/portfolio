@@ -77,18 +77,19 @@
    "loop-1080.mp4": 1028
   },
   "live": {
-   "v": "9aea2f9b",
+   "v": "e8c692cd",
    "kb": {
     "scene.glb": 264,
     "lightmap.webp": 80,
     "gloss.webp": 53,
     "albedo.webp": 22,
     "env.webp": 3,
-    "model_color.webp": 441,
-    "model_color-1k.webp": 163,
-    "model_orm.webp": 212
+    "model_color.webp": 432,
+    "model_color-1k.webp": 160,
+    "model_orm.webp": 212,
+    "model_emit.webp": 4
    },
-   "triangles": 27470,
+   "triangles": 27461,
    "drawCalls": 16
   }
  },
@@ -146,18 +147,19 @@
    "loop-1080.mp4": 682
   },
   "live": {
-   "v": "7c7de371",
+   "v": "ba49bfd4",
    "kb": {
     "scene.glb": 178,
     "lightmap.webp": 90,
     "gloss.webp": 60,
     "albedo.webp": 24,
     "env.webp": 3,
-    "model_color.webp": 220,
+    "model_color.webp": 219,
     "model_color-1k.webp": 83,
-    "model_orm.webp": 132
+    "model_orm.webp": 132,
+    "model_emit.webp": 2
    },
-   "triangles": 17321,
+   "triangles": 17323,
    "drawCalls": 14
   }
  },
@@ -174,18 +176,19 @@
    "loop-1080.mp4": 1005
   },
   "live": {
-   "v": "6804933a",
+   "v": "813cba8d",
    "kb": {
-    "scene.glb": 314,
+    "scene.glb": 318,
     "lightmap.webp": 89,
     "gloss.webp": 56,
     "albedo.webp": 25,
     "env.webp": 3,
-    "model_color.webp": 80,
-    "model_color-1k.webp": 34,
-    "model_orm.webp": 82
+    "model_color.webp": 81,
+    "model_color-1k.webp": 33,
+    "model_orm.webp": 81,
+    "model_emit.webp": 4
    },
-   "triangles": 32150,
+   "triangles": 32146,
    "drawCalls": 146
   }
  },
@@ -230,7 +233,7 @@
    "loop-1080.mp4": 837
   },
   "live": {
-   "v": "90c844de",
+   "v": "dd9e126b",
    "kb": {
     "scene.glb": 339,
     "lightmap.webp": 80,
@@ -238,12 +241,13 @@
     "albedo.webp": 19,
     "env.webp": 3,
     "model_color.webp": 542,
-    "model_color-1k.webp": 190,
-    "model_orm.webp": 310,
+    "model_color-1k.webp": 189,
+    "model_orm.webp": 311,
     "dust_grain.webp": 91,
-    "dust_mottle.webp": 5
+    "dust_mottle.webp": 5,
+    "model_emit.webp": 3
    },
-   "triangles": 30219,
+   "triangles": 30221,
    "drawCalls": 26
   }
  },
@@ -276,31 +280,32 @@
   }
  },
  "observex": {
-  "v": "f94b98e7",
+  "v": "b980e0c2",
   "frames": 144,
   "fps": 24,
   "kb": {
-   "poster-720.webp": 25,
-   "poster-1080.webp": 46,
-   "loop-720.webm": 390,
-   "loop-720.mp4": 398,
-   "loop-1080.webm": 603,
-   "loop-1080.mp4": 696
+   "poster-720.webp": 27,
+   "poster-1080.webp": 53,
+   "loop-720.webm": 559,
+   "loop-720.mp4": 534,
+   "loop-1080.webm": 1225,
+   "loop-1080.mp4": 1273
   },
   "live": {
-   "v": "9c0adca5",
+   "v": "f101bc40",
    "kb": {
-    "scene.glb": 183,
-    "lightmap.webp": 75,
-    "gloss.webp": 49,
-    "albedo.webp": 19,
+    "scene.glb": 545,
+    "lightmap.webp": 77,
+    "gloss.webp": 48,
+    "albedo.webp": 20,
     "env.webp": 3,
-    "model_color.webp": 76,
-    "model_color-1k.webp": 31,
-    "model_orm.webp": 72
+    "model_color.webp": 372,
+    "model_color-1k.webp": 150,
+    "model_orm.webp": 261,
+    "model_emit.webp": 11
    },
-   "triangles": 19153,
-   "drawCalls": 18
+   "triangles": 43405,
+   "drawCalls": 103
   }
  }
 }

@@ -644,7 +644,9 @@ def scene_json(S, data):
             'tracks': data.get('tracks'),
             'spots': data.get('piece_spots', {}),
             'probe': {'at': C.y_up(ENV_AT), 'lights': glass_lights()},
-            'model': {'color': 'model_color.webp', 'orm': 'model_orm.webp'},
+            # (And the light of its faint glows, if it has any: model_atlas.)
+            'model': {'color': 'model_color.webp', 'orm': 'model_orm.webp',
+                      **({'emit': 'model_emit.webp'} if bpy.context.scene.get('model_emit') else {})},
             # The glass: thin walls of index 1.17. Its inner wall's faces point
             # outward, as the outer wall's do (the two are separate pieces of
             # the mesh, and Blender's recalculation turns each outward), so in
@@ -673,6 +675,16 @@ def _is_emissive(m):
     return bool(b) and b.inputs['Emission Strength'].default_value >= 1.0
 
 
+def _glows(m):
+    """A Principled material that gives any light: its emission strength and
+    its colour both above nothing, or either driven by a link."""
+    b = _bsdf(m)
+    if not b:
+        return False
+    s, c = b.inputs['Emission Strength'], b.inputs['Emission Color']
+    return (s.is_linked or s.default_value > 0) and (c.is_linked or max(c.default_value[:3]) > 0)
+
+
 def _is_clear(m):
     if m is None:
         return False
@@ -681,8 +693,9 @@ def _is_clear(m):
 
 
 def keeps_own(m):
-    """A material the atlas cannot carry: a glow (its strength is more than a
-    colour), anything see-through, or anything animate() changes (its
+    """A material the atlas cannot carry: a glow of strength 1 and up (more
+    than a colour; a fainter one goes into the atlas, its light in
+    model_emit.png), anything see-through, or anything animate() changes (its
     tracks), or what a piece asks to keep (`own`: a part the page draws its
     own way). It is exported as itself."""
     return bool(m is not None and (m.get('tracked') or m.get('own'))) or _is_emissive(m) or _is_clear(m)
@@ -706,23 +719,33 @@ def _unemit(m, was):
 def _emit(m, which):
     """Route one Principled input (its link or its value) into an Emission
     shader on the material's output: an EMIT bake then reads that input,
-    procedural or not, metal or not."""
+    procedural or not, metal or not. 'Emission Color' brings its strength
+    with it, as the light the material gives; None routes black."""
     nt = m.node_tree
     out = _output(m)
     b = _bsdf(m)
     em = nt.nodes.get('_atlas_emit') or nt.nodes.new('ShaderNodeEmission')
     em.name = '_atlas_emit'
+    for sock in (em.inputs['Color'], em.inputs['Strength']):
+        for link in list(sock.links):
+            nt.links.remove(link)
     em.inputs['Strength'].default_value = 1.0
-    for link in list(em.inputs['Color'].links):
-        nt.links.remove(link)
-    src = b.inputs[which] if b is not None else None
-    if src is not None and src.is_linked:
+    src = b.inputs[which] if b is not None and which else None
+    if which is None:
+        em.inputs['Color'].default_value = (0, 0, 0, 1)
+    elif src is not None and src.is_linked:
         nt.links.new(src.links[0].from_socket, em.inputs['Color'])
-    elif which == 'Base Color':
+    elif which in ('Base Color', 'Emission Color'):
         em.inputs['Color'].default_value = tuple(src.default_value)[:4] if src is not None else (0.5, 0.5, 0.5, 1)
     else:
         v = float(src.default_value) if src is not None else 0.5
         em.inputs['Color'].default_value = (v, v, v, 1)
+    if which == 'Emission Color' and b is not None:
+        s = b.inputs['Emission Strength']
+        if s.is_linked:
+            nt.links.new(s.links[0].from_socket, em.inputs['Strength'])
+        else:
+            em.inputs['Strength'].default_value = float(s.default_value)
     nt.links.new(em.outputs['Emission'], out.inputs['Surface'])
 
 
@@ -847,7 +870,8 @@ def model_atlas(out, size=1024, scale=None, keep=None):
     """Everything the turntable carries, ready to draw live in few draw calls.
     Every part shares one UV atlas, and into it go the colour
     (model_color.png) and occlusion, roughness and metalness (model_orm.png,
-    R G B as glTF packs them), each read from the Principled inputs by an EMIT
+    R G B as glTF packs them), and the light its faint glows give, if it has
+    any (model_emit.png), each read from the Principled inputs by an EMIT
     bake, so procedural and photo materials survive the trip. The bake runs
     before any join, so each material reads its own UVs. Then the atlas
     materials become one 'atlas' material the page fills in (glows and
@@ -947,10 +971,29 @@ def model_atlas(out, size=1024, scale=None, keep=None):
         img = bpy.data.images.new(f'model_{key}', size, size, alpha=False, float_buffer=True)
         _bake(atlas_objs, img, 'EMIT', 4)
         maps[key] = _pixels(img)[..., :3]
+    # And the light of a faint glow (under strength 1: keeps_own keeps the
+    # stronger as themselves), its colour x strength, for the page's emissive
+    # map. Without it each went into the colour map alone and drew unlit where
+    # the render shows it lit: AthleteVision's watch hand, the dim panels of
+    # ObserveX's screens, Indoor Tracking's raw fixes (black but for their
+    # glow), the Earth's clouds over Mission Builder.
+    glowing = sorted((m for m in mats if _glows(m)), key=lambda m: m.name)
+    if glowing:
+        # (These objects' faces in materials of their own bake black here: an
+        # LED's light is its own, and must not bleed into the parts round it.)
+        others = {m for o in atlas_objs for m in o.data.materials if m is not None and m not in mats}
+        for m in others:
+            s = _output(m).inputs['Surface']
+            was[m] = s.links[0].from_socket if s.is_linked else None
+        for m in mats | others:
+            _emit(m, 'Emission Color' if m in glowing else None)
+        img = bpy.data.images.new('model_emit', size, size, alpha=False, float_buffer=True)
+        _bake(atlas_objs, img, 'EMIT', 4)
+        maps['emit'] = _pixels(img)[..., :3]
     # A material another object shares (one exported as itself) must not
     # leave as an emission shader.
-    for m in mats:
-        _unemit(m, was[m])
+    for m, s in was.items():
+        _unemit(m, s)
     img = bpy.data.images.new('model_ao', size, size, alpha=False, float_buffer=True)
     _bake(atlas_objs, img, 'AO', 96)
     maps['ao'] = _pixels(img)[..., :1]
@@ -960,6 +1003,15 @@ def model_atlas(out, size=1024, scale=None, keep=None):
     _save(_srgb(maps['color']), os.path.join(out, 'model_color.png'))
     orm = np.concatenate([maps['ao'], maps['rough'][..., :1], maps['metal'][..., :1]], axis=-1)
     _save(np.clip(orm, 0, 1), os.path.join(out, 'model_orm.png'))
+    # The glows' map only where there are any (scene_json names it then).
+    emit = os.path.join(out, 'model_emit.png')
+    if 'emit' in maps:
+        peak = float(maps['emit'].max())
+        _save(_srgb(maps['emit']), emit)
+        print('BAKED faint glows', ', '.join(m.name for m in glowing), f'(peak {peak:.3f}{", over 1: clipped" if peak > 1 else ""})')
+    elif os.path.exists(emit):
+        os.remove(emit)
+    sc['model_emit'] = 'emit' in maps
     print('BAKED model atlas', size, 'objects', len(atlas_objs), 'undersides culled', culled)
 
     # One material for everything the atlas now carries.

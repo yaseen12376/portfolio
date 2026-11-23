@@ -48,11 +48,20 @@ const BUDGET_KB = { 'loop-720.webm': 600, 'loop-720.mp4': 600, 'loop-1080.webm':
 // file's URL changes too (vercel.json lets browsers keep the files for a week).
 // The renders' own hash leaves this out: a new encode never re-renders.
 const ENCODE_REV = 2;
+// The loops' quality (constant rate factor): shared, and a piece's own at a
+// size where its turn is busier than the rest. ObserveX's brick, pavers and
+// lawn came to 727 KB (VP9) and 672 KB (H.264) at 720 on the shared factors;
+// a step coarser they are 558 and 533 KB, SSIM 0.9902 and 0.9744 against a
+// lossless encode, from 0.9923 and 0.9761. A piece's own factors are part of
+// its files' version, so changing them changes their URLs.
+const CRF = { vp9: 32, h264: 23 };
+const CRF_OWN = { observex: { 720: { vp9: 36, h264: 25 } } };
 // The live jar's files (the case study only), per file. The 1k colour atlas
 // is what a phone or a slower machine gets.
 const LIVE_BUDGET_KB = { 'scene.glb': 600, 'lightmap.webp': 200, 'gloss.webp': 150, 'albedo.webp': 200, 'env.webp': 80, 'model_color.webp': 700, 'model_color-1k.webp': 250, 'model_orm.webp': 400 };
 const LIVE_TOTAL_KB = 2000;
-// Each of a piece's own maps (scene.json's piece.dust.maps).
+// Each of a piece's own maps (scene.json's piece.dust.maps, and its
+// model's glow map, piece.model.emit).
 const LIVE_OWN_KB = 120;
 // Raise to re-bake every jar (Blender) after a change its hash cannot see.
 // The files' version is a hash of their bytes, so an encode change needs no bump.
@@ -249,13 +258,14 @@ async function encode(id, hash) {
       // were light). accurate_rnd: without it the page colour comes out as
       // Y 24, U 130, V 129 rather than 24, 129, 128, a level or two off the page.
       const filter = `[0:v]format=gbrp[a];[1:v]format=gbrp[b];[a][b]blend=all_mode=lighten:shortest=1,scale=${size}:${size}:flags=lanczos+accurate_rnd+full_chroma_int:out_color_matrix=bt709:out_range=tv,format=yuv420p,${tags}`;
+      const crf = { ...CRF, ...CRF_OWN[id]?.[size] };
       await ffmpeg(
-        [...input, '-filter_complex', filter, '-c:v', 'libvpx-vp9', '-crf', '32', '-b:v', '0', '-row-mt', '1', '-deadline', 'good', '-cpu-used', '1', '-g', String(FRAMES), '-an', join(out, `loop-${size}.webm`)],
+        [...input, '-filter_complex', filter, '-c:v', 'libvpx-vp9', '-crf', String(crf.vp9), '-b:v', '0', '-row-mt', '1', '-deadline', 'good', '-cpu-used', '1', '-g', String(FRAMES), '-an', join(out, `loop-${size}.webm`)],
         `vp9 ${size}`
       );
       // aq-mode 3 spends bits on dark areas, which is where banding shows.
       await ffmpeg(
-        [...input, '-filter_complex', filter, '-c:v', 'libx264', '-crf', '23', '-preset', 'slow', '-profile:v', 'high', '-x264-params', 'aq-mode=3', '-g', String(FRAMES), '-movflags', '+faststart', '-an', join(out, `loop-${size}.mp4`)],
+        [...input, '-filter_complex', filter, '-c:v', 'libx264', '-crf', String(crf.h264), '-preset', 'slow', '-profile:v', 'high', '-x264-params', 'aq-mode=3', '-g', String(FRAMES), '-movflags', '+faststart', '-an', join(out, `loop-${size}.mp4`)],
         `h264 ${size}`
       );
       files.push(`loop-${size}.webm`, `loop-${size}.mp4`);
@@ -274,7 +284,8 @@ async function encode(id, hash) {
     }
   }
   console.log(`  encode  ${files.map((f) => `${f} ${sizes[f]} KB`).join(', ')}`);
-  const v = createHash('sha256').update(`${hash}:${ENCODE_REV}`).digest('hex').slice(0, 8);
+  const own = CRF_OWN[id] ? `:${JSON.stringify(CRF_OWN[id])}` : '';
+  const v = createHash('sha256').update(`${hash}:${ENCODE_REV}${own}`).digest('hex').slice(0, 8);
   return { v, frames: frames === FRAMES ? FRAMES : 0, fps: FPS, kb: sizes, over };
 }
 
@@ -320,8 +331,14 @@ async function live(id) {
   await sharp(join(src, 'model_orm.png')).resize(1024, 1024, { kernel: 'lanczos3' }).webp({ quality: 85, effort: 6, smartSubsample: true }).toFile(join(dst, 'model_orm.webp'));
   // A piece's own maps (Mission Builder's dust: its grain and its patches).
   // Grey, so lossy WebP's half-size colour planes carry nothing.
-  const own = Object.values(scene.piece?.dust?.maps ?? {});
-  for (const f of own) await sharp(join(src, f.replace(/\.webp$/, '.png'))).grayscale().webp({ quality: 88, effort: 6 }).toFile(join(dst, f));
+  const dust = Object.values(scene.piece?.dust?.maps ?? {});
+  for (const f of dust) await sharp(join(src, f.replace(/\.webp$/, '.png'))).grayscale().webp({ quality: 88, effort: 6 }).toFile(join(dst, f));
+  // And the light of the model's faint glows, when it has any (live.py
+  // model_atlas): colour, as the colour map is, at 1k (a glow is one flat
+  // colour over a part; mostly black, it costs a few KB).
+  const emit = scene.piece?.model?.emit;
+  if (emit) await sharp(join(src, emit.replace(/\.webp$/, '.png'))).resize(1024, 1024, { kernel: 'lanczos3' }).webp({ quality: 86, effort: 6, smartSubsample: true }).toFile(join(dst, emit));
+  const own = [...dust, ...(emit ? [emit] : [])];
   // The version is the files' own hash, so whatever changes them (a bake or
   // an encode) changes every URL the page asks for.
   const files = ['scene.glb', 'lightmap.webp', 'gloss.webp', 'albedo.webp', 'env.webp', 'model_color.webp', 'model_color-1k.webp', 'model_orm.webp', ...own];

@@ -162,8 +162,8 @@ async function recordJar() {
       }
       if (part !== planned) console.log(`tap ${i + 1}: ${planned} not on screen, ${part} tapped`);
       await film.glide(p.x, p.y, 0.7);
-      // A part that moves (ObserveX's rings swing), seen only as a sliver at
-      // the frame's edge (over the tag's close-up), can slip out from under
+      // A part that moves (the first ObserveX piece's rings swung), seen only
+      // as a sliver at the frame's edge (over its tag's close-up), can slip out from under
       // the pointer on its way: where the pointer rests, it must still be on
       // the part, or it goes straight to where the part is now.
       const under = () => onJar(page, (slot, [x, y]) => slot.pick({ clientX: x, clientY: y })?.part ?? null, [film.at.x, film.at.y]);

@@ -766,6 +766,108 @@ const allProjects = [
     techStack: ['BLE Beacons', 'ESP32', 'MQTT', 'Python', 'Node.js', 'WebSocket', 'Kalman Filter'],
   },
 
+  // Facts from the app's own repo: stream_rtsp.py, static/app.js,
+  // templates/index.html, train_weapon_model.py and the training run's
+  // results.csv (the shipped weights are its best epoch, 27, by md5).
+  // The weapon figures are the dataset's validation split, never accuracy on
+  // real footage. The repo is private and holds keys and photos of people:
+  // never link it, and never use its known_faces or snapshots.
+  {
+    id: 'observex',
+    tier: 'large',
+    kind: 'Home security',
+    title: 'ObserveX: Home Threat Detection',
+    short:
+      'A home security system on RTSP cameras: it looks for weapons, covered faces, strangers, loiterers and flagged plates, and texts the owner while it happens.',
+    blurb: 'Home cameras that spot weapons and covered faces, then text you.',
+    tags: ['YOLOv12', 'InsightFace', 'Flask', 'Twilio'],
+    detail: {
+      problem: 'Home CCTV records a break-in for later; nobody hears about it while it happens.',
+      built: 'A Flask app that checks every RTSP camera for weapons, covered faces, strangers, loiterers and plates.',
+      result: 'The owner gets a text naming the camera and the threat, and one button calls for help.',
+    },
+    year: '2026',
+    period: { from: '2026-04', to: '2026-05' },
+    role: 'Solo project',
+    team: 'Designed, built and trained alone',
+    status: 'Working prototype',
+    private: true,
+    piece: {
+      id: 'observex',
+      chapters: [
+        {
+          id: 'jar',
+          title: 'The front door at night',
+          caption:
+            'A house front after dark, watched by the camera on its wall. A figure with a covered face waits by the door with a knife held low, a scooter stands at the gate, and the alert has reached the phone on its stand. Behind the wall sits the dashboard.',
+          hint: 'Drag to turn it. Tap the glass to lift it off, then tap a part.',
+        },
+        {
+          id: 'camera',
+          title: 'One camera, every check',
+          caption:
+            'Each RTSP camera gets two threads: one keeps the newest frame, the other runs the checks, at most twice a second. A 160 × 120 motion test skips the heavy models while nothing moves, though they still run every 5 s, and a frame darker than 60 of 255 is brightened with CLAHE first.',
+          // The dot is on the camera, high on the wall: aimed down the wall,
+          // so its view reaches the porch and the figure it watches.
+          view: { zoom: 0.42, drop: 0.12 },
+        },
+        {
+          id: 'masked',
+          title: 'A covered face',
+          caption:
+            'A person YOLO finds with no clear face in the box is a critical alert, saved with a snapshot. Whether a face is covered is three checks in turn: a YOLO mask detector, a ViT classifier on every fifth face, and a skin and edge test of the lower face that can overrule both. The ring at the feet is loitering: 20 s near the door raises an alert, 40 s a critical one.',
+          // The dot is over the label: aimed at the figure's middle, the
+          // ring at its feet in the frame.
+          view: { zoom: 0.38, drop: 0.18 },
+        },
+        {
+          id: 'weapon',
+          title: 'Two models for a weapon',
+          caption:
+            'YOLOv12m fine-tuned for 30 epochs on 9,523 labelled images in 14 classes, from knives to rifles: 0.744 mAP50 on the dataset’s 1,906 validation images. The stock model adds knives and scissors, and its box is dropped where it overlaps a custom one by more than 0.3. Weapons are looked for at least every 0.9 s, motion or not.',
+          // In close on the knife, held low by the hip.
+          view: { zoom: 0.27, drop: 0.06 },
+        },
+        {
+          id: 'plate',
+          title: 'Reading the plate',
+          caption:
+            'A plate is found by its shape, a four to six sided outline 1.8 to 6 times as wide as it is tall, then read with EasyOCR and kept at four characters or more. Each read is checked against the owner’s allowed and flagged plates: green, red, or amber when unknown. A flagged plate is an alert, and the same plate is logged once a minute.',
+          // In close on the plate and its label.
+          view: { zoom: 0.28, drop: 0.05 },
+        },
+        {
+          id: 'alert',
+          title: 'The text and the SOS',
+          caption:
+            'Every alert goes out as a Twilio text written for its kind, at most once every 15 s for the same alert; a masked person’s carries its snapshot when the app has a public address. The SOS button calls every emergency and neighbour number with a spoken message, at most once a minute, and sounds a 45 s siren on the dashboard.',
+          // The dot is over the phone: aimed at its screen, close enough to
+          // read the text.
+          view: { zoom: 0.24, drop: 0.1 },
+        },
+        {
+          id: 'dashboard',
+          title: 'The dashboard',
+          caption:
+            'Six tabs on 29 Flask routes: live cameras with their boxes redrawn every 250 ms, alerts with CSV and JSON export and false-positive marking, people, vehicles, settings and per-camera metrics. Known faces are matched by ArcFace at cosine 0.45, and a stranger keeps an ID for 30 min. Home mode hides strangers’ boxes; weapons and covered faces show in both modes.',
+          // Round the back, in close on the monitor (its dot over the
+          // frame), looking a little less down, over the chair.
+          view: { zoom: 0.2, pitch: -0.08, drop: 0.08 },
+        },
+      ],
+    },
+    metrics: [
+      { value: '0.744', label: 'mAP50 of the weapon model on the dataset’s 1,906 validation images' },
+      { value: '9,523', label: 'labelled images it was fine-tuned on, in 14 weapon classes' },
+      { value: '12', label: 'kinds of alert, each sent to the owner as a text' },
+      { value: '29', label: 'Flask routes behind a six-tab dashboard' },
+    ],
+    techStack: [
+      'Python', 'OpenCV', 'PyTorch', 'Ultralytics YOLO', 'ONNX Runtime', 'CUDA', 'InsightFace',
+      'Hugging Face Transformers', 'EasyOCR', 'Flask', 'Waitress', 'Twilio', 'JavaScript', 'Web Audio API',
+    ],
+  },
+
   {
     id: 'kps-cleano',
     tier: 'small',
@@ -830,66 +932,6 @@ const allProjects = [
       'Astro 7', 'TypeScript', 'Tailwind CSS 4', 'nanostores', 'GSAP', 'Lenis', 'three.js',
       'Blender', 'Cycles', 'rembg', 'OpenCV', 'Playwright',
     ],
-  },
-
-  {
-    id: 'observex',
-    tier: 'small',
-    kind: 'Product site',
-    title: 'ObserveX: Behavioral Threat Detection',
-    short:
-      'Product site for an AI home security concept built around predicting intent, not replaying footage after a break-in.',
-    blurb: 'Investor site for an AI home security concept.',
-    tags: ['React 19', 'TypeScript', 'Framer Motion', 'Three.js'],
-    detail: {
-      problem: 'Ordinary CCTV produces evidence after a break-in, which helps nobody at home.',
-      built: 'Twelve scroll-choreographed sections in React 19, TypeScript and Framer Motion.',
-      result: 'A pitch surface that reads as a funded startup, not a student project.',
-    },
-    year: '2026',
-    piece: {
-      id: 'observex',
-      chapters: [
-        {
-          id: 'jar',
-          title: 'The mark and its rings',
-          caption:
-            'ObserveX is a product site for a home-security concept, so there is no machine to show: the jar holds its identity. The OX block is the logo from the site’s navbar, and three rings in its palette swing round it, each carrying a lens.',
-          hint: 'Drag to turn it. Tap the glass to lift it off, then tap a part.',
-        },
-        {
-          id: 'mark',
-          title: 'The logo',
-          caption:
-            'As the navbar draws it: a rounded square in a gradient from cyan to violet, with OX in the page’s navy, #050810.',
-        },
-        {
-          id: 'palette',
-          title: 'The palette',
-          caption:
-            'The rings are the palette in the site’s stylesheet: navy #050810, cyan #00e5ff and purple #8b5cf6. The type is Bebas Neue for display, Rajdhani for headings, DM Sans for text and Space Mono for figures.',
-          // The dot rides over the rings' tops: aimed at their middle instead
-          // (the block's, 0.25 below), from far enough back to hold all three.
-          view: { zoom: 0.74, pitch: 0.12, drop: 0.25 },
-        },
-        {
-          id: 'site',
-          title: 'Twelve sections',
-          caption:
-            'Twelve sections in React 19, TypeScript and Framer Motion, from a two-second loading screen with a turning scan to the demo booking and the footer.',
-          // In on the tag, from a little lower: the rings behind it then rise
-          // out of the frame instead of catching under the button at its top.
-          view: { zoom: 0.31, pitch: -0.14 },
-        },
-      ],
-    },
-    repo: 'https://github.com/yaseen12376/observex',
-    metrics: [
-      { value: '12', label: 'Composed sections' },
-      { value: 'React 19', label: 'TypeScript + Tailwind 4' },
-      { value: 'R3F', label: 'Three.js integration' },
-    ],
-    techStack: ['React 19', 'TypeScript', 'Tailwind CSS 4', 'Framer Motion', 'Three.js', 'shadcn/ui', 'Vite'],
   },
 
   {

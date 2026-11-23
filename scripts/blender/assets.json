@@ -148,6 +148,51 @@
           "Roughness",
           "Displacement"
         ]
+      },
+      "Bricks086": {
+        "use": "observex: the house front’s brick",
+        "res": "1K-JPG",
+        "maps": [
+          "Color",
+          "Roughness",
+          "Displacement"
+        ]
+      },
+      "PavingStones099": {
+        "use": "observex: the interlocking drive and path",
+        "res": "1K-JPG",
+        "maps": [
+          "Color",
+          "Roughness",
+          "Displacement"
+        ]
+      },
+      "Grass004": {
+        "use": "observex: the lawn by the gate",
+        "res": "1K-JPG",
+        "maps": [
+          "Color",
+          "Roughness",
+          "Displacement"
+        ]
+      },
+      "Wood066": {
+        "use": "observex: the teak front door",
+        "res": "1K-JPG",
+        "maps": [
+          "Color",
+          "Roughness",
+          "Displacement"
+        ]
+      },
+      "Metal027": {
+        "use": "observex: the camera’s powder-coated housing and the gate",
+        "res": "1K-JPG",
+        "maps": [
+          "Color",
+          "Roughness",
+          "Displacement"
+        ]
       }
     }
   }

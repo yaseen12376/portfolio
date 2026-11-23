@@ -197,13 +197,14 @@ export async function loadStage(renderer, base, { small = false, signal, shadows
   // A piece's own maps (Mission Builder's dust: its grain and its patches),
   // grey data on the piece's own coordinates (row 0 at the bottom, as Blender reads it).
   const ownMaps = Object.entries(pc?.dust?.maps ?? {});
-  const [gltf, lightmap, envTex, albedo, modelColor, modelOrm, gloss, ...rest] = await Promise.all([
+  const [gltf, lightmap, envTex, albedo, modelColor, modelOrm, modelEmit, gloss, ...rest] = await Promise.all([
     loader.loadAsync(`${base}scene.glb${v}`),
     texture(`${base}${lightmapFile}${v}`, true),
     texture(`${base}env.webp${v}`, true, false),
     data.albedo ? texture(`${base}${small && !pc ? 'albedo-2k.webp' : data.albedo}${v}`, true) : null,
     pc ? texture(`${base}${small ? pc.model.color.replace(/\.webp$/, '-1k.webp') : pc.model.color}${v}`, true) : null,
     pc ? texture(`${base}${pc.model.orm}${v}`, false) : null,
+    pc?.model?.emit ? texture(`${base}${pc.model.emit}${v}`, true) : null,
     pc && data.gloss ? texture(`${base}${data.gloss.file}${v}`, true) : null,
     ...tileNames.map(([, m]) => texture(m.map, true)),
     ...ownMaps.map(([, f]) => texture(`${base}${f}${v}`, false, false)),
@@ -236,13 +237,13 @@ export async function loadStage(renderer, base, { small = false, signal, shadows
   const root = gltf.scene;
   const byName = new Map();
   const anchors = new Map();
-  const disposables = new Set([lightmap, envRT, albedo, modelColor, modelOrm, gloss, ...tileTex, ...Object.values(maps)]);
+  const disposables = new Set([lightmap, envRT, albedo, modelColor, modelOrm, modelEmit, gloss, ...tileTex, ...Object.values(maps)]);
   // Every diffuse surface of the set shares one material in the atlas era.
   let bakedMat = null;
   // A piece's model: colour, and occlusion (R), roughness (G) and metalness
   // (B) from one map, the way glTF packs them, all on the model's one UV.
   let atlasMat = null;
-  if (modelColor) modelColor.anisotropy = Math.min(8, renderer.capabilities.getMaxAnisotropy());
+  for (const t of [modelColor, modelEmit]) if (t) t.anisotropy = Math.min(8, renderer.capabilities.getMaxAnisotropy());
   // In the tiled era: flat colour (vertex colours) and one material per photo
   // tile (tint in the vertex colours, the tile on UV 0), all x the light on UV 1.
   const aniso = Math.min(8, renderer.capabilities.getMaxAnisotropy());
@@ -285,6 +286,9 @@ export async function loadStage(renderer, base, { small = false, signal, shadows
           // gives it.)
           roughness: 1.3,
           metalness: 1,
+          // The light its faint glows give, where it has any (live.py
+          // model_atlas: a screen's dim panels, a watch's hand).
+          ...(modelEmit ? { emissiveMap: modelEmit, emissive: 0xffffff } : {}),
           // A model's thin sheets (a solar array's panel) cast whole
           // shadows, as in Cycles; drawn by their back faces only (three's
           // default) a sheet casts none and only its ribs would.
@@ -332,7 +336,8 @@ export async function loadStage(renderer, base, { small = false, signal, shadows
     // as in Blender, and its glass neither casts nor takes any.
     const mats = Array.isArray(o.material) ? o.material : [o.material];
     const clear = mats.some((m) => m.transparent || (m.opacity ?? 1) < 1);
-    const glow = mats.some((m) => m.emissive && (m.emissiveIntensity ?? 1) * Math.max(m.emissive.r, m.emissive.g, m.emissive.b) > 0.5);
+    // (Not the model's atlas: its glows are faint parts of solid things.)
+    const glow = mats.some((m) => m !== atlasMat && m.emissive && (m.emissiveIntensity ?? 1) * Math.max(m.emissive.r, m.emissive.g, m.emissive.b) > 0.5);
     o.castShadow = role === 'dyn' && !(pc && (clear || glow));
     o.receiveShadow = role === 'prop' || role === 'dyn';
     disposables.add(o.geometry);

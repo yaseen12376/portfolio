@@ -59,7 +59,6 @@ const JAR_OWN = {
   athletevision: { pixels: 18.5 }, // 2.94 / 17.99
   'indoor-tracking': { pixels: 17.5 }, // 1.99 / 17.18
   'kps-cleano': { pixels: 19 }, // 2.66 / 18.26
-  observex: { pixels: 20 }, // 1.36 / 19.29
   airdraw: { pixels: 17.5 }, // 1.88 / 17.12
 };
 const toneDE = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]);

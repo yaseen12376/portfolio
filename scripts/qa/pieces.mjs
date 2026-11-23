@@ -177,7 +177,6 @@ const HOOK_NEEDS = {
     nodes: (v) => [...(v.meshes?.length === v.anchors?.length ? v.meshes : ['(as many range meshes as anchors)']), v.crate],
   },
   adraf: { key: 'scan', fields: ['ring', 'band', 'color', 'materials'], nodes: (v) => [v.ring], materials: (v) => Object.keys(v.materials ?? {}) },
-  observex: { key: 'glow', fields: ['mesh', 'strength'], nodes: (v) => [v.mesh] },
   'kps-cleano': { key: 'film', fields: ['material', 'thickness', 'ior'], nodes: () => [], materials: (v) => [v.material] },
 };
 const LIVE_BUDGET_KB = new Function(`return ${src.match(/const LIVE_BUDGET_KB = (\{[^}]+\})/)[1]}`)();
@@ -186,8 +185,8 @@ const LIVE_OWN_KB = Number(src.match(/const LIVE_OWN_KB = (\d+)/)[1]);
 for (const id of ids.filter((x) => site[x]?.live)) {
   const dir = join(PUBLIC, id, 'live');
   const scene = existsSync(join(dir, 'scene.json')) ? JSON.parse(await readFile(join(dir, 'scene.json'), 'utf8')) : null;
-  // A piece's own maps (its dust), each within LIVE_OWN_KB.
-  const own = Object.values(scene?.piece?.dust?.maps ?? {});
+  // A piece's own maps (its dust, its model's faint glows), each within LIVE_OWN_KB.
+  const own = [...Object.values(scene?.piece?.dust?.maps ?? {}), ...(scene?.piece?.model?.emit ? [scene.piece.model.emit] : [])];
   const files = [...Object.keys(LIVE_BUDGET_KB), ...own];
   const absent = files.filter((f) => !existsSync(join(dir, f)));
   const sizes = {};

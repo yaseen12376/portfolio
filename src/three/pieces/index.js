@@ -8,13 +8,11 @@
  *   courier          the receipt feeding out of the printer's slot
  *   indoor-tracking  the range circles round each anchor, cut to the plan
  *   adraf            the scan ring's light on the voxels it passes
- *   observex         the logo block's glow, in a copy of the atlas of its own
  *   kps-cleano       the soap bubbles' film, which the glTF cannot carry
  */
 export const HOOKS = {
   courier: () => import('./courier.js'),
   'indoor-tracking': () => import('./indoor-tracking.js'),
   adraf: () => import('./adraf.js'),
-  observex: () => import('./observex.js'),
   'kps-cleano': () => import('./kps-cleano.js'),
 };
