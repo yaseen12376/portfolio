@@ -47,7 +47,7 @@ import { GROUND_LAYER, PieceGlass } from '../piece-glass.js';
 import { pieceTracks } from '../piece-tracks.js';
 import { HOOKS } from '../pieces/index.js';
 import { addGlassGlow, addRoomSheen, floorMap, roomLights } from '../room-sheen.js';
-import { softShadow } from '../stage.js';
+import { dropHighlight, softShadow } from '../stage.js';
 
 const TAU = Math.PI * 2;
 const LOOP_TURN = TAU / 6; // the loop's pace: one turn in six seconds
@@ -446,6 +446,13 @@ export async function create({ stage, rig, slot, emit }) {
       const lacquer = pc.sheen && !stage.data.gloss && o.userData.role === 'set' && m.name === 'baked';
       if (!brass && !lacquer) continue;
       addRoomSheen(m, roomLights(pc, brass ? 'jar_rim' : 'jar_base'), { jar, floors: brass ? floors : null });
+      // Each light once: the brass mirrors the room's lights as the
+      // rectangles they are, where the glass does not hide them. One of them,
+      // the kit's low light from behind in the piece's accent, is a live
+      // light as well, for the model, and it lit the brass a second time, as
+      // a point with nothing in its way: a line of the accent round the
+      // inside of the rim, where in Cycles the model stands between them.
+      if (brass) for (const l of pc.probe?.lights ?? []) dropHighlight(m, l.name);
       sheened.add(m);
     }
   });

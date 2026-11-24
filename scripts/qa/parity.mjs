@@ -49,17 +49,18 @@ const TONE = Number(opts.tone ?? 3);
 // (docs/dioramas-handoff.md, 3c). An option given on the command line
 // (--jar-max, --tone) holds for every jar.
 //
-// Measured 23 November 2026 (r9, the glass's glow at 0.06 and 1.5), as
-// tone / pixels, at quality 0: jarAtPoster() (lib.mjs) holds the page's loop
-// for the shot, so a run no longer scores whichever step a slower GPU had
-// reached by then. Two runs on the Intel UHD gave the same to the
-// hundredth, and the RTX 3050 Ti the same within 0.06 in tone and 0.01 in
-// pixels; each bar is taken from the higher of the two GPUs.
+// Measured 24 November 2026 (r9: the glass's glow at 0.06 and 1.5, the
+// brass taking each light once), as tone / pixels, at quality 0:
+// jarAtPoster() (lib.mjs) holds the page's loop for the shot, so a run no
+// longer scores whichever step a slower GPU had reached by then. Runs on
+// the Intel UHD give the same to the hundredth, and the RTX 3050 Ti the
+// same within 0.04 in tone and 0.01 in pixels; each bar is taken from the
+// higher of the two GPUs.
 const JAR_OWN = {
-  athletevision: { pixels: 18.5 }, // 2.94 / 17.99
-  'indoor-tracking': { pixels: 17.5 }, // 1.99 / 17.18
-  'kps-cleano': { pixels: 19 }, // 2.66 / 18.26
-  airdraw: { pixels: 17.5 }, // 1.88 / 17.12
+  athletevision: { pixels: 18.5 }, // 2.91 / 17.90
+  'indoor-tracking': { pixels: 17 }, // 1.35 / 16.65
+  'kps-cleano': { pixels: 18.5 }, // 2.78 / 18.20
+  airdraw: { pixels: 17.5 }, // 1.94 / 17.00
 };
 const toneDE = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]);
 const PUBLIC = resolve(ROOT, 'public', '3d');

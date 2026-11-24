@@ -30,7 +30,9 @@ opacity) sampled with it as tracks the page sets frame by frame, the lights
 the glass reflects, and the model's atlas. A piece module can add its own:
 live(st) changes the scene for the export (a stand-in for a shader the page
 draws its own way; an object it marks `hooked` is left out of the clip and of
-the join, for src/three/pieces/<id>.js to move), page(st) what scene.json's
+the join, for src/three/pieces/<id>.js to move; one it marks `apart` travels
+over the rest, which the model's occlusion leaves it out of: model_atlas),
+page(st) what scene.json's
 piece tells the page about it, LIVE['model_uv_scale'] its share of the atlas
 and LIVE['clip_frames'] how finely its motion is sampled (the render's 144
 for a drop that falls six times a loop: a key a frame, so no part is ever
@@ -749,7 +751,7 @@ def _emit(m, which):
     nt.links.new(em.outputs['Emission'], out.inputs['Surface'])
 
 
-def _bake(objs, img, kind, samples):
+def _bake(objs, img, kind, samples, margin=8, clear=True):
     sc = bpy.context.scene
     sc.cycles.samples = samples
     added = []
@@ -762,7 +764,7 @@ def _bake(objs, img, kind, samples):
             m.node_tree.nodes.active = n
             added.append((m.node_tree, n))
     C.select(objs)
-    bpy.ops.object.bake(type=kind, margin=8, use_clear=True, target='IMAGE_TEXTURES')
+    bpy.ops.object.bake(type=kind, margin=margin, use_clear=clear, target='IMAGE_TEXTURES')
     for nt, n in added:
         nt.nodes.remove(n)
 
@@ -997,6 +999,37 @@ def model_atlas(out, size=1024, scale=None, keep=None):
     img = bpy.data.images.new('model_ao', size, size, alpha=False, float_buffer=True)
     _bake(atlas_objs, img, 'AO', 96)
     maps['ao'] = _pixels(img)[..., :1]
+    # A part that travels over the rest (one the piece's live() marks `apart`:
+    # Indoor Tracking's crate, going round its plan) shut in what it stood on
+    # at frame 0, and the page drew that ground dark (black where shut in:
+    # stage.js shutIn) all through the loop, wherever the part had gone: two
+    # black bars where the crate's straps had stood. The rest is baked again
+    # without it, and the rest's texels read from that; the part's own read
+    # from the first, the model round it as it stands at frame 0.
+    def lineage(o):
+        while o is not None:
+            yield o
+            o = o.parent
+
+    away = [o for o in atlas_objs if any(p.get('apart') for p in lineage(o))]
+    if away:
+        rest = [o for o in atlas_objs if o not in away]
+        for o in away:
+            o.hide_render = True
+        img = bpy.data.images.new('model_ao_rest', size, size, alpha=False, float_buffer=True)
+        # Below zero wherever this bake writes nothing (no clear, no margin):
+        # the travelling parts' texels and the gaps keep the first bake's.
+        img.pixels.foreach_set(np.full(size * size * 4, -1.0, np.float32))
+        _bake(rest, img, 'AO', 96, margin=0, clear=False)
+        rest_ao = _pixels(img)[..., :1]
+        maps['ao'] = np.where(rest_ao >= 0, rest_ao, maps['ao'])
+        for o in away:
+            o.hide_render = False
+        kinds = {}
+        for n in {p.name for o in away for p in lineage(o) if p.get('apart')}:
+            k = n.rstrip('0123456789.') or n
+            kinds[k] = kinds.get(k, 0) + 1
+        print(f'BAKED occlusion without the {len(away)} parts that travel:', ', '.join(f'{k} x{c}' if c > 1 else k for k, c in sorted(kinds.items())))
     for o, h in shown.items():
         o.hide_render = h
 

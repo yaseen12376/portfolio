@@ -176,19 +176,19 @@
    "loop-1080.mp4": 1005
   },
   "live": {
-   "v": "813cba8d",
+   "v": "2e17c9d1",
    "kb": {
-    "scene.glb": 318,
+    "scene.glb": 321,
     "lightmap.webp": 89,
-    "gloss.webp": 56,
+    "gloss.webp": 57,
     "albedo.webp": 25,
     "env.webp": 3,
-    "model_color.webp": 81,
-    "model_color-1k.webp": 33,
-    "model_orm.webp": 81,
-    "model_emit.webp": 4
+    "model_color.webp": 89,
+    "model_color-1k.webp": 37,
+    "model_orm.webp": 93,
+    "model_emit.webp": 5
    },
-   "triangles": 32146,
+   "triangles": 32130,
    "drawCalls": 146
   }
  },

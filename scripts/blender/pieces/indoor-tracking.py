@@ -337,9 +337,33 @@ def spots(st):
 def live(st):
     """The range circles are redrawn every frame (set_arcs): the page draws
     them its own way (src/three/pieces/indoor-tracking.js), from where the
-    crate is, cut to the plan."""
+    crate is, cut to the plan. The crate goes round the plan, and the raw
+    fixes come and go: the plan's occlusion is baked without them, or it
+    keeps where they stood at frame 0 (the crate's straps as two black bars).
+    And the plinth's top goes: the plan covers all of it, yet the map of the
+    ground the glass takes from straight above (the lowest surface that faces
+    up wins) took it for the floor, and drew its black wherever a ray passed
+    behind the crate, a wall or a post and came down on the plan
+    (AthleteVision's underlay, the same)."""
+    import bmesh
+
     for o in st['state']['arcs']:
         o['hooked'] = 1
+    st['state']['crate']['apart'] = 1
+    for o, _ in st['state']['raw']:
+        o['apart'] = 1
+    plinth = bpy.data.objects.get('plinth')
+    if plinth:
+        nm = plinth.matrix_world.to_3x3().inverted_safe().transposed()
+        bm = bmesh.new()
+        bm.from_mesh(plinth.data)
+        bm.normal_update()
+        top = [f for f in bm.faces if (nm @ f.normal).normalized().z > 0.99]
+        if top:
+            bmesh.ops.delete(bm, geom=top, context='FACES')
+            bm.to_mesh(plinth.data)
+        bm.free()
+        plinth.data.update()
 
 
 def page(st):

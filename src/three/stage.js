@@ -94,19 +94,38 @@ const LIGHTS_BEGIN = (() => {
   return src.slice(0, k) + keep + src.slice(k + RE_CALL.length);
 })();
 
-/** Drop the highlight of the directional lights `mask` marks 0 (after any patch the material has). */
-function diffuseOnly(material, mask) {
+/**
+ * Drop the highlight of the directional lights `mask` marks 0 (after any
+ * patch the material has). Each material keeps its own copy, by the lights'
+ * names (`names`, in the mask's order), so one can drop more: dropHighlight().
+ */
+function diffuseOnly(material, mask, names) {
   if (!LIGHTS_BEGIN) return;
+  const own = mask.slice();
+  material.userData.dirGlossy = { names, mask: own };
   const before = material.onBeforeCompile;
   const beforeKey = material.customProgramCacheKey;
   material.onBeforeCompile = (shader, renderer) => {
     before.call(material, shader, renderer);
-    shader.uniforms.dirGlossy = { value: mask };
+    shader.uniforms.dirGlossy = { value: own };
     shader.fragmentShader = shader.fragmentShader
       .replace('#include <common>', '#include <common>\n#if NUM_DIR_LIGHTS > 0\nuniform float dirGlossy[ NUM_DIR_LIGHTS ];\n#endif')
       .replace('#include <lights_fragment_begin>', LIGHTS_BEGIN);
   };
   material.customProgramCacheKey = () => `${beforeKey.call(material)}|diffuse-only`;
+}
+
+/**
+ * Drop one directional light's highlight (by its name) from a material that
+ * diffuseOnly() patched (every lit material, where a light only lights: a
+ * piece's fill). False if the material has no such light or patch.
+ */
+export function dropHighlight(material, name) {
+  const g = material.userData.dirGlossy;
+  const i = g ? g.names.indexOf(name) : -1;
+  if (i < 0) return false;
+  g.mask[i] = 0;
+  return true;
 }
 
 /**
@@ -371,12 +390,13 @@ export async function loadStage(renderer, base, { small = false, signal, shadows
   // leaves no highlight on what is lit live. three orders its directional
   // lights with the shadow casters first.
   if (lights.some((l) => !l.userData.glossy)) {
-    const mask = [...lights].sort((a, b) => Number(b.castShadow) - Number(a.castShadow)).map((l) => (l.userData.glossy ? 1 : 0));
+    const order = [...lights].sort((a, b) => Number(b.castShadow) - Number(a.castShadow));
+    const mask = order.map((l) => (l.userData.glossy ? 1 : 0));
     const lit = new Set();
     root.traverse((o) => {
       if (o.isMesh) for (const m of [o.material].flat()) if (m?.isMeshStandardMaterial) lit.add(m);
     });
-    for (const m of lit) diffuseOnly(m, mask);
+    for (const m of lit) diffuseOnly(m, mask, order.map((l) => l.name));
   }
   // The shadow map is a render target (colour and depth) the light owns.
   if (catcher) disposables.add(catcher.geometry).add(catcher.material).add(key.shadow);
